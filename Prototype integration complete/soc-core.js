@@ -55,7 +55,7 @@
       required: !!o.required, active: true, order: 0,
       options: o.options || [], placeholder: o.placeholder || '',
       helper: o.helper || '', group: o.group || 'ข้อมูลทั่วไป',
-      unit: o.unit || '', allowOff: !!o.allowOff, system: !!o.system
+      unit: o.unit || '', allowOff: !!o.allowOff, allowCustom: !!o.allowCustom, system: !!o.system
     };
   }
 
@@ -97,7 +97,7 @@
         f('visitor_contractor_count', 'จำนวน Visitor ผู้รับเหมา', 'number', { required: true, group: 'Visitor ผู้รับเหมา', placeholder: '0', unit: 'คน', system: true }),
         f('visitor_contractor_note', 'หมายเหตุ Visitor ผู้รับเหมา', 'textarea', { group: 'Visitor ผู้รับเหมา', placeholder: 'เช่น งานซ่อมบำรุงระบบไฟฟ้า' }),
         f('visitor_org', 'หน่วยงาน', 'text', { group: 'Visitor ผู้รับเหมา', placeholder: 'ชื่อบริษัท / หน่วยงาน' }),
-        f('visitor_department', 'แผนกที่ติดต่อ', 'checkbox', { group: 'Visitor ผู้รับเหมา', options: ['วิศวกรรม', 'ความปลอดภัย', 'ธุรการ', 'จัดซื้อ'], helper: 'เลือกได้มากกว่า 1 แผนก' }),
+        f('visitor_department', 'แผนกที่ติดต่อ', 'checkbox', { group: 'Visitor ผู้รับเหมา', options: ['วิศวกรรม', 'ความปลอดภัย', 'ธุรการ', 'จัดซื้อ'], helper: 'เลือกได้มากกว่า 1 แผนก หรือพิมพ์แผนกอื่นเองด้านล่าง', allowCustom: true }),
         f('visitor_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', system: true })
       ]
     };
@@ -148,7 +148,7 @@
       required: !!r.required, active: r.active !== false, order: r.order,
       options: r.options || [], placeholder: r.placeholder || '',
       helper: r.helper || '', group: r.group || 'ข้อมูลทั่วไป',
-      unit: r.unit || '', allowOff: !!r.allow_off, system: !!r.system
+      unit: r.unit || '', allowOff: !!r.allow_off, allowCustom: !!r.allow_custom, system: !!r.system
     };
   }
   function fieldToRow(module, fl, i) {
@@ -157,7 +157,7 @@
       required: !!fl.required, active: fl.active !== false, order: i,
       options: fl.options || [], placeholder: fl.placeholder || '',
       helper: fl.helper || '', group: fl.group || 'ข้อมูลทั่วไป',
-      unit: fl.unit || '', allow_off: !!fl.allowOff, system: !!fl.system
+      unit: fl.unit || '', allow_off: !!fl.allowOff, allow_custom: !!fl.allowCustom, system: !!fl.system
     };
   }
   function recordFromRow(r) {

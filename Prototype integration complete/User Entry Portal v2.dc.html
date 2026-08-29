@@ -149,6 +149,9 @@
                             </label>
                           </sc-for>
                         </div>
+                        <sc-if value="{{ f.hasCustom }}" hint-placeholder-val="{{ false }}">
+                          <input type="text" value="{{ f.customValue }}" onChange="{{ f.setCustom }}" placeholder="อื่นๆ — พิมพ์แผนกที่ไม่มีในตัวเลือก" style="width: 100%; min-width: 0; min-height: 52px; margin-top: 8px; padding: 0 14px; font-size: 16px; border-radius: 12px; border: 1px dashed var(--line-2); background: var(--panel); color: var(--text);">
+                        </sc-if>
                       </sc-if>
 
                       <sc-if value="{{ f.helper }}" hint-placeholder-val="{{ false }}">
@@ -344,6 +347,7 @@ class Component extends DCLogic {
       error: err || '', border: err ? 'rgba(209,72,58,0.7)' : 'var(--line)',
       options: f.options || [], value: val == null ? '' : val,
       isInput: false, isArea: false, isSelect: false, isChoice: false,
+      hasCustom: false, customValue: '', setCustom: () => {},
       inputType: 'text', inputMode: 'text', choices: [],
       set: (e) => this.setValue(f.fieldId, e.target.value),
       ref: (el) => { this._els[f.fieldId] = el; }
@@ -363,6 +367,18 @@ class Component extends DCLogic {
           pick: () => multi ? this.toggle(f.fieldId, o) : this.setValue(f.fieldId, o)
         };
       });
+      /* "อื่นๆ" free-text alongside the fixed options — whatever isn't one of f.options is
+         treated as the custom entry, so typing it in just adds/replaces that one slot in the
+         same array the checkboxes write to; no separate "add" step needed. */
+      if (multi && f.allowCustom) {
+        base.hasCustom = true;
+        base.customValue = cur.filter(v => (f.options || []).indexOf(v) === -1)[0] || '';
+        base.setCustom = (e) => {
+          const text = e.target.value;
+          const kept = cur.filter(v => (f.options || []).indexOf(v) !== -1);
+          this.setValue(f.fieldId, text.trim() ? kept.concat([text]) : kept);
+        };
+      }
       return base;
     }
     base.isInput = true;
