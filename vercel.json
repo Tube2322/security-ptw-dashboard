@@ -1,5 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "Prototype integration complete",
   "cleanUrls": false,
   "rewrites": [
@@ -12,7 +11,7 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "source": "/(.*)\.dc\.html",
+      "source": "/(.*)\\.dc\\.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
