@@ -3,8 +3,8 @@
 ระบบบันทึกและสรุปข้อมูลงานรักษาความปลอดภัยประจำวัน ประกอบด้วยหน้ากรอกข้อมูลสำหรับเจ้าหน้าที่ที่เข้าผ่าน QR Code
 โดยไม่ต้องเข้าสู่ระบบ และ Admin Console สำหรับดูแดชบอร์ด จัดการแบบฟอร์ม แก้ไขข้อมูลย้อนหลัง และออกรายงาน PDF
 
-> **สถานะปัจจุบัน:** prototype ที่ใช้งานได้เต็มรูปแบบ แต่ยังเก็บข้อมูลใน `localStorage` ของเบราว์เซอร์แต่ละเครื่อง
-> และ **ยังไม่มีระบบ Authentication** — อ่านหัวข้อ [Known limitations](#known-limitations) ก่อนนำไปใช้งานจริง
+> **สถานะปัจจุบัน:** ใช้งานจริงบน production (Vercel) เชื่อมต่อฐานข้อมูลกลาง Supabase (Postgres + Row Level Security)
+> และมีระบบ Authentication สำหรับ Admin Console แล้ว — อ่านหัวข้อ [Known limitations](#known-limitations) ก่อนใช้งาน
 
 ## Main features
 
@@ -27,12 +27,15 @@
 | --- | --- |
 | UI | ไฟล์ `.dc.html` (Claude Design artboard) คอมไพล์โดย `support.js` ตอนรันในเบราว์เซอร์ |
 | Data layer | `soc-core.js` — แหล่งข้อมูลกลางแหล่งเดียวของทั้งระบบ |
-| Storage | `localStorage` (คีย์ `soc.core.v2`) |
+| Storage | Supabase (Postgres) — ตาราง `records`, `form_fields`, `portal_settings` พร้อม Row Level Security |
+| Auth | Supabase Auth (email/password) — คุมเฉพาะหน้า Admin Console, หน้ากรอกข้อมูลไม่ต้องล็อกอิน |
+| Realtime | Supabase Realtime — ซิงก์ข้อมูลข้ามแท็บ/เครื่องแบบสด แทน `storage` event ของ localStorage เดิม |
 | PDF | `html2canvas` + `jsPDF` (อยู่ใน `vendor/`) |
 | QR | `qrcodejs` สร้างในเบราว์เซอร์ (อยู่ใน `vendor/`) |
 | Fonts | Google Fonts — IBM Plex Sans Thai / IBM Plex Mono (มี fallback ถ้าโหลดไม่ได้) |
 
-ไม่มี build step และไม่มี npm dependency — เป็น static site ล้วน เสิร์ฟไฟล์ตรงได้เลย
+ไม่มี build step และไม่มี npm dependency — เป็น static site ล้วน เสิร์ฟไฟล์ตรงได้เลย ค่าเชื่อมต่อ Supabase (URL + anon key)
+อยู่ในไฟล์ `soc-config.js` ที่ commit เข้า repo ตรง ๆ (ไม่ใช่ secret — ดูหัวข้อ [Environment variables](#environment-variables))
 
 ## Project structure
 
@@ -44,9 +47,10 @@
     ├── index.html                       # หน้าเลือก Admin / Entry
     ├── SOC Admin Console v2.dc.html     # Admin Console
     ├── User Entry Portal v2.dc.html     # หน้ากรอกข้อมูล
-    ├── soc-core.js                      # data layer + form registry + aggregation
+    ├── soc-core.js                      # data layer (Supabase) + form registry + aggregation
+    ├── soc-config.js                    # Supabase URL + anon key (ไม่ใช่ secret)
     ├── support.js                       # runtime ของ .dc.html (generated — ห้ามแก้)
-    ├── vendor/                          # html2canvas, jsPDF, qrcode
+    ├── vendor/                          # html2canvas, jsPDF, qrcode, supabase-js
     └── _legacy/                         # prototype รุ่นแรก ไม่ได้ใช้แล้ว (ไม่ถูก commit)
 ```
 
@@ -83,11 +87,16 @@ python -m http.server 4173
 
 หลัง deploy จะเข้าได้ที่ `/` (หน้าเลือก), `/admin` และ `/entry`
 
-**ก่อนเปิดใช้งานจริง:** เข้า Admin Console → ตั้งค่า → กด "ลบข้อมูลตัวอย่าง" เพื่อล้างข้อมูลจำลอง 30 รายการที่ระบบสร้างไว้ตอนเปิดครั้งแรก
+**Production:** https://security-ptw-web.vercel.app (Vercel project ภายใต้ team "Shonsey's projects")
+
+**สร้างบัญชี Admin ครั้งแรก:** Supabase Dashboard ของโปรเจกต์ → Authentication → Users → Add user
+(ติ๊ก Auto Confirm User) แล้วใช้อีเมล/รหัสผ่านนั้นล็อกอินที่ `/admin` — ไม่มีทางสร้างบัญชีผ่านหน้าเว็บเอง (ตั้งใจ)
 
 ## Environment variables
 
-ยังไม่ได้ใช้ในเวอร์ชันปัจจุบัน — เตรียมไว้สำหรับตอนต่อ Supabase (ดู `.env.example`)
+โปรเจกต์นี้ไม่มี build step จึงไม่มีการ inject ตัวแปรสภาพแวดล้อมตอน build — ค่าเชื่อมต่อ Supabase
+(URL + anon key) ฝังตรงในไฟล์ `soc-config.js` ที่ commit เข้า repo แทน `.env.example` ด้านล่างเป็นเอกสารอ้างอิง
+สำหรับกรณีย้ายไปสถาปัตยกรรมที่มี build step ในอนาคตเท่านั้น ปัจจุบันไม่มีผลต่อการรันจริง
 
 | ตัวแปร | ใช้ทำอะไร |
 | --- | --- |
@@ -96,21 +105,29 @@ python -m http.server 4173
 
 ห้ามใส่ `service_role` key ลงในไฟล์ใด ๆ ใน repository นี้
 
-## Supabase migration (planned)
+## Supabase schema
 
-ทุกหน้าอ่านและเขียนข้อมูลผ่าน `SOCCore` เท่านั้น ไม่มีจุดใดเรียก `localStorage` โดยตรงนอก `soc-core.js`
-การย้ายไป Supabase จึงเป็นการเปลี่ยนไส้ในของไฟล์เดียว โดยเปลี่ยนฟังก์ชันจาก synchronous เป็น Promise
-แล้วให้หน้าจอรอผลผ่าน `subscribe()` ที่มีอยู่แล้ว
+ทุกหน้าอ่านและเขียนข้อมูลผ่าน `SOCCore` เท่านั้น (`soc-core.js`) — ไม่มีจุดใดในสองไฟล์ `.dc.html` เรียก
+Supabase client ตรง ๆ ทุกฟังก์ชันอ่านข้อมูลยังเป็น synchronous เหมือนเดิม (อ่านจาก in-memory cache ที่โหลด
+มาตอนเปิดหน้าและอัปเดตผ่าน Realtime) ส่วนฟังก์ชันเขียนข้อมูลอัปเดต cache ทันทีแล้วค่อยยิง request ไป Supabase
+เบื้องหลัง (optimistic write) — ถ้าล้มเหลวจะแจ้งผ่าน toast
 
-โครงตารางที่วางไว้:
+ตาราง:
 
-- `records` — `id`, `module`, `form_id`, `form_version`, `report_date`, `submitted_at`, `updated_at`, `submitted_by`, `inspector`, `data jsonb`
-- `form_fields` — `module`, `field_id`, `label`, `type`, `required`, `active`, `order`, `options jsonb`, `group`, `system`
-- `portal_settings` — แถวเดียว เก็บชื่อ Portal, slug, สถานะเปิด/ปิด และเวอร์ชัน QR
+- `records` — `id` (uuid), `module`, `form_id`, `form_version`, `report_date`, `submitted_at`, `updated_at`
+  (สองคอลัมน์นี้เป็น `timestamp` ไม่มี timezone โดยตั้งใจ — ดูคอมเมนต์ `nowIso()` ใน `soc-core.js`),
+  `submitted_by`, `inspector`, `is_test`, `data jsonb`
+- `form_fields` — `module`, `field_id`, `label`, `type`, `required`, `active`, `"order"`, `options jsonb`,
+  `placeholder`, `helper`, `"group"`, `unit`, `allow_off`, `allow_custom`, `system`
+- `portal_settings` — แถวเดียว (`id = true`) เก็บชื่อ Portal, ข้อความต้อนรับ, slug, สถานะเปิด/ปิด, เวอร์ชัน QR
+
+RLS: guest (anon) `INSERT` ได้อย่างเดียวบน `records`, `SELECT` เฉพาะ `form_fields` ที่ `active = true` และ
+`portal_settings` ทั้งแถว ส่วน admin (authenticated) ทำได้ทุกอย่างทุกตาราง ฟังก์ชัน `record_count(module)`
+เป็น `SECURITY DEFINER` แบบตั้งใจ — คืนแค่ตัวเลขนับ ไม่คืนข้อมูลจริง ให้หน้ากรอกข้อมูลโชว์ "บันทึกแล้ว N รายการ"
+ได้โดยไม่ต้องมีสิทธิ์ `SELECT` บน `records`
 
 ## Known limitations
 
-- **ยังไม่มี Authentication** — ใครเปิดลิงก์ Admin Console ก็เข้าถึงข้อมูลทั้งหมด แก้ไข ลบ และรีเซ็ตระบบได้ ต้องเพิ่ม Supabase Auth + Row Level Security ก่อนใช้งานจริง
-- **ข้อมูลอยู่ในเครื่องผู้ใช้** — `localStorage` ไม่แชร์ข้ามเครื่องและข้ามเบราว์เซอร์ ล้างข้อมูลเบราว์เซอร์แล้วข้อมูลหาย
 - **KPI และกราฟผูกกับ Field ID ในโค้ด** — คำถามที่เพิ่มใหม่จาก Form Builder จะเก็บข้อมูลและแสดงในตารางได้ แต่ไม่ขึ้นกราฟเองอัตโนมัติ คำถามที่กราฟใช้คำนวณถูกล็อกไว้ (แสดงสัญลักษณ์ 🔒) จึงปิดหรือลบไม่ได้
 - **การเลื่อนลำดับคำถามทำได้ภายในกลุ่มเดียวกัน** — เพราะฟอร์มจริงจัดกลุ่มก่อนเรียงลำดับ หากต้องการย้ายข้ามกลุ่มให้แก้ชื่อกลุ่มคำถามแทน
+- **หน้ากรอกข้อมูลไม่แจ้งเตือนถ้าบันทึกไม่สำเร็จ** — การส่งฟอร์มเป็นแบบ optimistic (แสดงหน้า "สำเร็จ" ทันทีก่อนรอผลจาก Supabase) ถ้าอินเทอร์เน็ตหลุดตอนนั้นพอดี ข้อมูลจะไม่ถูกบันทึกจริงแต่ผู้กรอกไม่เห็นข้อความเตือน (มี log ไว้ใน console เท่านั้น) — เป็นข้อจำกัดที่รู้อยู่ ยังไม่ได้แก้
