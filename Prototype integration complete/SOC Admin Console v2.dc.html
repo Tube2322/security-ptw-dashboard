@@ -672,12 +672,19 @@
                               </select>
                             </sc-if>
                             <sc-if value="{{ f.isCombo }}" hint-placeholder-val="{{ false }}">
-                              <input id="{{ f.domId }}" list="{{ f.domId }}_list" type="text" placeholder="{{ f.placeholder }}" value="{{ f.value }}" onChange="{{ f.set }}" style="width: 100%; min-width: 0; min-height: 42px; padding: 0 11px; font-size: 13.5px; border-radius: 10px; border: 1px solid {{ f.border }}; background: var(--panel-2); color: var(--text);">
-                              <datalist id="{{ f.domId }}_list">
-                                <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="3">
-                                  <option value="{{ o }}"></option>
-                                </sc-for>
-                              </datalist>
+                              <div style="position: relative;">
+                                <input id="{{ f.domId }}" type="text" autocomplete="off" placeholder="{{ f.placeholder }}" value="{{ f.value }}" onChange="{{ f.set }}" onFocus="{{ f.onFocusCombo }}" onBlur="{{ f.onBlurCombo }}" style="width: 100%; min-width: 0; min-height: 42px; padding: 0 11px; font-size: 13.5px; border-radius: 10px; border: 1px solid {{ f.border }}; background: var(--panel-2); color: var(--text);">
+                                <sc-if value="{{ f.comboOpen }}" hint-placeholder-val="{{ false }}">
+                                  <div style="position: absolute; left: 0; right: 0; top: calc(100% + 5px); z-index: 30; max-height: 200px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--line-2); background: var(--bg-2); box-shadow: 0 18px 40px -18px rgba(0,0,0,0.6);">
+                                    <sc-for list="{{ f.comboOptions }}" as="o" hint-placeholder-count="3">
+                                      <button type="button" onClick="{{ o.pick }}" style="display: block; width: 100%; text-align: left; padding: 11px 13px; border: none; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font-size: 13.5px; cursor: pointer;" style-hover="background: var(--accent-soft);">{{ o.label }}</button>
+                                    </sc-for>
+                                    <sc-if value="{{ f.comboEmpty }}" hint-placeholder-val="{{ false }}">
+                                      <div style="padding: 10px 13px; font-size: 12px; color: var(--dim);">ไม่พบชื่อที่ตรงกัน — พิมพ์ต่อเพื่อใช้ชื่อนี้</div>
+                                    </sc-if>
+                                  </div>
+                                </sc-if>
+                              </div>
                             </sc-if>
                             <sc-if value="{{ f.isChoice }}" hint-placeholder-val="{{ false }}">
                               <div style="display: flex; flex-wrap: wrap; gap: 7px;">
@@ -1232,7 +1239,7 @@ class Component extends DCLogic {
     loading: false,
     builderModule: 'traffic', builderDraft: null,
     recordFilter: 'all', recordPage: 0, openRecord: null,
-    editRecord: null, editValues: {}, editErrors: {}, editBanner: '',
+    editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
     pdfModule: 'traffic', pdfFrom: '', pdfTo: '',
     pdfPeriod: 'day', pdfPeriodYear: 2026, pdfPeriodMonth: 7, pdfPeriodDay: null,
@@ -1291,6 +1298,7 @@ class Component extends DCLogic {
     if (this._mq && this._mq.removeEventListener) this._mq.removeEventListener('change', this._mqh);
     if (this._toastT) clearTimeout(this._toastT);
     if (this._loadT) clearTimeout(this._loadT);
+    if (this._comboBlurT) clearTimeout(this._comboBlurT);
   }
   core() { return window.SOCCore; }
 
@@ -1936,6 +1944,11 @@ class Component extends DCLogic {
     const cur = this.state.editValues[id] || [];
     this.setEditValue(id, cur.indexOf(opt) === -1 ? cur.concat([opt]) : cur.filter(x => x !== opt));
   }
+  pickEditCombo(id, opt) {
+    if (this._comboBlurT) clearTimeout(this._comboBlurT);
+    this.setEditValue(id, opt);
+    this.setState({ comboOpenField: null });
+  }
   /* same rules the User Entry Portal enforces — an edited record can never be less valid
      than one typed into the form */
   validateEdit(moduleId) {
@@ -1980,12 +1993,25 @@ class Component extends DCLogic {
       options: f.options || [], value: val == null ? '' : val,
       isInput: false, isArea: false, isSelect: false, isChoice: false, isCombo: false,
       hasCustom: false, customValue: '', setCustom: () => {},
+      comboOpen: false, comboOptions: [], comboEmpty: false,
+      onFocusCombo: () => {}, onBlurCombo: () => {},
       inputType: 'text', choices: [],
       set: (e) => this.setEditValue(f.fieldId, e.target.value)
     };
     if (f.type === 'textarea') { base.isArea = true; return base; }
     if (f.type === 'select') {
-      if (f.allowCustom) { base.isCombo = true; return base; }
+      if (f.allowCustom) {
+        base.isCombo = true;
+        const open = this.state.comboOpenField === f.fieldId;
+        const q = String(val || '').trim().toLowerCase();
+        const matches = (f.options || []).filter(o => !q || o.toLowerCase().includes(q));
+        base.comboOpen = open;
+        base.comboOptions = open ? matches.map(o => ({ label: o, pick: () => this.pickEditCombo(f.fieldId, o) })) : [];
+        base.comboEmpty = open && !matches.length && !!q;
+        base.onFocusCombo = () => this.setState({ comboOpenField: f.fieldId });
+        base.onBlurCombo = () => { this._comboBlurT = setTimeout(() => this.setState(s => s.comboOpenField === f.fieldId ? { comboOpenField: null } : null), 150); };
+        return base;
+      }
       base.isSelect = true; return base;
     }
     if (f.type === 'radio' || f.type === 'checkbox') {
