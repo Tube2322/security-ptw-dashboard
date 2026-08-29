@@ -1,0 +1,5 @@
+# Normalise line endings so the repo stays consistent across Windows and Linux checkouts
+* text=auto eol=lf
+
+# Vendored libraries are checked in as-is and should not show up in diffs or language stats
+Prototype*integration*complete/vendor/** linguist-vendored -diff

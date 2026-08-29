@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<script src="./soc-core.js"></script>
+<style>
+  :root {
+    --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
+    --line: rgba(15,70,40,0.14); --line-2: rgba(15,70,40,0.24);
+    --text: #12271b; --muted: #5c7568; --dim: #7e9689;
+    --accent: #169b46; --accent-soft: rgba(22,155,70,0.12); --accent-line: rgba(22,155,70,0.45);
+    --ok: #169b46; --danger: #d1483a;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); -webkit-text-size-adjust: 100%; }
+  * { box-sizing: border-box; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: #0d7a37; }
+  input, select, textarea, button { font-family: inherit; }
+  @keyframes epUp { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+  @keyframes epPulse { 0%,100% { opacity: 0.3 } 50% { opacity: 0.75 } }
+  @keyframes epPop { 0% { transform: scale(0.7); opacity: 0 } 60% { transform: scale(1.06) } 100% { transform: scale(1); opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: radial-gradient(130% 70% at 50% 0%, #e3f6ea 0%, var(--bg) 62%); color: var(--text); font-family: 'IBM Plex Sans Thai', 'Helvetica Neue', Helvetica, sans-serif; font-size: 16px; line-height: 1.6; text-wrap: pretty; display: flex; flex-direction: column;">
+
+  <header style="position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line);">
+    <div style="width: 100%; max-width: 760px; margin: 0 auto; padding: 11px clamp(12px, 4vw, 20px); display: flex; align-items: center; gap: 12px; min-width: 0;">
+      <sc-if value="{{ inForm }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ requestBack }}" aria-label="กลับ" style="min-height: 44px; min-width: 44px; flex: none; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 16px;" style-hover="background: var(--panel-2);">←</button>
+      </sc-if>
+<div style="width: 34px; height: 34px; flex: none; border-radius: 10px; background: linear-gradient(150deg, var(--accent) 0%, #0d7a37 100%); display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 11px; color: #f2fff6;">SOC</div>
+      <div style="min-width: 0; flex: 1;">
+        <div style="font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ portalName }}</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.2px; color: var(--dim); text-transform: uppercase;">Entry Portal · no login</div>
+      </div>
+    </div>
+  </header>
+
+  <main style="flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: clamp(16px, 4vw, 26px) clamp(12px, 4vw, 20px) 56px; min-width: 0;">
+
+    <!-- ===== GATE: disabled / not found ===== -->
+    <sc-if value="{{ gateBlocked }}" hint-placeholder-val="{{ false }}">
+      <div style="animation: epUp 240ms ease both; padding: 60px 10px; text-align: center;">
+        <div style="width: 70px; height: 70px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-size: 30px; border: 1px solid var(--line-2); background: var(--panel);">{{ gateIcon }}</div>
+        <h1 style="margin: 20px 0 8px; font-size: 22px; font-weight: 600;">{{ gateTitle }}</h1>
+        <p style="margin: 0 auto; max-width: 380px; font-size: 14.5px; color: var(--muted);">{{ gateMessage }}</p>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ gateOk }}" hint-placeholder-val="{{ true }}">
+
+    <!-- ===== เลือกโมดูล ===== -->
+    <sc-if value="{{ isSelect }}" hint-placeholder-val="{{ true }}">
+      <div style="animation: epUp 240ms ease both;">
+        <h1 style="margin: 6px 0 6px; font-size: clamp(22px, 6vw, 28px); line-height: 1.25; font-weight: 600; letter-spacing: -0.4px;">บันทึกข้อมูล</h1>
+        <p style="margin: 0 0 22px; font-size: 15px; color: var(--muted);">{{ portalWelcomeText }}</p>
+
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <sc-for list="{{ modules }}" as="m" hint-placeholder-count="3">
+            <button onClick="{{ m.open }}" style="width: 100%; text-align: left; cursor: pointer; padding: clamp(16px, 4vw, 20px); border-radius: 16px; border: 1px solid var(--line); background: var(--panel); color: var(--text); display: flex; flex-direction: column; gap: 10px; min-width: 0; transition: background 140ms ease, border-color 140ms ease, transform 90ms ease;" style-hover="background: var(--panel-2); border-color: var(--line-2);" style-active="transform: scale(0.99);">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <span style="width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: rgba(15,70,40,0.06); color: {{ m.color }};">{{ m.code }}</span>
+                <span style="min-width: 0; flex: 1; font-size: clamp(17px, 4.4vw, 19px); font-weight: 600; overflow-wrap: anywhere;">{{ m.name }}</span>
+              </div>
+              <div style="font-size: 13.5px; color: var(--muted); overflow-wrap: anywhere;">{{ m.desc }}</div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); min-width: 0; overflow-wrap: anywhere;">{{ m.meta }}</span>
+                <span style="flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500; width: 96px; height: 74px">กรอกข้อมูล</span>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="margin-top: 24px; padding: 15px 17px; border-radius: 14px; border: 1px solid var(--line); background: rgba(15,70,40,0.035); font-size: 13.5px; color: var(--dim);">ระบบไม่เก็บข้อมูลบัญชีผู้ใช้ · บันทึกเฉพาะคำตอบในแบบฟอร์ม และส่งเข้าศูนย์ข้อมูลกลางทันที</div>
+      </div>
+    </sc-if>
+
+    <!-- ===== ฟอร์ม ===== -->
+    <sc-if value="{{ isForm }}" hint-placeholder-val="{{ false }}">
+      <div style="animation: epUp 220ms ease both;">
+        <div style="display: flex; align-items: center; gap: 13px; min-width: 0;">
+          <span style="width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: rgba(15,70,40,0.06); color: {{ activeColor }};">{{ activeCode }}</span>
+          <h1 style="margin: 0; font-size: clamp(19px, 5vw, 23px); font-weight: 600; min-width: 0; overflow-wrap: anywhere;">{{ activeName }}</h1>
+        </div>
+        <p style="margin: 9px 0 0; font-size: 14px; color: var(--muted);">{{ activeDesc }}</p>
+
+        <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 13px;">
+            <div style="font-size: 14px; color: var(--dim);">กำลังโหลดข้อมูล...</div>
+            <div style="height: 60px; border-radius: 12px; background: var(--panel-2); animation: epPulse 1.3s ease-in-out infinite;"></div>
+            <div style="height: 60px; border-radius: 12px; background: var(--panel-2); animation: epPulse 1.3s ease-in-out infinite;"></div>
+            <div style="height: 60px; border-radius: 12px; background: var(--panel-2); animation: epPulse 1.3s ease-in-out infinite;"></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ formEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 24px; padding: 34px 20px; border-radius: 16px; border: 1px dashed var(--line-2); text-align: center;">
+            <div style="font-size: 17px; font-weight: 500;">ยังไม่มีข้อมูล</div>
+            <div style="margin-top: 8px; font-size: 14px; color: var(--muted);">ผู้ดูแลระบบยังไม่ได้เปิดใช้งานคำถามของแบบฟอร์มนี้</div>
+            <button onClick="{{ goSelect }}" style="margin-top: 20px; min-height: 48px; padding: 0 20px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 15px;" style-hover="background: var(--panel-2);">← เลือกประเภทข้อมูลใหม่</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ formReady }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 24px;">
+            <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+              <section style="min-width: 0;">
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 1.2px; color: var(--dim); text-transform: uppercase;">{{ g.index }}</div>
+                <h2 style="margin: 3px 0 0; font-size: clamp(16px, 4.4vw, 18px); font-weight: 600; overflow-wrap: anywhere;">{{ g.title }}</h2>
+                <div style="height: 1px; background: var(--line); margin: 11px 0 15px;"></div>
+                <div style="display: flex; flex-direction: column; gap: 17px;">
+                  <sc-for list="{{ g.fields }}" as="f" hint-placeholder-count="2">
+                    <div style="min-width: 0;">
+                      <label for="{{ f.domId }}" style="display: block; font-size: 15.5px; font-weight: 500; margin-bottom: 7px; overflow-wrap: anywhere;">{{ f.label }}<span style="color: var(--danger);">{{ f.star }}</span></label>
+
+                      <sc-if value="{{ f.isInput }}" hint-placeholder-val="{{ true }}">
+                        <input id="{{ f.domId }}" type="{{ f.inputType }}" inputMode="{{ f.inputMode }}" placeholder="{{ f.placeholder }}" value="{{ f.value }}" onChange="{{ f.set }}" ref="{{ f.ref }}" style="width: 100%; min-width: 0; min-height: 52px; padding: 0 14px; font-size: 16px; border-radius: 12px; border: 1px solid {{ f.border }}; background: var(--panel); color: var(--text);">
+                      </sc-if>
+                      <sc-if value="{{ f.isArea }}" hint-placeholder-val="{{ false }}">
+                        <textarea id="{{ f.domId }}" rows="{{ 3 }}" placeholder="{{ f.placeholder }}" value="{{ f.value }}" onChange="{{ f.set }}" ref="{{ f.ref }}" style="width: 100%; min-width: 0; padding: 12px 14px; font-size: 16px; line-height: 1.55; border-radius: 12px; border: 1px solid {{ f.border }}; background: var(--panel); color: var(--text); resize: vertical;"></textarea>
+                      </sc-if>
+                      <sc-if value="{{ f.isSelect }}" hint-placeholder-val="{{ false }}">
+                        <select id="{{ f.domId }}" value="{{ f.value }}" onChange="{{ f.set }}" ref="{{ f.ref }}" style="width: 100%; min-width: 0; min-height: 52px; padding: 0 12px; font-size: 16px; border-radius: 12px; border: 1px solid {{ f.border }}; background: var(--panel); color: var(--text);">
+                          <option value="" style="background: #ffffff;">{{ f.placeholder }}</option>
+                          <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="3">
+                            <option value="{{ o }}" style="background: #ffffff;">{{ o }}</option>
+                          </sc-for>
+                        </select>
+                      </sc-if>
+                      <sc-if value="{{ f.isChoice }}" hint-placeholder-val="{{ false }}">
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                          <sc-for list="{{ f.choices }}" as="c" hint-placeholder-count="2">
+                            <label style="flex: 1 1 min(210px, 100%); display: flex; align-items: center; gap: 11px; min-height: 52px; padding: 0 15px; border-radius: 12px; cursor: pointer; font-size: 15.5px; border: 1px solid {{ c.border }}; background: {{ c.bg }}; min-width: 0;">
+                              <input type="{{ c.inputType }}" name="{{ f.domId }}" checked="{{ c.checked }}" onChange="{{ c.pick }}" style="width: 20px; height: 20px; flex: none; accent-color: var(--accent);">
+                              <span style="min-width: 0; overflow-wrap: anywhere;">{{ c.label }}</span>
+                            </label>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ f.helper }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top: 6px; font-size: 13px; color: var(--dim);">{{ f.helper }}</div>
+                      </sc-if>
+                      <sc-if value="{{ f.error }}" hint-placeholder-val="{{ false }}">
+                        <div style="margin-top: 6px; font-size: 13px; color: var(--danger);">⚠ {{ f.error }}</div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+            </sc-for>
+
+            <sc-if value="{{ errorBanner }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 13px 15px; border-radius: 12px; border: 1px solid rgba(209,72,58,0.42); background: rgba(209,72,58,0.1); font-size: 14px; color: #a3291d;">{{ errorBanner }}</div>
+            </sc-if>
+
+            <button onClick="{{ submit }}" disabled="{{ submitting }}" style="width: 100%; min-height: 56px; border-radius: 14px; cursor: {{ submitCursor }}; font-size: 17px; font-weight: 600; border: 1px solid var(--accent-line); background: {{ submitBg }}; color: #0d5c2c;" style-hover="background: rgba(22,155,70,0.22);">{{ submitLabel }}</button>
+            <div style="text-align: center; font-size: 12.5px; color: var(--dim); margin-top: -14px;">วันที่ในแบบฟอร์มคือวันที่ของข้อมูล — ระบบบันทึกเวลาส่งแยกให้อัตโนมัติ</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ===== สำเร็จ ===== -->
+    <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+      <div style="animation: epUp 240ms ease both; padding: 36px 4px; text-align: center;">
+        <div style="width: 82px; height: 82px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-size: 36px; color: var(--ok); border: 1px solid rgba(22,155,70,0.45); background: rgba(22,155,70,0.14); animation: epPop 420ms cubic-bezier(0.22,1,0.36,1) both;">✓</div>
+        <h1 style="margin: 20px 0 8px; font-size: clamp(21px, 5.6vw, 26px); font-weight: 600;">บันทึกข้อมูลสำเร็จ</h1>
+        <p style="margin: 0 auto; max-width: 400px; font-size: 15px; color: var(--muted);">{{ doneSummary }}</p>
+        <div style="margin: 18px auto 0; display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 9px 14px; border-radius: 99px; border: 1px solid var(--line); background: rgba(15,70,40,0.045); font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);">{{ doneDate }}<span style="color: var(--dim);">·</span>ส่งเมื่อ {{ doneTime }}</div>
+        <div style="margin: 26px auto 0; max-width: 380px; display: flex; flex-direction: column; gap: 10px;">
+          <button onClick="{{ again }}" style="min-height: 54px; border-radius: 13px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: #0d5c2c; cursor: pointer; font-size: 16px; font-weight: 500;" style-hover="background: rgba(22,155,70,0.2);">บันทึกรายการนี้อีกครั้ง</button>
+          <button onClick="{{ goSelect }}" style="min-height: 54px; border-radius: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 16px;" style-hover="background: var(--panel-2); color: var(--text);">กลับหน้าแรก</button>
+        </div>
+      </div>
+    </sc-if>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ confirmLeave }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 60; background: rgba(4,6,10,0.74); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px;">
+      <div style="width: 100%; max-width: 400px; background: #ffffff; border: 1px solid var(--line-2); border-radius: 18px; padding: 22px;">
+        <h2 style="margin: 0 0 8px; font-size: 19px; font-weight: 600;">ออกจากแบบฟอร์ม?</h2>
+        <p style="margin: 0 0 20px; font-size: 14.5px; color: var(--muted);">ข้อมูลที่กรอกไว้จะไม่ถูกบันทึก</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+          <button onClick="{{ stay }}" style="flex: 1 1 140px; min-height: 50px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 15px;" style-hover="background: var(--panel-2);">กรอกต่อ</button>
+          <button onClick="{{ leave }}" style="flex: 1 1 140px; min-height: 50px; border-radius: 12px; border: 1px solid rgba(209,72,58,0.45); background: rgba(209,72,58,0.14); color: #a3291d; cursor: pointer; font-size: 15px;" style-hover="background: rgba(209,72,58,0.24);">ออกจากหน้านี้</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:420,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = {
+    view: 'select', module: null, phase: 'ready',
+    values: {}, errors: {}, banner: '', submitting: false,
+    confirm: false, done: null, rev: 0
+  };
+  _els = {};
+
+  componentDidMount() {
+    const core = window.SOCCore;
+    if (core) {
+      this._unsub = core.subscribe(() => this.setState(s => ({ rev: s.rev + 1 })));
+      this._unsubPortal = core.subscribePortal(() => this.setState(s => ({ rev: s.rev + 1 })));
+      const p = core.getPortal();
+      if (p.portalName) document.title = p.portalName;
+    }
+  }
+  componentWillUnmount() {
+    if (this._unsub) this._unsub();
+    if (this._unsubPortal) this._unsubPortal();
+    if (this._t) clearTimeout(this._t);
+    if (this._t2) clearTimeout(this._t2);
+  }
+  core() { return window.SOCCore; }
+  hashRoute() {
+    const m = /^#\/entry\/([^/?]+)(?:\?qr=([^&]+))?/.exec(window.location.hash || '');
+    return m ? { slug: m[1], qr: m[2] || null } : null;
+  }
+
+  open = (id) => {
+    const core = this.core();
+    const today = core ? core.isoDay(new Date()) : '';
+    const dateField = core ? (core.activeFields(id).filter(f => f.type === 'date')[0] || {}).fieldId : null;
+    const values = {};
+    if (dateField) values[dateField] = today;
+    this.setState({ view: 'form', module: id, phase: 'loading', values, errors: {}, banner: '' });
+    if (this._t) clearTimeout(this._t);
+    this._t = setTimeout(() => {
+      const has = core && core.activeFields(id).length > 0;
+      this.setState({ phase: has ? 'ready' : 'empty' });
+    }, 450);
+  };
+
+  goSelect = () => this.setState({ view: 'select', module: null, values: {}, errors: {}, banner: '', confirm: false });
+  dirty() {
+    const v = this.state.values;
+    return Object.keys(v).some(k => {
+      const x = v[k];
+      return Array.isArray(x) ? x.length > 0 : (x !== '' && x != null);
+    });
+  }
+  requestBack = () => this.dirty() ? this.setState({ confirm: true }) : this.goSelect();
+
+  setValue(id, val) {
+    this.setState(s => {
+      const values = Object.assign({}, s.values); values[id] = val;
+      const errors = Object.assign({}, s.errors); delete errors[id];
+      return { values, errors, banner: '' };
+    });
+  }
+  toggle(id, opt) {
+    const cur = this.state.values[id] || [];
+    this.setValue(id, cur.indexOf(opt) === -1 ? cur.concat([opt]) : cur.filter(x => x !== opt));
+  }
+
+  validate() {
+    const core = this.core();
+    const errors = {};
+    core.activeFields(this.state.module).forEach(f => {
+      const raw = this.state.values[f.fieldId];
+      const blank = Array.isArray(raw) ? raw.length === 0 : (raw == null || String(raw).trim() === '');
+      if (f.required && blank) { errors[f.fieldId] = 'กรุณากรอกข้อมูลนี้'; return; }
+      if (blank) return;
+      if (f.type === 'number') {
+        const s = String(raw).trim();
+        if (f.allowOff && core.isOff(s)) return;
+        if (!/^-?\d+(\.\d+)?$/.test(s)) errors[f.fieldId] = f.allowOff ? 'กรอกตัวเลข หรือ OFF เท่านั้น' : 'กรอกตัวเลขเท่านั้น';
+        else if (parseFloat(s) < 0) errors[f.fieldId] = 'ค่าต้องไม่ติดลบ';
+      }
+      if (f.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) errors[f.fieldId] = 'รูปแบบวันที่ไม่ถูกต้อง';
+      if ((f.type === 'select' || f.type === 'radio') && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
+    });
+    return errors;
+  }
+
+  submit = () => {
+    if (this.state.submitting) return;
+    const core = this.core();
+    const errors = this.validate();
+    const bad = Object.keys(errors);
+    if (bad.length) {
+      this.setState({ errors, banner: 'กรอกข้อมูลไม่ครบถ้วน ' + bad.length + ' รายการ — ระบบเลื่อนไปยังช่องแรกที่ต้องแก้ไข' });
+      const el = this._els[bad[0]];
+      if (el) setTimeout(() => { try { el.focus({ preventScroll: false }); } catch (e) { el.focus(); } }, 50);
+      return;
+    }
+    this.setState({ submitting: true });
+    if (this._t2) clearTimeout(this._t2);
+    this._t2 = setTimeout(() => {
+      const rec = core.addRecord(this.state.module, Object.assign({}, this.state.values));
+      this.setState({ submitting: false, view: 'done', values: {}, errors: {}, banner: '', done: rec });
+    }, 550);
+  };
+
+  summarize(rec) {
+    const core = this.core();
+    const d = rec.data || {};
+    if (rec.module === 'traffic') {
+      const inn = core.sumFields([rec], ['traffic_car_in_day', 'traffic_moto_in_day', 'traffic_car_in_night', 'traffic_moto_in_night']);
+      const out = core.sumFields([rec], ['traffic_car_out_day', 'traffic_moto_out_day', 'traffic_car_out_night', 'traffic_moto_out_night']);
+      return 'ขาเข้า ' + inn + ' คัน · ขาออก ' + out + ' คัน';
+    }
+    if (rec.module === 'golf') {
+      const ids = ['golf_cart_1', 'golf_cart_2', 'golf_cart_3', 'golf_cart_4'];
+      const off = core.offCount([rec], ids);
+      return 'รวม ' + core.sumFields([rec], ids) + ' รอบ' + (off ? ' · OFF ' + off + ' คัน' : '');
+    }
+    const g = core.agg([rec], 'visitor_general_count', 'SUM');
+    const c = core.agg([rec], 'visitor_contractor_count', 'SUM');
+    return 'ทั่วไป ' + g + ' · ผู้รับเหมา ' + c + ' · รวม ' + (g + c) + ' คน';
+  }
+
+  buildField(f) {
+    const core = this.core();
+    const val = this.state.values[f.fieldId];
+    const err = this.state.errors[f.fieldId];
+    const base = {
+      domId: 'fld_' + f.fieldId, label: f.label, star: f.required ? ' *' : '',
+      placeholder: f.placeholder || (f.type === 'select' ? 'เลือก' : ''),
+      helper: f.helper || (f.allowOff ? 'กรอกตัวเลข หรือ OFF' : ''),
+      error: err || '', border: err ? 'rgba(209,72,58,0.7)' : 'var(--line)',
+      options: f.options || [], value: val == null ? '' : val,
+      isInput: false, isArea: false, isSelect: false, isChoice: false,
+      inputType: 'text', inputMode: 'text', choices: [],
+      set: (e) => this.setValue(f.fieldId, e.target.value),
+      ref: (el) => { this._els[f.fieldId] = el; }
+    };
+    if (f.type === 'textarea') { base.isArea = true; return base; }
+    if (f.type === 'select') { base.isSelect = true; return base; }
+    if (f.type === 'radio' || f.type === 'checkbox') {
+      const multi = f.type === 'checkbox';
+      base.isChoice = true;
+      const cur = multi ? (val || []) : val;
+      base.choices = (f.options || []).map(o => {
+        const on = multi ? cur.indexOf(o) !== -1 : cur === o;
+        return {
+          label: o, checked: on, inputType: multi ? 'checkbox' : 'radio',
+          border: on ? 'var(--accent-line)' : (err ? 'rgba(209,72,58,0.5)' : 'var(--line)'),
+          bg: on ? 'var(--accent-soft)' : 'rgba(15,70,40,0.035)',
+          pick: () => multi ? this.toggle(f.fieldId, o) : this.setValue(f.fieldId, o)
+        };
+      });
+      return base;
+    }
+    base.isInput = true;
+    if (f.type === 'number') {
+      if (f.allowOff) { base.inputType = 'text'; base.inputMode = 'text'; }
+      else { base.inputType = 'number'; base.inputMode = 'numeric'; }
+    } else if (f.type === 'date') base.inputType = 'date';
+    else if (f.type === 'time') base.inputType = 'time';
+    return base;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const core = this.core();
+    const mods = core ? core.MODULES : [];
+    const def = core && s.module ? core.module(s.module) : null;
+    const done = s.done;
+    const portal = core ? core.getPortal() : { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: '', enabled: true, slug: '', qrVersion: '' };
+    const route = this.hashRoute();
+    const notFound = !!(route && portal.slug && route.slug !== portal.slug);
+    const expired = !!(route && route.qr && portal.qrVersion && route.qr !== portal.qrVersion);
+    const disabled = !portal.enabled;
+
+    return {
+      portalName: portal.portalName,
+      portalWelcomeText: portal.welcomeText || 'เลือกประเภทข้อมูลที่ต้องการบันทึก — ไม่ต้องเข้าสู่ระบบ',
+      gateOk: !disabled && !notFound && !expired,
+      gateBlocked: disabled || notFound || expired,
+      gateIcon: notFound ? '🔍' : (expired ? '🔄' : '⏸'),
+      gateTitle: notFound ? 'Portal Not Found' : (expired ? 'QR Code นี้ถูกยกเลิกแล้ว' : 'Portal Temporarily Unavailable'),
+      gateMessage: notFound
+        ? 'ลิงก์นี้ไม่ถูกต้องหรือไม่มีอยู่ในระบบ'
+        : (expired
+          ? 'QR Code นี้ถูกสร้างใหม่โดยผู้ดูแลระบบ กรุณาสแกน QR Code ล่าสุด'
+          : 'ขณะนี้ระบบบันทึกข้อมูลปิดให้บริการชั่วคราว กรุณาติดต่อผู้ดูแลระบบ'),
+      isSelect: s.view === 'select',
+      isForm: s.view === 'form',
+      isDone: s.view === 'done',
+      inForm: s.view === 'form',
+
+      modules: mods.map(m => ({
+        code: m.code, name: m.name, desc: m.desc, color: m.color,
+        meta: core.activeFields(m.id).length + ' คำถาม · บันทึกแล้ว ' + core.query({ module: m.id }).length + ' รายการ',
+        open: () => this.open(m.id)
+      })),
+
+      activeCode: def ? def.code : '',
+      activeName: def ? def.name : '',
+      activeColor: def ? def.color : 'var(--muted)',
+      activeDesc: def ? def.desc : '',
+
+      loading: s.view === 'form' && s.phase === 'loading',
+      formEmpty: s.view === 'form' && s.phase === 'empty',
+      formReady: s.view === 'form' && s.phase === 'ready',
+
+      groups: (core && s.module && s.phase === 'ready' ? core.groups(s.module) : []).map((g, i) => ({
+        index: 'ส่วนที่ ' + (i + 1), title: g.title,
+        fields: g.fields.map(f => this.buildField(f))
+      })),
+
+      errorBanner: s.banner,
+      submitting: s.submitting,
+      submitLabel: s.submitting ? 'กำลังบันทึก…' : 'บันทึกข้อมูล',
+      submitBg: s.submitting ? 'rgba(22,155,70,0.12)' : 'var(--accent-soft)',
+      submitCursor: s.submitting ? 'progress' : 'pointer',
+      submit: this.submit,
+
+      doneSummary: done ? this.summarize(done) : '',
+      doneDate: done ? 'วันที่ข้อมูล ' + core.fmtDate(done.reportDate) : '',
+      doneTime: done ? core.fmtDate(done.submittedAt) + ' ' + core.fmtTime(done.submittedAt) : '',
+      again: () => this.open(done ? done.module : mods[0].id),
+
+      goSelect: this.goSelect,
+      requestBack: this.requestBack,
+      confirmLeave: s.confirm,
+      stay: () => this.setState({ confirm: false }),
+      leave: this.goSelect
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Local tooling
+.vercel/
+node_modules/
+.env
+.env.local
+.env.*.local
+
+# Superseded first-generation prototype — kept locally, not part of the deployed app
+Prototype integration complete/_legacy/
+
+# Pasted reference screenshots from design review, not app assets
+Prototype integration complete/uploads/
+
+# Claude Design canvas scratch
+**/.thumbnail

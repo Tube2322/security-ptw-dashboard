@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "Prototype integration complete",
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/admin", "destination": "/SOC%20Admin%20Console%20v2.dc.html" },
+    { "source": "/entry", "destination": "/User%20Entry%20Portal%20v2.dc.html" }
+  ],
+  "headers": [
+    {
+      "source": "/vendor/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(.*)\.dc\.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

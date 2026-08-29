@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCTV Security Data PTW</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f14; --panel: rgba(255,255,255,0.04); --panel-2: rgba(255,255,255,0.07);
+    --line: rgba(255,255,255,0.11); --line-2: rgba(255,255,255,0.2);
+    --text: #e7edf3; --muted: #9aa8b6; --dim: #6d7c8b; --accent: #46c8d8;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f7f9; --panel: rgba(10,25,40,0.035); --panel-2: rgba(10,25,40,0.07);
+      --line: rgba(10,25,40,0.12); --line-2: rgba(10,25,40,0.22);
+      --text: #14202b; --muted: #566675; --dim: #7b8996; --accent: #0d7f8c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 32px 20px; color: var(--text);
+    font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; line-height: 1.65;
+    background: radial-gradient(120% 70% at 50% 0%, rgba(70,200,216,0.10) 0%, var(--bg) 60%);
+  }
+  main { width: 100%; max-width: 640px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+  .mark {
+    width: 40px; height: 40px; flex: none; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(150deg, var(--accent) 0%, #3d7ad6 100%);
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 12px; color: #06121a;
+  }
+  .kicker { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--dim); }
+  h1 { margin: 2px 0 0; font-size: 21px; font-weight: 600; letter-spacing: -0.3px; }
+  .cards { display: grid; gap: 13px; }
+  a.card {
+    display: flex; align-items: center; gap: 15px; min-width: 0;
+    padding: 19px 20px; border-radius: 15px; text-decoration: none; color: inherit;
+    border: 1px solid var(--line); background: var(--panel);
+    transition: background 140ms ease, border-color 140ms ease, transform 90ms ease;
+  }
+  a.card:hover { background: var(--panel-2); border-color: var(--line-2); }
+  a.card:active { transform: scale(0.995); }
+  a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .code {
+    width: 42px; height: 42px; flex: none; border-radius: 11px; display: grid; place-items: center;
+    border: 1px solid var(--line); background: var(--panel-2);
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent);
+  }
+  .card .t { min-width: 0; flex: 1; }
+  .card .t b { display: block; font-size: 16px; font-weight: 600; }
+  .card .t span { font-size: 13.5px; color: var(--muted); }
+  .arrow { flex: none; color: var(--dim); font-size: 18px; }
+  footer { margin-top: 24px; font-size: 12.5px; color: var(--dim); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <div class="mark">SOC</div>
+    <div>
+      <div class="kicker">CCTV Security Data PTW</div>
+      <h1>ระบบบันทึกข้อมูลรักษาความปลอดภัย</h1>
+    </div>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="./User%20Entry%20Portal%20v2.dc.html">
+      <span class="code">QR</span>
+      <span class="t">
+        <b>หน้ากรอกข้อมูล</b>
+        <span>สำหรับเจ้าหน้าที่ · ไม่ต้องเข้าสู่ระบบ</span>
+      </span>
+      <span class="arrow" aria-hidden="true">→</span>
+    </a>
+
+    <a class="card" href="./SOC%20Admin%20Console%20v2.dc.html">
+      <span class="code">ADM</span>
+      <span class="t">
+        <b>Admin Console</b>
+        <span>แดชบอร์ด · จัดการแบบฟอร์ม · ออกรายงาน PDF</span>
+      </span>
+      <span class="arrow" aria-hidden="true">→</span>
+    </a>
+  </div>
+
+  <footer>ข้อมูลถูกเก็บในเครื่องของผู้ใช้ (localStorage) — ยังไม่ได้เชื่อมฐานข้อมูลกลาง</footer>
+</main>
+</body>
+</html>
