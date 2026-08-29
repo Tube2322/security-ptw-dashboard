@@ -140,6 +140,14 @@
                           </sc-for>
                         </select>
                       </sc-if>
+                      <sc-if value="{{ f.isCombo }}" hint-placeholder-val="{{ false }}">
+                        <input id="{{ f.domId }}" list="{{ f.domId }}_list" type="text" placeholder="{{ f.placeholder }}" value="{{ f.value }}" onChange="{{ f.set }}" ref="{{ f.ref }}" style="width: 100%; min-width: 0; min-height: 52px; padding: 0 14px; font-size: 16px; border-radius: 12px; border: 1px solid {{ f.border }}; background: var(--panel); color: var(--text);">
+                        <datalist id="{{ f.domId }}_list">
+                          <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="3">
+                            <option value="{{ o }}"></option>
+                          </sc-for>
+                        </datalist>
+                      </sc-if>
                       <sc-if value="{{ f.isChoice }}" hint-placeholder-val="{{ false }}">
                         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                           <sc-for list="{{ f.choices }}" as="c" hint-placeholder-count="2">
@@ -294,7 +302,8 @@ class Component extends DCLogic {
         else if (parseFloat(s) < 0) errors[f.fieldId] = 'ค่าต้องไม่ติดลบ';
       }
       if (f.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) errors[f.fieldId] = 'รูปแบบวันที่ไม่ถูกต้อง';
-      if ((f.type === 'select' || f.type === 'radio') && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
+      if (f.type === 'radio' && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
+      if (f.type === 'select' && !f.allowCustom && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
     });
     return errors;
   }
@@ -346,14 +355,20 @@ class Component extends DCLogic {
       helper: f.helper || (f.allowOff ? 'กรอกตัวเลข หรือ OFF' : ''),
       error: err || '', border: err ? 'rgba(209,72,58,0.7)' : 'var(--line)',
       options: f.options || [], value: val == null ? '' : val,
-      isInput: false, isArea: false, isSelect: false, isChoice: false,
+      isInput: false, isArea: false, isSelect: false, isChoice: false, isCombo: false,
       hasCustom: false, customValue: '', setCustom: () => {},
       inputType: 'text', inputMode: 'text', choices: [],
       set: (e) => this.setValue(f.fieldId, e.target.value),
       ref: (el) => { this._els[f.fieldId] = el; }
     };
     if (f.type === 'textarea') { base.isArea = true; return base; }
-    if (f.type === 'select') { base.isSelect = true; return base; }
+    if (f.type === 'select') {
+      /* allowCustom turns a strict dropdown into a combo box: pick a name the admin already
+         added, or type one that isn't on the list yet — first submission of a new name doesn't
+         block on someone editing Form Builder first. */
+      if (f.allowCustom) { base.isCombo = true; return base; }
+      base.isSelect = true; return base;
+    }
     if (f.type === 'radio' || f.type === 'checkbox') {
       const multi = f.type === 'checkbox';
       base.isChoice = true;

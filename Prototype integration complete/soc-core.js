@@ -66,7 +66,7 @@
     var forms = {
       traffic: [
         f('traffic_date', 'วันที่', 'date', { required: true, system: true }),
-        f('traffic_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ' }),
+        f('traffic_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
         f('traffic_car_in_day', 'รถยนต์ขาเข้า 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
         f('traffic_moto_in_day', 'มอเตอร์ไซค์ขาเข้า 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
         f('traffic_car_out_day', 'รถยนต์ขาออก 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
@@ -80,7 +80,7 @@
       ],
       golf: [
         f('golf_date', 'วันที่', 'date', { required: true, system: true }),
-        f('golf_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ' }),
+        f('golf_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
         f('golf_shift', 'กะ', 'radio', { required: true, options: ['กะกลางวัน', 'กะกลางคืน'], system: true }),
         f('golf_cart_1', 'รถกอล์ฟ 1 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', helper: 'กรอก OFF หากรถไม่ได้ให้บริการ', system: true }),
         f('golf_cart_2', 'รถกอล์ฟ 2 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', system: true }),
@@ -91,7 +91,7 @@
       ],
       visitors: [
         f('visitor_date', 'วันที่', 'date', { required: true, system: true }),
-        f('visitor_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ' }),
+        f('visitor_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
         f('visitor_general_count', 'จำนวน Visitor ทั่วไป', 'number', { required: true, group: 'Visitor ทั่วไป', placeholder: '0', unit: 'คน', system: true }),
         f('visitor_general_note', 'หมายเหตุ Visitor ทั่วไป', 'textarea', { group: 'Visitor ทั่วไป', placeholder: 'เช่น ส่งเอกสาร / ติดต่อสำนักงาน' }),
         f('visitor_contractor_count', 'จำนวน Visitor ผู้รับเหมา', 'number', { required: true, group: 'Visitor ผู้รับเหมา', placeholder: '0', unit: 'คน', system: true }),
