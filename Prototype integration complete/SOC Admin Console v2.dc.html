@@ -977,7 +977,7 @@
                 <div style="flex: 1 1 min(260px, 100%); min-width: 0; max-width: 320px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); padding: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px;">
                   <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase;">Portal Preview</div>
                   <div style="font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere;">{{ portalName }}</div>
-                  <div ref="{{ qrBoxRef }}" role="img" aria-label="QR code สำหรับเข้าหน้ากรอกข้อมูล" style="width: 196px; height: 196px; margin: 0 auto; border-radius: 10px; background: #fff; padding: 8px; display: grid; place-items: center;"></div>
+                  <div ref="{{ qrBoxRef }}" role="img" aria-label="QR code สำหรับเข้าหน้ากรอกข้อมูล" style="width: 196px; height: 196px; margin: 0 auto; border-radius: 10px; background: #fff; padding: 20px; display: grid; place-items: center;"></div>
                   <div style="font-size: 12px; color: var(--muted);">Scan QR Code เพื่อเข้าสู่ระบบ</div>
                   <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); overflow-wrap: anywhere;">🔗 /entry/{{ portalSlug }}</div>
                   <div style="display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; width: 100%; margin-top: 4px;">
@@ -2482,7 +2482,7 @@ class Component extends DCLogic {
     const url = this.qrUrl();
     if (el.dataset.qrUrl === url) return;   /* only redraw when the encoded URL actually changed */
     el.dataset.qrUrl = url;
-    this.drawQr(el, url, 180);
+    this.drawQr(el, url, 156); /* 196px box − 20px padding on each side */
   };
   downloadQr = async () => {
     const draft = this.portalDraft();
@@ -2492,12 +2492,25 @@ class Component extends DCLogic {
       const stage = document.createElement('div');
       stage.style.cssText = 'position:fixed;left:-9999px;top:0;';
       document.body.appendChild(stage);
-      this.drawQr(stage, this.qrUrl(), 600);
+      const qrSize = 600;
+      this.drawQr(stage, this.qrUrl(), qrSize);
       await new Promise(r => setTimeout(r, 60));
-      const canvas = stage.querySelector('canvas');
-      if (!canvas) throw new Error('qr canvas not rendered');
+      const qrCanvas = stage.querySelector('canvas');
+      if (!qrCanvas) throw new Error('qr canvas not rendered');
+      /* qrcodejs draws the modules edge-to-edge with zero quiet zone — fine for the on-screen
+         preview, which sits inside a padded white card, but a scanner reading the raw exported
+         PNG (printed, or viewed against any non-white background) needs its own built-in white
+         border to even find the finder patterns. Composite onto a larger white canvas so the
+         quiet zone travels with the file. */
+      const quiet = Math.round(qrSize * 0.14);
+      const out = document.createElement('canvas');
+      out.width = out.height = qrSize + quiet * 2;
+      const ctx = out.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(qrCanvas, quiet, quiet, qrSize, qrSize);
       const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
+      a.href = out.toDataURL('image/png');
       a.download = 'qr-' + (draft.slug || 'portal') + '.png';
       document.body.appendChild(a);
       a.click();
