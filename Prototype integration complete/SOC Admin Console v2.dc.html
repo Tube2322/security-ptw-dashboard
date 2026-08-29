@@ -11,6 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<script src="./vendor/supabase.min.js"></script>
+<script src="./soc-config.js"></script>
 <script src="./soc-core.js"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -89,6 +91,31 @@
 
 <div style="min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans Thai', 'Helvetica Neue', Helvetica, sans-serif; font-size: 15px; line-height: 1.55; text-wrap: pretty;">
 
+  <!-- ===== AUTH GATE ===== admin-only console: nothing below renders until signed in ===== -->
+  <sc-if value="{{ authChecking }}" hint-placeholder-val="{{ true }}">
+    <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13.5px;">กำลังตรวจสอบสิทธิ์เข้าใช้งาน…</div>
+  </sc-if>
+
+  <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ false }}">
+    <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+      <div style="width: 100%; max-width: 380px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg-2); padding: 28px;">
+        <div style="width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(150deg, var(--accent) 0%, #3d7ad6 100%); display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 12px; color: #06121a; margin-bottom: 16px;">SOC</div>
+        <h1 style="margin: 0 0 4px; font-size: 19px; font-weight: 600;">เข้าสู่ระบบ Admin Console</h1>
+        <p style="margin: 0 0 20px; font-size: 13px; color: var(--muted);">สำหรับผู้ดูแลระบบเท่านั้น</p>
+        <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">อีเมล</label>
+        <input type="email" value="{{ loginEmail }}" onChange="{{ setLoginEmail }}" placeholder="admin@example.com" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 13px;">
+        <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">รหัสผ่าน</label>
+        <input type="password" value="{{ loginPassword }}" onChange="{{ setLoginPassword }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 6px;">
+        <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+          <div style="margin: 8px 0; font-size: 12.5px; color: var(--danger);">{{ loginError }}</div>
+        </sc-if>
+        <button onClick="{{ doLogin }}" disabled="{{ loginBusy }}" style="width: 100%; min-height: 48px; margin-top: 12px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 14.5px; font-weight: 500;">{{ loginBtnLabel }}</button>
+        <p style="margin: 16px 0 0; font-size: 11.5px; color: var(--dim); line-height: 1.6;">ยังไม่มีบัญชี? สร้างผู้ใช้ได้จาก Supabase Dashboard → Authentication → Users</p>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isAuthed }}" hint-placeholder-val="{{ false }}">
   <div data-print-hide="1" style="display: flex; min-height: 100vh; align-items: stretch;">
 
     <!-- ============ SIDEBAR ============ -->
@@ -133,6 +160,11 @@
         </span>
         <span style="flex: none; font-size: 13px;">↗</span>
       </a>
+
+      <div style="margin: 8px 12px 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <span style="min-width: 0; flex: 1; font-size: 11.5px; color: var(--dim); overflow-wrap: anywhere;">{{ userEmail }}</span>
+        <button onClick="{{ doLogout }}" style="flex: none; min-height: 34px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12px;" style-hover="background: var(--panel-2); color: var(--text);">ออกจากระบบ</button>
+      </div>
     </aside>
 
     <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
@@ -958,6 +990,7 @@
       
     </div>
   </div>
+  </sc-if>
 
   <!-- ===== PRINT SHEET ===== one independently-capturable block per PDF page ===== -->
   <div data-print-sheet="1" style="display: {{ printSheetDisplay }}; position: fixed; left: -9999px; top: 0;">
@@ -1198,19 +1231,31 @@ class Component extends DCLogic {
     theme: 'system',
     portalDraft: null, qrTick: 0, regenConfirmOpen: false, regenConfirmText: '', disablePortalConfirmOpen: false,
     toast: '', toastColor: 'var(--ok)',
+    authTick: 0, loginEmail: '', loginPassword: '', loginError: '', loginBusy: false,
     rev: 0
   };
 
+  pickLatestDate() {
+    const core = this.core();
+    const now = new Date();
+    const months = core.monthsIndex('traffic', 12);
+    const first = months.filter(m => m.count > 0)[0] || months[0];
+    const latest = first && first.dates.length ? first.dates[first.dates.length - 1] : null;
+    const iy = first ? first.year : now.getFullYear(), im = first ? first.month : now.getMonth();
+    this.setState({ year: iy, month: im, date: latest, pdfPeriodYear: iy, pdfPeriodMonth: im, pdfPeriodDay: latest });
+  }
   componentDidMount() {
     const core = window.SOCCore;
     if (core) {
       this._unsub = core.subscribe(() => this.setState(s => ({ rev: s.rev + 1 })));
-      const now = new Date();
-      const months = core.monthsIndex('traffic', 12);
-      const first = months.filter(m => m.count > 0)[0] || months[0];
-      const latest = first && first.dates.length ? first.dates[first.dates.length - 1] : null;
-      const iy = first ? first.year : now.getFullYear(), im = first ? first.month : now.getMonth();
-      this.setState({ year: iy, month: im, date: latest, pdfPeriodYear: iy, pdfPeriodMonth: im, pdfPeriodDay: latest });
+      /* mount runs before the initial Supabase fetch resolves, so the first pass here always
+         sees an empty cache — core.ready is the same promise the data layer awaits internally,
+         and jumping to "today" a second time once it settles is what actually lands on the
+         latest date with real data */
+      this.pickLatestDate();
+      core.ready.then(() => this.pickLatestDate());
+      this._unsubAuth = core.auth.subscribe(() => this.setState(s => ({ authTick: s.authTick + 1 })));
+      this._unsubError = core.onError((msg) => this.flash(msg, 'var(--danger)'));
     }
     this._resize = () => {
       const narrow = window.innerWidth < 1080;
@@ -1229,6 +1274,8 @@ class Component extends DCLogic {
   componentWillUnmount() {
     if (this._unsub) this._unsub();
     if (this._unsubPortal) this._unsubPortal();
+    if (this._unsubAuth) this._unsubAuth();
+    if (this._unsubError) this._unsubError();
     window.removeEventListener('resize', this._resize);
     if (this._mq && this._mq.removeEventListener) this._mq.removeEventListener('change', this._mqh);
     if (this._toastT) clearTimeout(this._toastT);
@@ -1248,6 +1295,20 @@ class Component extends DCLogic {
     if (this._toastT) clearTimeout(this._toastT);
     this._toastT = setTimeout(() => this.setState({ toast: '' }), 2600);
   }
+
+  /* ---------- auth ---------- */
+  setLoginEmail = (e) => this.setState({ loginEmail: e.target.value, loginError: '' });
+  setLoginPassword = (e) => this.setState({ loginPassword: e.target.value, loginError: '' });
+  doLogin = async () => {
+    const email = this.state.loginEmail.trim();
+    const password = this.state.loginPassword;
+    if (!email || !password) { this.setState({ loginError: 'กรอกอีเมลและรหัสผ่านให้ครบ' }); return; }
+    this.setState({ loginBusy: true, loginError: '' });
+    const { error } = await this.core().auth.signIn(email, password);
+    if (error) { this.setState({ loginBusy: false, loginError: 'เข้าสู่ระบบไม่สำเร็จ — ตรวจสอบอีเมลและรหัสผ่าน' }); return; }
+    this.setState({ loginBusy: false, loginPassword: '' });
+  };
+  doLogout = () => { this.core().auth.signOut(); };
 
   go = (page) => {
     this.setState({ page, drawerOpen: false, loading: true, builderDraft: null });
@@ -2564,7 +2625,25 @@ class Component extends DCLogic {
     const recordPage = Math.min(s.recordPage, recordPages - 1);
     const recordSlice = recordsAll.slice(recordPage * REC_PER_PAGE, (recordPage + 1) * REC_PER_PAGE);
 
+    const authReady = core.auth.ready();
+    const authUser = core.auth.user();
+
     return {
+      /* auth */
+      authChecking: !authReady,
+      showLogin: authReady && !authUser,
+      isAuthed: authReady && !!authUser,
+      userEmail: authUser ? authUser.email : '',
+      loginEmail: s.loginEmail,
+      loginPassword: s.loginPassword,
+      loginError: s.loginError,
+      loginBusy: s.loginBusy,
+      loginBtnLabel: s.loginBusy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ',
+      setLoginEmail: this.setLoginEmail,
+      setLoginPassword: this.setLoginPassword,
+      doLogin: this.doLogin,
+      doLogout: this.doLogout,
+
       /* layout */
       narrow: s.narrow,
       drawerOpen: s.drawerOpen,

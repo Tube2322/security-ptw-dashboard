@@ -11,6 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<script src="./vendor/supabase.min.js"></script>
+<script src="./soc-config.js"></script>
 <script src="./soc-core.js"></script>
 <style>
   :root {
@@ -216,6 +218,11 @@ class Component extends DCLogic {
     if (core) {
       this._unsub = core.subscribe(() => this.setState(s => ({ rev: s.rev + 1 })));
       this._unsubPortal = core.subscribePortal(() => this.setState(s => ({ rev: s.rev + 1 })));
+      /* NOTE: by the time a background insert/update actually fails, the optimistic local
+         write has usually already carried the guard to the "done" screen, so there is no
+         reliable UI moment left to surface this to them. Logged, not yet shown — offline/retry
+         handling for the entry portal is a known gap, not something this fixes today. */
+      this._unsubError = core.onError((msg) => { console.error('[SOCCore]', msg); });
       const p = core.getPortal();
       if (p.portalName) document.title = p.portalName;
     }
@@ -223,6 +230,7 @@ class Component extends DCLogic {
   componentWillUnmount() {
     if (this._unsub) this._unsub();
     if (this._unsubPortal) this._unsubPortal();
+    if (this._unsubError) this._unsubError();
     if (this._t) clearTimeout(this._t);
     if (this._t2) clearTimeout(this._t2);
   }
@@ -397,7 +405,7 @@ class Component extends DCLogic {
 
       modules: mods.map(m => ({
         code: m.code, name: m.name, desc: m.desc, color: m.color,
-        meta: core.activeFields(m.id).length + ' คำถาม · บันทึกแล้ว ' + core.query({ module: m.id }).length + ' รายการ',
+        meta: core.activeFields(m.id).length + ' คำถาม · บันทึกแล้ว ' + core.fmtNum(core.recordCount(m.id)) + ' รายการ',
         open: () => this.open(m.id)
       })),
 

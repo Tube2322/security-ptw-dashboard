@@ -1,19 +1,28 @@
 /* ============================================================
    SOC Command Center — CENTRAL DATA LAYER (single source of truth)
-   Phase 1–2: architecture + data layer
    window.SOCCore
      • Form registry  : fields per module (stable fieldId, order, active)
      • Records        : reportDate vs submittedAt kept separate
      • Aggregation    : COUNT / SUM / AVERAGE / MIN / MAX / LATEST
      • Date index     : months → dates that actually have records
-     • Reactive       : subscribe() fires on every write, cross-tab
+     • Reactive       : subscribe() fires on every write, cross-tab AND cross-device
+     • Auth           : email/password session for the Admin Console only
    No UI code lives here. No dashboard keeps its own dataset.
+
+   Backed by Supabase (see soc-config.js for the client). Every read method below (fields(),
+   query(), allRecords(), ...) stays fully SYNCHRONOUS over an in-memory `state` object — nothing
+   in either .dc.html file had to change to a Promise-based call. `state` starts empty and is
+   populated by the initial fetch below; once it resolves, subscribe() fires exactly like it did
+   for a localStorage write, so already-mounted components just re-render with real data.
+   Row Level Security, not this file, is what actually keeps the data safe — see the
+   `init_soc_schema` migration for the policies. This file only shapes rows into/out of the JS
+   objects the dashboards expect.
    ============================================================ */
 (function () {
-  var KEY = 'soc.core.v2';
+  var sb = window.supabaseClient;
   var EVT = 'soc:core';
-  var PORTAL_KEY = 'soc_qr_portal_settings_v1';
   var PORTAL_EVT = 'soc:portal';
+  var AUTH_EVT = 'soc:auth';
 
   var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8' };
 
@@ -50,6 +59,9 @@
     };
   }
 
+  /* The code's own definition of every field, and which ones a dashboard formula reads by
+     fieldId (`system: true`). Used to (a) seed the database once, and (b) re-lock the `system`
+     flag on whatever the database returns — see applySystemFlags(). */
   function defaultForms() {
     var forms = {
       traffic: [
@@ -95,81 +107,26 @@
 
   function pad(n) { return String(n).padStart(2, '0'); }
   function isoDay(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  /* Deliberately NOT UTC — the whole formatting layer below (fmtDate/fmtTime) slices this
+     string directly with no timezone math, so it must already be local wall-clock text.
+     The database column is a naive `timestamp` for the same reason: see the
+     timestamps_as_naive_local migration. */
   function nowIso() { var d = new Date(); return isoDay(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
 
-  var seq = 0;
-  function newId(prefix) {
-    seq++;
-    return prefix + '-' + Date.now().toString(36) + seq.toString(36);
-  }
-
-  /* Controlled test data — spec §41–44. Flagged isTest so it can be cleared. */
-  function seedRecords() {
-    var out = [];
-    var mk = function (module, formId, reportDate, submittedAt, by, inspector, data) {
-      return { id: newId('seed'), module: module, formId: formId, formVersion: 1,
-        reportDate: reportDate, submittedAt: submittedAt, updatedAt: submittedAt,
-        submittedBy: by, inspector: inspector, isTest: true, data: data };
-    };
-    var y = 2026;
-    var day = function (d) { return y + '-08-' + pad(d); };
-
-    /* mandated scenario — 13/08/2569 */
-    out.push(mk('traffic', 'form_traffic', day(13), day(13) + 'T20:15:00', OPERATORS[0], 'หัวหน้าชุด A', {
-      traffic_date: day(13), traffic_name: OPERATORS[0],
-      traffic_car_in_day: 100, traffic_moto_in_day: 50, traffic_car_out_day: 80, traffic_moto_out_day: 40,
-      traffic_car_in_night: 30, traffic_moto_in_night: 20, traffic_car_out_night: 25, traffic_moto_out_night: 15,
-      traffic_inspector: 'หัวหน้าชุด A', traffic_note: ''
-    }));
-    out.push(mk('golf', 'form_golf', day(13), day(14) + 'T00:15:00', OPERATORS[1], 'หัวหน้าชุด A', {
-      golf_date: day(13), golf_name: OPERATORS[1], golf_shift: 'กะกลางวัน',
-      golf_cart_1: 10, golf_cart_2: 20, golf_cart_3: 'OFF', golf_cart_4: 15,
-      golf_inspector: 'หัวหน้าชุด A', golf_note: 'รถ 3 เข้าซ่อมบำรุง'
-    }));
-    out.push(mk('visitors', 'form_visitors', day(13), day(13) + 'T18:40:00', OPERATORS[2], 'หัวหน้าชุด A', {
-      visitor_date: day(13), visitor_name: OPERATORS[2],
-      visitor_general_count: 30, visitor_general_note: 'ติดต่อสำนักงาน / ส่งเอกสาร',
-      visitor_contractor_count: 15, visitor_contractor_note: 'งานซ่อมบำรุงระบบไฟฟ้าอาคาร B',
-      visitor_org: 'บ. ทีพี เอ็นจิเนียริ่ง', visitor_department: ['วิศวกรรม', 'ความปลอดภัย'],
-      visitor_inspector: 'หัวหน้าชุด A'
-    }));
-
-    /* neighbouring days for history testing (12, 14) + a spread for trend charts */
-    var spread = [
-      { d: 12, k: 0.8 }, { d: 14, k: 1.2 }, { d: 15, k: 0.9 }, { d: 18, k: 1.1 },
-      { d: 20, k: 0.7 }, { d: 22, k: 1.3 }, { d: 25, k: 1.0 }, { d: 27, k: 0.85 }, { d: 28, k: 1.15 }
-    ];
-    spread.forEach(function (s, i) {
-      var r = function (base) { return Math.round(base * s.k); };
-      out.push(mk('traffic', 'form_traffic', day(s.d), day(s.d) + 'T20:0' + (i % 9) + ':00', OPERATORS[i % 4], 'หัวหน้าชุด ' + (i % 2 ? 'B' : 'A'), {
-        traffic_date: day(s.d), traffic_name: OPERATORS[i % 4],
-        traffic_car_in_day: r(92), traffic_moto_in_day: r(58), traffic_car_out_day: r(85), traffic_moto_out_day: r(54),
-        traffic_car_in_night: r(28), traffic_moto_in_night: r(19), traffic_car_out_night: r(26), traffic_moto_out_night: r(17),
-        traffic_inspector: 'หัวหน้าชุด ' + (i % 2 ? 'B' : 'A'), traffic_note: ''
-      }));
-      out.push(mk('golf', 'form_golf', day(s.d), day(s.d) + 'T19:1' + (i % 9) + ':00', OPERATORS[(i + 1) % 4], 'หัวหน้าชุด A', {
-        golf_date: day(s.d), golf_name: OPERATORS[(i + 1) % 4], golf_shift: i % 3 === 0 ? 'กะกลางคืน' : 'กะกลางวัน',
-        golf_cart_1: r(12), golf_cart_2: r(16), golf_cart_3: i % 4 === 0 ? 'OFF' : r(9), golf_cart_4: r(14),
-        golf_inspector: 'หัวหน้าชุด A', golf_note: ''
-      }));
-      out.push(mk('visitors', 'form_visitors', day(s.d), day(s.d) + 'T17:2' + (i % 9) + ':00', OPERATORS[(i + 2) % 4], 'หัวหน้าชุด B', {
-        visitor_date: day(s.d), visitor_name: OPERATORS[(i + 2) % 4],
-        visitor_general_count: r(26), visitor_general_note: 'ติดต่อสำนักงาน',
-        visitor_contractor_count: r(12), visitor_contractor_note: 'งานปรับปรุงพื้นที่',
-        visitor_org: 'ผู้รับเหมาโครงการ', visitor_department: i % 2 ? ['วิศวกรรม'] : ['ธุรการ', 'จัดซื้อ'],
-        visitor_inspector: 'หัวหน้าชุด B'
-      }));
+  function uuid() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    /* fallback for a non-secure context (plain http, not localhost) where randomUUID is absent */
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
     });
-    return out;
   }
 
-  function fresh() { return { forms: defaultForms(), formVersion: 1, records: seedRecords(), rev: 1 }; }
-
-  /* Re-apply the `system` flag from defaultForms() onto a stored registry.
+  /* Re-apply the `system` flag from defaultForms() onto whatever the database returns.
      The flag marks fields whose fieldId a dashboard formula reads directly, so it is owned by
-     the code, not by the saved data — a registry saved before the flag existed (or edited while
-     it was missing) must still come back locked, or the builder would happily let someone
-     disable a field that every KPI depends on. Labels, order, groups and active stay untouched. */
+     the code, not by stored data — a registry row saved before the flag existed must still come
+     back locked, or the builder would happily let someone disable a field every KPI depends on.
+     Labels, order, groups and active stay untouched. */
   function applySystemFlags(forms) {
     var defaults = defaultForms();
     Object.keys(defaults).forEach(function (m) {
@@ -184,26 +141,73 @@
     return forms;
   }
 
-  var cache = null;
-  function read() {
-    if (cache) return cache;
-    try {
-      var raw = localStorage.getItem(KEY);
-      if (raw) {
-        var p = JSON.parse(raw);
-        if (p && p.forms && p.records) { applySystemFlags(p.forms); cache = p; return cache; }
-      }
-    } catch (e) {}
-    cache = fresh();
-    persist(cache, true);
-    return cache;
+  /* ---------- row <-> JS object shape ---------- */
+  function fieldFromRow(r) {
+    return {
+      fieldId: r.field_id, label: r.label, type: r.type,
+      required: !!r.required, active: r.active !== false, order: r.order,
+      options: r.options || [], placeholder: r.placeholder || '',
+      helper: r.helper || '', group: r.group || 'ข้อมูลทั่วไป',
+      unit: r.unit || '', allowOff: !!r.allow_off, system: !!r.system
+    };
   }
-  function persist(data, silent) {
-    cache = data;
-    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
-    if (!silent) { try { window.dispatchEvent(new CustomEvent(EVT, { detail: { rev: data.rev } })); } catch (e2) {} }
+  function fieldToRow(module, fl, i) {
+    return {
+      module: module, field_id: fl.fieldId, label: fl.label, type: fl.type,
+      required: !!fl.required, active: fl.active !== false, order: i,
+      options: fl.options || [], placeholder: fl.placeholder || '',
+      helper: fl.helper || '', group: fl.group || 'ข้อมูลทั่วไป',
+      unit: fl.unit || '', allow_off: !!fl.allowOff, system: !!fl.system
+    };
   }
-  function commit(data) { data.rev = (data.rev || 0) + 1; persist(data); }
+  function recordFromRow(r) {
+    return {
+      id: r.id, module: r.module, formId: r.form_id, formVersion: r.form_version,
+      reportDate: r.report_date, submittedAt: r.submitted_at, updatedAt: r.updated_at,
+      submittedBy: r.submitted_by, inspector: r.inspector, isTest: !!r.is_test,
+      data: r.data || {}
+    };
+  }
+  function recordToRow(rec) {
+    return {
+      id: rec.id, module: rec.module, form_id: rec.formId, form_version: rec.formVersion,
+      report_date: rec.reportDate, submitted_at: rec.submittedAt, updated_at: rec.updatedAt,
+      submitted_by: rec.submittedBy, inspector: rec.inspector, is_test: !!rec.isTest,
+      data: rec.data || {}
+    };
+  }
+  function portalFromRow(r) {
+    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version };
+  }
+  function portalToRow(p) {
+    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion };
+  }
+
+  /* ---------- in-memory state — every read method below is synchronous over this ---------- */
+  var state = {
+    forms: { traffic: [], golf: [], visitors: [] },
+    formVersion: 1,
+    records: [],
+    counts: { traffic: 0, golf: 0, visitors: 0 }, /* from record_count() RPC — see recordCount() */
+    rev: 0
+  };
+  var portalState = null; /* null until the first successful fetch; getPortal() falls back to defaults until then */
+
+  function bump() {
+    state.rev++;
+    try { window.dispatchEvent(new CustomEvent(EVT, { detail: { rev: state.rev } })); } catch (e) {}
+  }
+  function bumpPortal() {
+    try { window.dispatchEvent(new CustomEvent(PORTAL_EVT, { detail: portalState })); } catch (e) {}
+  }
+
+  var errorHandlers = [];
+  /* A background write (see addRecord/updateRecord/... below) already applied itself to the
+     local cache and returned before the network call resolves, so a failure can't be reported
+     through a normal return value or thrown exception — the caller has moved on. This is the
+     only channel that failure reaches the UI through; both .dc.html files subscribe to it and
+     show it as a toast. */
+  function notifyError(msg) { errorHandlers.forEach(function (fn) { try { fn(msg); } catch (e) {} }); }
 
   /* numeric parse — OFF / blank / text are NOT zero, they are "no value" */
   function num(v) {
@@ -217,13 +221,70 @@
   }
   function isOff(v) { return /^off$/i.test(String(v == null ? '' : v).trim()); }
 
+  /* ---------- initial load + realtime ---------- */
+  function loadFormFields() {
+    return sb.from('form_fields').select('*').then(function (res) {
+      if (res.error) { notifyError('โหลดแบบฟอร์มไม่สำเร็จ: ' + res.error.message); return; }
+      var forms = { traffic: [], golf: [], visitors: [] };
+      (res.data || []).forEach(function (r) { (forms[r.module] = forms[r.module] || []).push(fieldFromRow(r)); });
+      Object.keys(forms).forEach(function (m) { forms[m].sort(function (a, b) { return a.order - b.order; }); });
+      applySystemFlags(forms);
+      state.forms = forms;
+      bump();
+    });
+  }
+  function loadRecords() {
+    return sb.from('records').select('*').then(function (res) {
+      if (res.error) { notifyError('โหลดข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
+      state.records = (res.data || []).map(recordFromRow);
+      bump();
+    });
+  }
+  function loadCounts() {
+    return Promise.all(MODULES.map(function (m) {
+      return sb.rpc('record_count', { p_module: m.id }).then(function (res) {
+        state.counts[m.id] = res.error ? 0 : Number(res.data || 0);
+      });
+    })).then(bump);
+  }
+  function loadPortal() {
+    return sb.from('portal_settings').select('*').eq('id', true).maybeSingle().then(function (res) {
+      if (res.error) { notifyError('โหลดการตั้งค่า Portal ไม่สำเร็จ: ' + res.error.message); return; }
+      portalState = res.data ? portalFromRow(res.data) : null;
+      bumpPortal();
+    });
+  }
+
+  var ready = Promise.all([loadFormFields(), loadRecords(), loadCounts(), loadPortal()]);
+
+  /* Wholesale refetch on any change, rather than patching the local cache from the realtime
+     payload — simpler to get right, and this app's data volume (a daily security log for one
+     site) is small enough that re-fetching a table is cheap. */
+  try {
+    sb.channel('soc-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, function () { loadRecords(); loadCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'form_fields' }, function () { loadFormFields(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, function () { loadPortal(); })
+      .subscribe();
+  } catch (e) { /* realtime is a live-sync nicety, not a hard requirement — degrade to no cross-tab push */ }
+
+  /* ---------- auth (Admin Console only — the entry portal never calls this) ---------- */
+  var authState = { session: null, initialized: false };
+  function setSession(session) {
+    authState.session = session || null;
+    authState.initialized = true;
+    try { window.dispatchEvent(new CustomEvent(AUTH_EVT)); } catch (e) {}
+  }
+  sb.auth.getSession().then(function (res) { setSession(res.data && res.data.session); });
+  sb.auth.onAuthStateChange(function (_event, session) { setSession(session); });
+
   var Core = {
     MODULES: MODULES, TYPES: TYPES, OPERATORS: OPERATORS, COLORS: PALETTE,
 
     module: function (id) { for (var i = 0; i < MODULES.length; i++) if (MODULES[i].id === id) return MODULES[i]; return null; },
 
     /* ---------- form registry ---------- */
-    fields: function (m) { return (read().forms[m] || []).slice().sort(function (a, b) { return a.order - b.order; }); },
+    fields: function (m) { return (state.forms[m] || []).slice().sort(function (a, b) { return a.order - b.order; }); },
     activeFields: function (m) { return this.fields(m).filter(function (x) { return x.active !== false; }); },
     field: function (m, id) { var l = this.fields(m); for (var i = 0; i < l.length; i++) if (l[i].fieldId === id) return l[i]; return null; },
     numericFields: function (m) { return this.fields(m).filter(function (x) { return x.type === 'number'; }); },
@@ -236,18 +297,29 @@
       });
       return out;
     },
+    /* Replaces the whole field list for one module. Applies to the local cache immediately
+       (so Form Builder shows the saved state right away) and persists as delete-all-then-insert
+       for that module in the background — this table is small and admin-only, so the brief
+       window without row-level atomicity is an accepted tradeoff, not a real risk. */
     setFields: function (m, list) {
-      var d = read();
-      d.forms[m] = list.map(function (x, i) { return Object.assign({}, x, { order: i }); });
-      applySystemFlags(d.forms);
-      d.formVersion = (d.formVersion || 1) + 1;
-      commit(d);
+      var next = list.map(function (x, i) { return Object.assign({}, x, { order: i }); });
+      applySystemFlags((function () { var o = {}; o[m] = next; return o; })());
+      var prev = state.forms[m];
+      state.forms[m] = next;
+      state.formVersion = (state.formVersion || 1) + 1;
+      bump();
+      var rows = next.map(function (fl, i) { return fieldToRow(m, fl, i); });
+      sb.from('form_fields').delete().eq('module', m)
+        .then(function () { return sb.from('form_fields').insert(rows); })
+        .then(function (res) {
+          if (res.error) { state.forms[m] = prev; bump(); notifyError('บันทึกแบบฟอร์มไม่สำเร็จ: ' + res.error.message); }
+        });
     },
     newFieldId: function (m) { return m + '_custom_' + Math.random().toString(36).slice(2, 7); },
 
     /* ---------- records ---------- */
     allRecords: function () {
-      return read().records.slice().sort(function (a, b) {
+      return state.records.slice().sort(function (a, b) {
         if (a.reportDate === b.reportDate) return a.submittedAt < b.submittedAt ? 1 : -1;
         return a.reportDate < b.reportDate ? 1 : -1;
       });
@@ -267,23 +339,37 @@
         return true;
       });
     },
+    /* Synchronous count independent of allRecords()/query() — those read `state.records`, which
+       Row Level Security leaves empty for an unauthenticated guest (only INSERT is public on
+       `records`). The entry portal's module tiles ("บันทึกแล้ว N รายการ") read this instead,
+       backed by the record_count() RPC, which returns only a number, never row contents. */
+    recordCount: function (module) { return state.counts[module] || 0; },
     addRecord: function (module, data, meta) {
       meta = meta || {};
-      var d = read();
       var mod = this.module(module) || {};
       var nameField = module === 'traffic' ? 'traffic_name' : (module === 'golf' ? 'golf_name' : 'visitor_name');
       var dateField = module === 'traffic' ? 'traffic_date' : (module === 'golf' ? 'golf_date' : 'visitor_date');
       var insField = module === 'traffic' ? 'traffic_inspector' : (module === 'golf' ? 'golf_inspector' : 'visitor_inspector');
       var rec = {
-        id: newId('rec'), module: module, formId: mod.formId, formVersion: d.formVersion || 1,
+        id: uuid(), module: module, formId: mod.formId, formVersion: state.formVersion || 1,
         reportDate: data[dateField] || isoDay(new Date()),
         submittedAt: nowIso(), updatedAt: nowIso(),
         submittedBy: data[nameField] || meta.submittedBy || '—',
         inspector: data[insField] || '',
+        isTest: false,
         data: Object.assign({}, data)
       };
-      d.records.push(rec);
-      commit(d);
+      state.records.push(rec);
+      state.counts[module] = (state.counts[module] || 0) + 1;
+      bump();
+      sb.from('records').insert(recordToRow(rec)).then(function (res) {
+        if (res.error) {
+          state.records = state.records.filter(function (r) { return r.id !== rec.id; });
+          state.counts[module] = Math.max(0, (state.counts[module] || 0) - 1);
+          bump();
+          notifyError('บันทึกข้อมูลไม่สำเร็จ: ' + res.error.message);
+        }
+      });
       return rec;
     },
     /* Editing a record must keep the denormalised header fields (reportDate / submittedBy /
@@ -291,36 +377,86 @@
        under the old day and every date-scoped dashboard, history list and PDF would disagree
        with the record's own answers. id, module and submittedAt are never rewritten. */
     updateRecord: function (id, data) {
-      var d = read();
-      var self = this;
-      d.records = d.records.map(function (r) {
+      var prev = null, next = null;
+      state.records = state.records.map(function (r) {
         if (r.id !== id) return r;
+        prev = r;
         var merged = Object.assign({}, r.data, data);
         var m = r.module;
         var dateField = m === 'traffic' ? 'traffic_date' : (m === 'golf' ? 'golf_date' : 'visitor_date');
         var nameField = m === 'traffic' ? 'traffic_name' : (m === 'golf' ? 'golf_name' : 'visitor_name');
         var insField = m === 'traffic' ? 'traffic_inspector' : (m === 'golf' ? 'golf_inspector' : 'visitor_inspector');
-        return Object.assign({}, r, {
+        next = Object.assign({}, r, {
           data: merged,
           reportDate: merged[dateField] || r.reportDate,
           submittedBy: merged[nameField] || r.submittedBy,
           inspector: merged[insField] != null ? merged[insField] : r.inspector,
           updatedAt: nowIso()
         });
+        return next;
       });
-      commit(d);
+      if (!next) return;
+      bump();
+      sb.from('records').update(recordToRow(next)).eq('id', id).then(function (res) {
+        if (res.error) {
+          state.records = state.records.map(function (r) { return r.id === id ? prev : r; });
+          bump();
+          notifyError('บันทึกการแก้ไขไม่สำเร็จ: ' + res.error.message);
+        }
+      });
     },
     deleteRecord: function (id) {
-      var d = read();
-      d.records = d.records.filter(function (r) { return r.id !== id; });
-      commit(d);
+      var removed = state.records.filter(function (r) { return r.id === id; })[0];
+      if (!removed) return;
+      state.records = state.records.filter(function (r) { return r.id !== id; });
+      state.counts[removed.module] = Math.max(0, (state.counts[removed.module] || 0) - 1);
+      bump();
+      sb.from('records').delete().eq('id', id).then(function (res) {
+        if (res.error) {
+          state.records.push(removed);
+          state.counts[removed.module] = (state.counts[removed.module] || 0) + 1;
+          bump();
+          notifyError('ลบรายการไม่สำเร็จ: ' + res.error.message);
+        }
+      });
     },
+    /* Kept for API compatibility with the Settings page. Every record created through this
+       backend has isTest = false — the localStorage version's auto-generated demo rows have no
+       equivalent here, so in practice this filters nothing. */
     clearTestData: function () {
-      var d = read();
-      d.records = d.records.filter(function (r) { return !r.isTest; });
-      commit(d);
+      var removed = state.records.filter(function (r) { return r.isTest; });
+      if (!removed.length) return;
+      state.records = state.records.filter(function (r) { return !r.isTest; });
+      bump();
+      sb.from('records').delete().eq('is_test', true).then(function (res) {
+        if (res.error) { notifyError('ลบข้อมูลตัวอย่างไม่สำเร็จ: ' + res.error.message); loadRecords(); }
+      });
     },
-    resetAll: function () { cache = null; try { localStorage.removeItem(KEY); } catch (e) {} read(); commit(read()); },
+    /* Factory reset: deletes every record and puts the form registry back to the code's own
+       defaults. Unlike the old localStorage version this does NOT reseed fake demo rows —
+       there is no meaningful "demo data" concept once other people's real submissions live in
+       a shared database. */
+    resetAll: function () {
+      state.records = [];
+      state.counts = { traffic: 0, golf: 0, visitors: 0 };
+      state.forms = defaultForms();
+      state.formVersion = 1;
+      bump();
+      Promise.all([
+        sb.from('records').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        sb.from('form_fields').delete().neq('module', '')
+      ]).then(function (results) {
+        var failed = results.filter(function (r) { return r.error; });
+        if (failed.length) { notifyError('รีเซ็ตระบบไม่สำเร็จบางส่วน: ' + failed[0].error.message); loadFormFields(); loadRecords(); return; }
+        var rows = [];
+        Object.keys(state.forms).forEach(function (m) {
+          state.forms[m].forEach(function (fl, i) { rows.push(fieldToRow(m, fl, i)); });
+        });
+        return sb.from('form_fields').insert(rows);
+      }).then(function (res) {
+        if (res && res.error) notifyError('รีเซ็ตระบบไม่สำเร็จบางส่วน: ' + res.error.message);
+      });
+    },
 
     /* ---------- aggregation ---------- */
     num: num, isOff: isOff,
@@ -390,29 +526,38 @@
       return String(v);
     },
 
+    /* fires once at load-completion time (all four initial fetches settled) and again on every
+       realtime change from any other tab, device or admin */
     subscribe: function (fn) {
-      var h = function () { cache = null; fn(); };
-      window.addEventListener(EVT, h);
-      window.addEventListener('storage', function (e) { if (!e.key || e.key === KEY) { cache = null; fn(); } });
-      return function () { window.removeEventListener(EVT, h); };
+      window.addEventListener(EVT, fn);
+      return function () { window.removeEventListener(EVT, fn); };
     },
+    /* surfaces failures from the background half of addRecord/updateRecord/deleteRecord/
+       setFields/resetAll/clearTestData — both .dc.html files show this as a toast */
+    onError: function (fn) {
+      errorHandlers.push(fn);
+      return function () { errorHandlers = errorHandlers.filter(function (h) { return h !== fn; }); };
+    },
+    ready: ready,
 
-    /* ---------- QR User Entry Portal settings (separate store — never mixed with records) ---------- */
+    /* ---------- QR User Entry Portal settings (separate table — never mixed with records) ---------- */
     portalDefaults: function () {
       return { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: 'กรุณาเลือกแบบฟอร์มที่ต้องการบันทึกข้อมูล', slug: 'security-daily', enabled: true, qrVersion: 'v1' };
     },
     newQrVersion: function () { return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); },
-    getPortal: function () {
-      try {
-        var raw = localStorage.getItem(PORTAL_KEY);
-        if (raw) { var p = JSON.parse(raw); if (p && typeof p === 'object') return Object.assign(this.portalDefaults(), p); }
-      } catch (e) {}
-      return this.portalDefaults();
-    },
+    getPortal: function () { return portalState ? Object.assign(this.portalDefaults(), portalState) : this.portalDefaults(); },
     setPortal: function (obj) {
+      var prev = portalState;
       var next = Object.assign(this.getPortal(), obj);
-      try { localStorage.setItem(PORTAL_KEY, JSON.stringify(next)); } catch (e) {}
-      try { window.dispatchEvent(new CustomEvent(PORTAL_EVT, { detail: next })); } catch (e2) {}
+      portalState = next;
+      bumpPortal();
+      var isFirstWrite = !prev;
+      var write = isFirstWrite
+        ? sb.from('portal_settings').insert(portalToRow(next))
+        : sb.from('portal_settings').update(portalToRow(next)).eq('id', true);
+      write.then(function (res) {
+        if (res.error) { portalState = prev; bumpPortal(); notifyError('บันทึกการตั้งค่า Portal ไม่สำเร็จ: ' + res.error.message); }
+      });
       return next;
     },
     validSlug: function (slug) { return /^[a-zA-Z0-9_-]+$/.test(String(slug || '')); },
@@ -422,10 +567,21 @@
       return base + '#/entry/' + (slug || '') + '?qr=' + v;
     },
     subscribePortal: function (fn) {
-      var h = function () { fn(); };
-      window.addEventListener(PORTAL_EVT, h);
-      window.addEventListener('storage', function (e) { if (!e.key || e.key === PORTAL_KEY) fn(); });
-      return function () { window.removeEventListener(PORTAL_EVT, h); };
+      window.addEventListener(PORTAL_EVT, fn);
+      return function () { window.removeEventListener(PORTAL_EVT, fn); };
+    },
+
+    /* ---------- auth (Admin Console gate) ---------- */
+    auth: {
+      ready: function () { return authState.initialized; },
+      session: function () { return authState.session; },
+      user: function () { return authState.session ? authState.session.user : null; },
+      signIn: function (email, password) { return sb.auth.signInWithPassword({ email: email, password: password }); },
+      signOut: function () { return sb.auth.signOut(); },
+      subscribe: function (fn) {
+        window.addEventListener(AUTH_EVT, fn);
+        return function () { window.removeEventListener(AUTH_EVT, fn); };
+      }
     }
   };
 
