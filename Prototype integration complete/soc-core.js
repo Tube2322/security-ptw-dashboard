@@ -24,15 +24,24 @@
   var PORTAL_EVT = 'soc:portal';
   var AUTH_EVT = 'soc:auth';
 
-  var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8' };
+  var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f' };
 
   var MODULES = [
     { id: 'traffic', code: 'TR', name: 'รถเข้า-ออก', en: 'Traffic', formId: 'form_traffic',
-      desc: 'บันทึกจำนวนรถเข้า-ออก แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic },
+      desc: 'บันทึกจำนวนรถเข้า-ออก แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic,
+      kind: 'traffic', fieldPrefix: 'traffic', dateField: 'traffic_date', nameField: 'traffic_name', inspectorField: 'traffic_inspector' },
+    { id: 'traffic_tt', code: 'TT', name: 'รถเข้า-ออก ทะเลทอง', en: 'Traffic – Talay Thong', formId: 'form_traffic_tt',
+      desc: 'บันทึกจำนวนรถเข้า-ออก พื้นที่ทะเลทอง แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic,
+      kind: 'traffic', fieldPrefix: 'tt', dateField: 'tt_date', nameField: 'tt_name', inspectorField: 'tt_inspector' },
     { id: 'golf', code: 'GF', name: 'รถกอล์ฟ', en: 'Golf Fleet', formId: 'form_golf',
-      desc: 'บันทึกจำนวนรอบรถกอล์ฟรายคัน รองรับสถานะ OFF', color: PALETTE.golf },
+      desc: 'บันทึกจำนวนรอบรถกอล์ฟรายคัน รองรับสถานะ OFF', color: PALETTE.golf,
+      kind: 'golf', fieldPrefix: 'golf', dateField: 'golf_date', nameField: 'golf_name', inspectorField: 'golf_inspector' },
     { id: 'visitors', code: 'VS', name: 'ผู้มาเยือน', en: 'Visitors', formId: 'form_visitors',
-      desc: 'บันทึกผู้มาเยือนทั่วไปและผู้รับเหมา', color: PALETTE.visitors }
+      desc: 'บันทึกผู้มาเยือนทั่วไปและผู้รับเหมา', color: PALETTE.visitors,
+      kind: 'visitors', fieldPrefix: 'visitor', dateField: 'visitor_date', nameField: 'visitor_name', inspectorField: 'visitor_inspector' },
+    { id: 'elevator', code: 'EL', name: 'รายงานปุ่มฉุกเฉินลิฟท์', en: 'Elevator Emergency Button', formId: 'form_elevator',
+      desc: 'บันทึกรายงานเมื่อมีการกดปุ่มฉุกเฉินในลิฟท์', color: PALETTE.elevator,
+      kind: 'elevator', fieldPrefix: 'elevator', dateField: 'elevator_date', nameField: null, inspectorField: null }
   ];
 
   var TYPES = [
@@ -47,6 +56,9 @@
   ];
 
   var OPERATORS = ['สมชาย ปานทอง', 'วิชัย สุขใจ', 'ณัฐพล กิตติ', 'อนันต์ ทองดี'];
+
+  function emptyForms() { var o = {}; MODULES.forEach(function (m) { o[m.id] = []; }); return o; }
+  function emptyCounts() { var o = {}; MODULES.forEach(function (m) { o[m.id] = 0; }); return o; }
 
   function f(id, label, type, o) {
     o = o || {};
@@ -78,6 +90,19 @@
         f('traffic_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', system: true }),
         f('traffic_note', 'หมายเหตุ', 'textarea', { group: 'ผู้ตรวจสอบ', placeholder: 'เหตุการณ์ผิดปกติ (ถ้ามี)' })
       ],
+      traffic_tt: [
+        f('tt_date', 'วันที่', 'date', { required: true, system: true }),
+        f('tt_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
+        f('tt_car_in_day', 'ทะเลทอง รถยนต์ขาเข้า 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_moto_in_day', 'ทะเลทอง มอเตอร์ไซค์ขาเข้า 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_car_out_day', 'ทะเลทอง รถยนต์ขาออก 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_moto_out_day', 'ทะเลทอง มอเตอร์ไซค์ขาออก 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_car_in_night', 'ทะเลทอง รถยนต์ขาเข้า 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_moto_in_night', 'ทะเลทอง มอเตอร์ไซค์ขาเข้า 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_car_out_night', 'ทะเลทอง รถยนต์ขาออก 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_moto_out_night', 'ทะเลทอง มอเตอร์ไซค์ขาออก 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', required: true, system: true })
+      ],
       golf: [
         f('golf_date', 'วันที่', 'date', { required: true, system: true }),
         f('golf_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
@@ -99,6 +124,12 @@
         f('visitor_org', 'หน่วยงาน', 'text', { group: 'Visitor ผู้รับเหมา', placeholder: 'ชื่อบริษัท / หน่วยงาน' }),
         f('visitor_department', 'แผนกที่ติดต่อ', 'checkbox', { group: 'Visitor ผู้รับเหมา', options: ['วิศวกรรม', 'ความปลอดภัย', 'ธุรการ', 'จัดซื้อ'], helper: 'เลือกได้มากกว่า 1 แผนก หรือพิมพ์แผนกอื่นเองด้านล่าง', allowCustom: true }),
         f('visitor_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', system: true })
+      ],
+      elevator: [
+        f('elevator_date', 'วันที่', 'date', { required: true, system: true }),
+        f('elevator_lift', 'ลิฟท์ตัวที่', 'radio', { required: true, system: true, options: ['PL01 — ลิฟท์ตัวที่ 1', 'PL02 — ลิฟท์ตัวที่ 2', 'PL03 — ลิฟท์ตัวที่ 3', 'PL04 — ลิฟท์ตัวที่ 4', 'CL01 — ลิฟท์ตัวที่ 5', 'CL02 — ลิฟท์ตัวที่ 6', 'SL03 — ลิฟท์ตัวที่ 7', 'SL04 — ลิฟท์ตัวที่ 8'] }),
+        f('elevator_remark', 'หมายเหตุ', 'radio', { required: true, system: true, options: ['กดผิด', 'ยืนพิง/มือโดน/อื่นๆ'] }),
+        f('elevator_user_type', 'ประเภทผู้ใช้', 'radio', { required: true, system: true, options: ['พนักงาน', 'ลูกค้า', 'อื่นๆ'] })
       ]
     };
     Object.keys(forms).forEach(function (k) { forms[k].forEach(function (fl, i) { fl.order = i; }); });
@@ -177,18 +208,18 @@
     };
   }
   function portalFromRow(r) {
-    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version };
+    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version, hiddenModules: r.hidden_modules || [] };
   }
   function portalToRow(p) {
-    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion };
+    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion, hidden_modules: p.hiddenModules || [] };
   }
 
   /* ---------- in-memory state — every read method below is synchronous over this ---------- */
   var state = {
-    forms: { traffic: [], golf: [], visitors: [] },
+    forms: emptyForms(),
     formVersion: 1,
     records: [],
-    counts: { traffic: 0, golf: 0, visitors: 0 }, /* from record_count() RPC — see recordCount() */
+    counts: emptyCounts(), /* from record_count() RPC — see recordCount() */
     rev: 0
   };
   var portalState = null; /* null until the first successful fetch; getPortal() falls back to defaults until then */
@@ -225,7 +256,7 @@
   function loadFormFields() {
     return sb.from('form_fields').select('*').then(function (res) {
       if (res.error) { notifyError('โหลดแบบฟอร์มไม่สำเร็จ: ' + res.error.message); return; }
-      var forms = { traffic: [], golf: [], visitors: [] };
+      var forms = emptyForms();
       (res.data || []).forEach(function (r) { (forms[r.module] = forms[r.module] || []).push(fieldFromRow(r)); });
       Object.keys(forms).forEach(function (m) { forms[m].sort(function (a, b) { return a.order - b.order; }); });
       applySystemFlags(forms);
@@ -347,9 +378,9 @@
     addRecord: function (module, data, meta) {
       meta = meta || {};
       var mod = this.module(module) || {};
-      var nameField = module === 'traffic' ? 'traffic_name' : (module === 'golf' ? 'golf_name' : 'visitor_name');
-      var dateField = module === 'traffic' ? 'traffic_date' : (module === 'golf' ? 'golf_date' : 'visitor_date');
-      var insField = module === 'traffic' ? 'traffic_inspector' : (module === 'golf' ? 'golf_inspector' : 'visitor_inspector');
+      var nameField = mod.nameField;
+      var dateField = mod.dateField;
+      var insField = mod.inspectorField;
       var rec = {
         id: uuid(), module: module, formId: mod.formId, formVersion: state.formVersion || 1,
         reportDate: data[dateField] || isoDay(new Date()),
@@ -377,15 +408,16 @@
        under the old day and every date-scoped dashboard, history list and PDF would disagree
        with the record's own answers. id, module and submittedAt are never rewritten. */
     updateRecord: function (id, data) {
+      var self = this;
       var prev = null, next = null;
       state.records = state.records.map(function (r) {
         if (r.id !== id) return r;
         prev = r;
         var merged = Object.assign({}, r.data, data);
-        var m = r.module;
-        var dateField = m === 'traffic' ? 'traffic_date' : (m === 'golf' ? 'golf_date' : 'visitor_date');
-        var nameField = m === 'traffic' ? 'traffic_name' : (m === 'golf' ? 'golf_name' : 'visitor_name');
-        var insField = m === 'traffic' ? 'traffic_inspector' : (m === 'golf' ? 'golf_inspector' : 'visitor_inspector');
+        var mod = self.module(r.module) || {};
+        var dateField = mod.dateField;
+        var nameField = mod.nameField;
+        var insField = mod.inspectorField;
         next = Object.assign({}, r, {
           data: merged,
           reportDate: merged[dateField] || r.reportDate,
@@ -438,7 +470,7 @@
        a shared database. */
     resetAll: function () {
       state.records = [];
-      state.counts = { traffic: 0, golf: 0, visitors: 0 };
+      state.counts = emptyCounts();
       state.forms = defaultForms();
       state.formVersion = 1;
       bump();
@@ -542,7 +574,7 @@
 
     /* ---------- QR User Entry Portal settings (separate table — never mixed with records) ---------- */
     portalDefaults: function () {
-      return { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: 'กรุณาเลือกแบบฟอร์มที่ต้องการบันทึกข้อมูล', slug: 'security-daily', enabled: true, qrVersion: 'v1' };
+      return { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: 'กรุณาเลือกแบบฟอร์มที่ต้องการบันทึกข้อมูล', slug: 'security-daily', enabled: true, qrVersion: 'v1', hiddenModules: [] };
     },
     newQrVersion: function () { return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); },
     getPortal: function () { return portalState ? Object.assign(this.portalDefaults(), portalState) : this.portalDefaults(); },

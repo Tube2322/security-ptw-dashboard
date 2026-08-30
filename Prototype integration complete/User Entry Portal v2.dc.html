@@ -344,15 +344,21 @@ class Component extends DCLogic {
   summarize(rec) {
     const core = this.core();
     const d = rec.data || {};
-    if (rec.module === 'traffic') {
-      const inn = core.sumFields([rec], ['traffic_car_in_day', 'traffic_moto_in_day', 'traffic_car_in_night', 'traffic_moto_in_night']);
-      const out = core.sumFields([rec], ['traffic_car_out_day', 'traffic_moto_out_day', 'traffic_car_out_night', 'traffic_moto_out_night']);
+    const mod = core.module(rec.module) || {};
+    if (mod.kind === 'traffic') {
+      const p = mod.fieldPrefix || 'traffic';
+      const inn = core.sumFields([rec], [p + '_car_in_day', p + '_moto_in_day', p + '_car_in_night', p + '_moto_in_night']);
+      const out = core.sumFields([rec], [p + '_car_out_day', p + '_moto_out_day', p + '_car_out_night', p + '_moto_out_night']);
       return 'ขาเข้า ' + inn + ' คัน · ขาออก ' + out + ' คัน';
     }
     if (rec.module === 'golf') {
       const ids = ['golf_cart_1', 'golf_cart_2', 'golf_cart_3', 'golf_cart_4'];
       const off = core.offCount([rec], ids);
       return 'รวม ' + core.sumFields([rec], ids) + ' รอบ' + (off ? ' · OFF ' + off + ' คัน' : '');
+    }
+    if (mod.kind === 'elevator') {
+      const lift = String(d.elevator_lift || '').split(' — ')[0];
+      return 'ลิฟท์ ' + lift + ' · ' + (d.elevator_remark || '—') + ' · ' + (d.elevator_user_type || '—');
     }
     const g = core.agg([rec], 'visitor_general_count', 'SUM');
     const c = core.agg([rec], 'visitor_contractor_count', 'SUM');
@@ -438,7 +444,8 @@ class Component extends DCLogic {
   renderVals() {
     const s = this.state;
     const core = this.core();
-    const mods = core ? core.MODULES : [];
+    const hidden = core ? (core.getPortal().hiddenModules || []) : [];
+    const mods = core ? core.MODULES.filter(m => !hidden.includes(m.id)) : [];
     const def = core && s.module ? core.module(s.module) : null;
     const done = s.done;
     const portal = core ? core.getPortal() : { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: '', enabled: true, slug: '', qrVersion: '' };
