@@ -9,17 +9,19 @@
 ## Main features
 
 **หน้ากรอกข้อมูล (User Entry Portal)** — ไม่ต้องล็อกอิน
-- 3 แบบฟอร์ม: รถเข้า-ออก (Traffic), รถกอล์ฟ (Golf Fleet), ผู้มาเยือน (Visitors)
+- 5 แบบฟอร์ม: รถเข้า-ออก (Traffic), รถเข้า-ออกทะเลทอง (Traffic ทะเลทอง), รถกอล์ฟ (Golf Fleet), ผู้มาเยือน (Visitors), ปุ่มฉุกเฉินลิฟท์ (Elevator Emergency Button)
 - ตรวจความถูกต้องก่อนบันทึก: ช่องบังคับ, ตัวเลขติดลบ, ค่า `OFF` สำหรับรถกอล์ฟที่ไม่ได้ให้บริการ
 - ป้องกันการกดส่งซ้ำ และแยก "วันที่ของข้อมูล" ออกจาก "เวลาที่ส่ง"
 - เข้าถึงผ่าน QR Code ที่ผู้ดูแลสร้างและยกเลิกได้จากหน้า Settings
 
 **Admin Console**
-- แดชบอร์ดแยกตามโมดูล พร้อม KPI และกราฟที่เลือกชนิดได้ (Bar / Line / Area / Donut / Pie)
+- แดชบอร์ดแยกตามโมดูล พร้อม KPI (รวม % เปลี่ยนแปลงเทียบเดือนก่อนหน้า) และกราฟที่เลือกชนิดได้ (Bar / Line / Area / Donut / Pie)
 - เลือกดูรายวันหรือรายเดือน พร้อมประวัติย้อนหลัง 12 เดือน (แสดงผลเป็น พ.ศ.)
 - Form & Field Builder: เพิ่ม แก้ไข เรียงลำดับ และปิดใช้งานคำถามได้เอง โดยไม่กระทบข้อมูลเดิม
 - แก้ไขและลบข้อมูลย้อนหลัง พร้อมหน้าต่างยืนยันก่อนลบ
 - ส่งออกรายงาน PDF เลือกโมดูล ช่วงเวลา เนื้อหา และธีมได้ 7 แบบ
+- 3 ธีมหน้าจอ (Light / Dark / Green) จำตามบัญชีผู้ใช้ ไม่ใช่ตามเครื่อง
+- ระบบสิทธิ์ 2 ระดับ: **Admin** (ทำได้ทุกอย่าง) และ **Viewer** (ดูแดชบอร์ด/ออก PDF ได้ แต่เพิ่ม/แก้/ลบไม่ได้) — สมัครสมาชิกเองผ่านหน้า login ได้ แต่เริ่มเป็น Viewer เสมอ ต้องให้ Admin เลื่อนขั้นให้จากหน้า Settings
 
 ## Tech stack
 
@@ -89,8 +91,10 @@ python -m http.server 4173
 
 **Production:** https://security-ptw-web.vercel.app (Vercel project ภายใต้ team "Shonsey's projects")
 
-**สร้างบัญชี Admin ครั้งแรก:** Supabase Dashboard ของโปรเจกต์ → Authentication → Users → Add user
-(ติ๊ก Auto Confirm User) แล้วใช้อีเมล/รหัสผ่านนั้นล็อกอินที่ `/admin` — ไม่มีทางสร้างบัญชีผ่านหน้าเว็บเอง (ตั้งใจ)
+**สร้างบัญชี Admin คนแรก:** Supabase Dashboard ของโปรเจกต์ → Authentication → Users → Add user
+(ติ๊ก Auto Confirm User) แล้วรัน SQL เพิ่มแถวใน `profiles` ให้ `role = 'admin'` (ดูหัวข้อ Supabase schema)
+จากนั้นล็อกอินที่ `/admin` ได้ปกติ — บัญชีถัดไปสมัครเองผ่านหน้า login ได้เลย (เริ่มเป็น Viewer เสมอ
+แล้วให้ Admin เลื่อนขั้นให้จากหน้า Settings)
 
 ## Environment variables
 
@@ -120,14 +124,20 @@ Supabase client ตรง ๆ ทุกฟังก์ชันอ่านข�
 - `form_fields` — `module`, `field_id`, `label`, `type`, `required`, `active`, `"order"`, `options jsonb`,
   `placeholder`, `helper`, `"group"`, `unit`, `allow_off`, `allow_custom`, `system`
 - `portal_settings` — แถวเดียว (`id = true`) เก็บชื่อ Portal, ข้อความต้อนรับ, slug, สถานะเปิด/ปิด, เวอร์ชัน QR
+- `profiles` — `user_id` (อ้าง `auth.users`), `email`, `role` (`admin` / `viewer`, default `viewer`) — คุมสิทธิ์
+  แยกจาก auth เอง เพราะ admin ต้องแก้ role ของ "คนอื่น" ได้ ซึ่ง `user_metadata` ทำไม่ได้ (แก้ได้แค่ของตัวเอง)
 
 RLS: guest (anon) `INSERT` ได้อย่างเดียวบน `records`, `SELECT` เฉพาะ `form_fields` ที่ `active = true` และ
-`portal_settings` ทั้งแถว ส่วน admin (authenticated) ทำได้ทุกอย่างทุกตาราง ฟังก์ชัน `record_count(module)`
-เป็น `SECURITY DEFINER` แบบตั้งใจ — คืนแค่ตัวเลขนับ ไม่คืนข้อมูลจริง ให้หน้ากรอกข้อมูลโชว์ "บันทึกแล้ว N รายการ"
-ได้โดยไม่ต้องมีสิทธิ์ `SELECT` บน `records`
+`portal_settings` ทั้งแถว ผู้ใช้ authenticated ทุกคน `SELECT` ได้ทุกตาราง แต่ `INSERT`/`UPDATE`/`DELETE`
+บน `records`, `form_fields`, `portal_settings` ทำได้เฉพาะ role `admin` เท่านั้น (เช็คผ่านฟังก์ชัน `is_admin()`
+แบบ `SECURITY DEFINER` กัน recursive policy) — สมัครสมาชิกเอง insert แถวตัวเองใน `profiles` ได้เฉพาะ
+`role = 'viewer'`, เปลี่ยน role ได้เฉพาะ admin เท่านั้น ฟังก์ชัน `record_count(module)` เป็น `SECURITY DEFINER`
+แบบตั้งใจ — คืนแค่ตัวเลขนับ ไม่คืนข้อมูลจริง ให้หน้ากรอกข้อมูลโชว์ "บันทึกแล้ว N รายการ" ได้โดยไม่ต้องมีสิทธิ์
+`SELECT` บน `records`
 
 ## Known limitations
 
 - **KPI และกราฟผูกกับ Field ID ในโค้ด** — คำถามที่เพิ่มใหม่จาก Form Builder จะเก็บข้อมูลและแสดงในตารางได้ แต่ไม่ขึ้นกราฟเองอัตโนมัติ คำถามที่กราฟใช้คำนวณถูกล็อกไว้ (แสดงสัญลักษณ์ 🔒) จึงปิดหรือลบไม่ได้
 - **การเลื่อนลำดับคำถามทำได้ภายในกลุ่มเดียวกัน** — เพราะฟอร์มจริงจัดกลุ่มก่อนเรียงลำดับ หากต้องการย้ายข้ามกลุ่มให้แก้ชื่อกลุ่มคำถามแทน
 - **หน้ากรอกข้อมูลไม่แจ้งเตือนถ้าบันทึกไม่สำเร็จ** — การส่งฟอร์มเป็นแบบ optimistic (แสดงหน้า "สำเร็จ" ทันทีก่อนรอผลจาก Supabase) ถ้าอินเทอร์เน็ตหลุดตอนนั้นพอดี ข้อมูลจะไม่ถูกบันทึกจริงแต่ผู้กรอกไม่เห็นข้อความเตือน (มี log ไว้ใน console เท่านั้น) — เป็นข้อจำกัดที่รู้อยู่ ยังไม่ได้แก้
+- **สมัครสมาชิกใหม่จำกัด 2 ครั้ง/ชั่วโมงทั้งโปรเจกต์** — ใช้ mailer ฟรีของ Supabase ส่งอีเมลยืนยัน ถ้าต้องเปิดให้คนนอกสมัครจริงจำนวนมาก ต้องตั้ง custom SMTP เอง (Dashboard → Authentication → Settings → SMTP) ไม่งั้นคนที่ 3 ในชั่วโมงเดียวกันจะสมัครไม่ได้
