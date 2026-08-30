@@ -610,6 +610,14 @@
       user: function () { return authState.session ? authState.session.user : null; },
       signIn: function (email, password) { return sb.auth.signInWithPassword({ email: email, password: password }); },
       signOut: function () { return sb.auth.signOut(); },
+      /* theme is a per-account UI preference, stored in Supabase Auth's own user_metadata rather
+         than a new table — ownership is enforced by the auth API itself (a client can only ever
+         update its own current session's user), so no new schema or RLS policy is needed. */
+      themePreference: function () {
+        var u = authState.session && authState.session.user;
+        return (u && u.user_metadata && u.user_metadata.theme_preference) || null;
+      },
+      setThemePreference: function (value) { return sb.auth.updateUser({ data: { theme_preference: value } }); },
       subscribe: function (fn) {
         window.addEventListener(AUTH_EVT, fn);
         return function () { window.removeEventListener(AUTH_EVT, fn); };

@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{
+  var m = localStorage.getItem('soc.theme.last') || localStorage.getItem('soc.theme');
+  if (m) {
+    var r = m === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : m;
+    document.documentElement.setAttribute('data-soc-theme', r);
+  }
+}catch(e){}})();</script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -36,7 +43,19 @@
     --ok: #2b9270; --warn: #a8802a; --danger: #c04b38; --grid: rgba(15,25,40,0.08);
     --chart-tooltip-bg: #ffffff; --chart-shadow: rgba(20,30,50,0.16);
   }
+  html[data-soc-theme="green"] {
+    --bg: #f4faf6; --bg-2: #ffffff; --panel: rgba(22,155,70,0.045); --panel-2: rgba(22,155,70,0.08);
+    --line: rgba(15,70,40,0.14); --line-2: rgba(15,70,40,0.24);
+    --text: #12271b; --muted: #5c7568; --dim: #7e9689;
+    --accent: #169b46; --accent-soft: rgba(22,155,70,0.12); --accent-line: rgba(22,155,70,0.45);
+    --ok: #169b46; --warn: #a8802a; --danger: #d1483a; --grid: rgba(15,70,40,0.08);
+    --chart-primary: var(--accent); --chart-secondary: #3fa8c9; --chart-accent: #d9b45c;
+    --chart-grid: var(--grid); --chart-text: var(--text); --chart-muted: var(--muted);
+    --chart-tooltip-bg: #ffffff; --chart-tooltip-border: var(--line-2); --chart-shadow: rgba(20,60,40,0.14);
+  }
   html, body { margin: 0; padding: 0; background: var(--bg); -webkit-text-size-adjust: 100%; }
+  *, *::before, *::after { transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none; } }
   * { box-sizing: border-box; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { color: var(--text); }
@@ -917,11 +936,18 @@
         <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 15px; min-width: 0;">
             <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
-              <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">ธีมการแสดงผล</h2>
-              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px;">ระบบจะจำค่าที่เลือกไว้</div>
+              <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">Appearance — ธีมการแสดงผล</h2>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px;">ระบบจะจำค่าที่เลือกไว้ต่อบัญชีผู้ใช้</div>
               <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <sc-for list="{{ themeOptions }}" as="t" hint-placeholder-count="3">
-                  <button onClick="{{ t.pick }}" style="flex: 1 1 min(120px, 100%); min-height: 48px; border-radius: 11px; cursor: pointer; font-size: 13.5px; border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.fg }};" style-hover="background: var(--panel-2);">{{ t.label }}</button>
+                <sc-for list="{{ themeOptions }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.pick }}" style="flex: 1 1 min(150px, 100%); min-height: 52px; display: flex; align-items: center; gap: 9px; padding: 0 13px; border-radius: 11px; cursor: pointer; font-size: 13.5px; border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.fg }};" style-hover="background: var(--panel-2);">
+                    <span style="font-size: 16px;">{{ t.icon }}</span>
+                    <span style="width: 16px; height: 16px; flex: none; border-radius: 50%; border: 1px solid var(--line-2); background: {{ t.swatch }};"></span>
+                    <span style="flex: 1; text-align: left;">{{ t.label }}</span>
+                    <sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size: 13px;">✓</span>
+                    </sc-if>
+                  </button>
                 </sc-for>
               </div>
             </section>
@@ -1296,7 +1322,11 @@ class Component extends DCLogic {
          latest date with real data */
       this.pickLatestDate();
       core.ready.then(() => this.pickLatestDate());
-      this._unsubAuth = core.auth.subscribe(() => this.setState(s => ({ authTick: s.authTick + 1 })));
+      this._unsubAuth = core.auth.subscribe(() => {
+        this.setState(s => ({ authTick: s.authTick + 1 }));
+        if (core.auth.user()) this.syncThemeFromAccount();
+        else this._syncedFor = null;
+      });
       this._unsubError = core.onError((msg) => this.flash(msg, 'var(--danger)'));
     }
     this._resize = () => {
@@ -1306,8 +1336,9 @@ class Component extends DCLogic {
     this._resize();
     window.addEventListener('resize', this._resize);
     let saved = null;
-    try { saved = localStorage.getItem('soc.theme'); } catch (e) {}
+    try { saved = localStorage.getItem('soc.theme.last') || localStorage.getItem('soc.theme'); } catch (e) {}
     this.applyTheme(saved || 'system');
+    if (core && core.auth.user()) this.syncThemeFromAccount();
     if (core) this._unsubPortal = core.subscribePortal(() => this.setState(s => ({ rev: s.rev + 1 })));
     this._mq = window.matchMedia('(prefers-color-scheme: light)');
     this._mqh = () => { if (this.state.theme === 'system') this.applyTheme('system'); };
@@ -1326,12 +1357,49 @@ class Component extends DCLogic {
   }
   core() { return window.SOCCore; }
 
-  applyTheme(mode) {
-    const light = mode === 'light' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
-    document.documentElement.setAttribute('data-soc-theme', light ? 'light' : 'dark');
-    try { localStorage.setItem('soc.theme', mode); } catch (e) {}
+  /* mode is what the user picked (light/dark/green/system) — `system` resolves against the OS
+     preference, everything else maps straight onto a data-soc-theme value. Persistence is
+     optimistic: the UI switches immediately here, sync to the account happens separately in
+     saveThemePreference() so a slow/failed network call never blocks or reverts the switch. */
+  applyTheme(mode, opts) {
+    opts = opts || {};
+    const resolved = mode === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      : mode;
+    document.documentElement.setAttribute('data-soc-theme', resolved);
     this.setState({ theme: mode });
+    const core = this.core();
+    const user = core && core.auth.user();
+    try {
+      localStorage.setItem('soc.theme.last', mode);
+      if (user) localStorage.setItem('soc.theme.' + user.id, mode);
+    } catch (e) {}
+    if (user && !opts.skipSave) this.saveThemePreference(mode);
   }
+  saveThemePreference = (mode) => {
+    this.core().auth.setThemePreference(mode).then((res) => {
+      if (res && res.error) {
+        this.flash('บันทึกธีมไม่สำเร็จ กำลังลองใหม่...', 'var(--warn)');
+        if (this._themeRetryT) clearTimeout(this._themeRetryT);
+        this._themeRetryT = setTimeout(() => this.saveThemePreference(mode), 4000);
+      }
+    });
+  };
+  /* Runs once per login (guarded by _syncedFor) to reconcile the theme that was already showing
+     (from the local pre-auth guess) with the account's actual saved preference — Supabase's
+     user_metadata is the source of truth; the per-account localStorage cache only covers the case
+     where a previous save failed silently and never reached the account. */
+  syncThemeFromAccount = () => {
+    const core = this.core();
+    const user = core.auth.user();
+    if (!user || this._syncedFor === user.id) return;
+    this._syncedFor = user.id;
+    const remote = core.auth.themePreference();
+    if (remote) { this.applyTheme(remote, { skipSave: true }); return; }
+    let cached = null;
+    try { cached = localStorage.getItem('soc.theme.' + user.id); } catch (e) {}
+    if (cached) this.applyTheme(cached);
+  };
 
   flash(msg, color) {
     this.setState({ toast: msg, toastColor: color || 'var(--ok)' });
@@ -3239,8 +3307,14 @@ class Component extends DCLogic {
       })),
 
       /* settings */
-      themeOptions: [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'system', label: 'System' }].map(o => ({
-        label: o.label,
+      themeOptions: [
+        { id: 'light', label: 'Light', icon: '☀️', swatch: '#f4f6f9' },
+        { id: 'dark', label: 'Dark', icon: '🌙', swatch: '#0a0d12' },
+        { id: 'green', label: 'Green + White', icon: '🌿', swatch: '#169b46' },
+        { id: 'system', label: 'System', icon: '🖥️', swatch: 'linear-gradient(135deg, #f4f6f9 50%, #0a0d12 50%)' }
+      ].map(o => ({
+        label: o.label, icon: o.icon, swatch: o.swatch,
+        active: s.theme === o.id,
         border: s.theme === o.id ? 'var(--accent-line)' : 'var(--line)',
         bg: s.theme === o.id ? 'var(--accent-soft)' : 'transparent',
         fg: s.theme === o.id ? 'var(--accent)' : 'var(--muted)',
