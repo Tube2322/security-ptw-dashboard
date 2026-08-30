@@ -56,6 +56,19 @@
   html, body { margin: 0; padding: 0; background: var(--bg); -webkit-text-size-adjust: 100%; }
   *, *::before, *::after { transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none; } }
+  /* at tablet widths the 185px auto-fit card grid fits exactly 3-per-row, stranding a 4th KPI
+     card alone on its own row — force 2 columns instead so the row stays balanced */
+  @media (min-width: 700px) and (max-width: 900px) {
+    .soc-kpi-row { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+  /* the Form Builder save bar wraps status text + 2 buttons onto 3 stacked lines on phone
+     widths, permanently covering ~15% of the screen while editing — putting the two buttons
+     on one shared row (instead of each wrapping separately) gets it back to 2 lines */
+  @media (max-width: 480px) {
+    .soc-builder-bar { padding: 8px 0 !important; }
+    .soc-builder-bar-status { flex-basis: 100% !important; }
+    .soc-builder-bar-btn { flex: 1 1 0 !important; min-width: 0 !important; padding: 0 10px !important; }
+  }
   * { box-sizing: border-box; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { color: var(--text); }
@@ -119,17 +132,42 @@
     <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
       <div style="width: 100%; max-width: 380px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg-2); padding: 28px;">
         <div style="width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(150deg, var(--accent) 0%, #3d7ad6 100%); display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 12px; color: #06121a; margin-bottom: 16px;">SOC</div>
-        <h1 style="margin: 0 0 4px; font-size: 19px; font-weight: 600;">เข้าสู่ระบบ Admin Console</h1>
-        <p style="margin: 0 0 20px; font-size: 13px; color: var(--muted);">สำหรับผู้ดูแลระบบเท่านั้น</p>
-        <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">อีเมล</label>
-        <input type="email" value="{{ loginEmail }}" onChange="{{ setLoginEmail }}" placeholder="admin@example.com" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 13px;">
-        <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">รหัสผ่าน</label>
-        <input type="password" value="{{ loginPassword }}" onChange="{{ setLoginPassword }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 6px;">
-        <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
-          <div style="margin: 8px 0; font-size: 12.5px; color: var(--danger);">{{ loginError }}</div>
+
+        <sc-if value="{{ isLoginMode }}" hint-placeholder-val="{{ true }}">
+          <h1 style="margin: 0 0 4px; font-size: 19px; font-weight: 600;">เข้าสู่ระบบ Admin Console</h1>
+          <p style="margin: 0 0 20px; font-size: 13px; color: var(--muted);">สำหรับผู้ดูแลระบบและผู้ใช้ที่ได้รับสิทธิ์เข้าดูข้อมูล</p>
+          <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">อีเมล</label>
+          <input type="email" value="{{ loginEmail }}" onChange="{{ setLoginEmail }}" placeholder="admin@example.com" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 13px;">
+          <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">รหัสผ่าน</label>
+          <input type="password" value="{{ loginPassword }}" onChange="{{ setLoginPassword }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 6px;">
+          <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+            <div style="margin: 8px 0; font-size: 12.5px; color: var(--danger);">{{ loginError }}</div>
+          </sc-if>
+          <button onClick="{{ doLogin }}" disabled="{{ loginBusy }}" style="width: 100%; min-height: 48px; margin-top: 12px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 14.5px; font-weight: 500;">{{ loginBtnLabel }}</button>
+          <p style="margin: 16px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.6;">ยังไม่มีบัญชี? <a href="#" onClick="{{ goSignupMode }}" style="color: var(--accent);">สมัครเข้าดูข้อมูล</a></p>
+          <p style="margin: 8px 0 0; font-size: 11px; color: var(--dim); line-height: 1.6;">บัญชีที่สมัครใหม่จะเห็นได้เฉพาะข้อมูล ต้องรอ Admin เลื่อนสิทธิ์ให้จึงจะแก้ไขได้ · กู้คืน Admin คนแรกได้จาก Supabase Dashboard → Authentication → Users</p>
         </sc-if>
-        <button onClick="{{ doLogin }}" disabled="{{ loginBusy }}" style="width: 100%; min-height: 48px; margin-top: 12px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 14.5px; font-weight: 500;">{{ loginBtnLabel }}</button>
-        <p style="margin: 16px 0 0; font-size: 11.5px; color: var(--dim); line-height: 1.6;">ยังไม่มีบัญชี? สร้างผู้ใช้ได้จาก Supabase Dashboard → Authentication → Users</p>
+
+        <sc-if value="{{ isSignupMode }}" hint-placeholder-val="{{ false }}">
+          <h1 style="margin: 0 0 4px; font-size: 19px; font-weight: 600;">สมัครเข้าดูข้อมูล</h1>
+          <p style="margin: 0 0 20px; font-size: 13px; color: var(--muted);">บัญชีใหม่จะเข้าดู Dashboard ได้อย่างเดียวก่อน — แก้ไข/ลบข้อมูลไม่ได้จนกว่า Admin จะเลื่อนสิทธิ์ให้</p>
+          <sc-if value="{{ signupNotice }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom: 14px; padding: 12px 14px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 13px; color: var(--accent); line-height: 1.6;">{{ signupNotice }}</div>
+          </sc-if>
+          <sc-if value="{{ isSignupForm }}" hint-placeholder-val="{{ true }}">
+            <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">อีเมล</label>
+            <input type="email" value="{{ signupEmail }}" onChange="{{ setSignupEmail }}" placeholder="you@example.com" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 13px;">
+            <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)</label>
+            <input type="password" value="{{ signupPassword }}" onChange="{{ setSignupPassword }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 13px;">
+            <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">ยืนยันรหัสผ่าน</label>
+            <input type="password" value="{{ signupConfirm }}" onChange="{{ setSignupConfirm }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; margin-bottom: 6px;">
+            <sc-if value="{{ signupError }}" hint-placeholder-val="{{ false }}">
+              <div style="margin: 8px 0; font-size: 12.5px; color: var(--danger);">{{ signupError }}</div>
+            </sc-if>
+            <button onClick="{{ doSignUp }}" disabled="{{ signupBusy }}" style="width: 100%; min-height: 48px; margin-top: 12px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 14.5px; font-weight: 500;">{{ signupBtnLabel }}</button>
+          </sc-if>
+          <p style="margin: 16px 0 0; font-size: 12.5px; color: var(--muted);">มีบัญชีแล้ว? <a href="#" onClick="{{ goLoginMode }}" style="color: var(--accent);">เข้าสู่ระบบ</a></p>
+        </sc-if>
       </div>
     </div>
   </sc-if>
@@ -249,7 +287,7 @@
                 <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
 
                   <!-- KPI ROW -->
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(185px, 100%), 1fr)); gap: 12px;">
+                  <div class="soc-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(185px, 100%), 1fr)); gap: 12px;">
                     <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
                       <div style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 15px 16px; min-width: 0; display: flex; flex-direction: column; gap: 6px; animation: socUp 260ms ease both; transition: border-color 140ms ease, transform 140ms ease;" style-hover="border-color: var(--line-2); transform: translateY(-2px);">
                         <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
@@ -257,6 +295,9 @@
                           <span style="font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.label }}</span>
                         </div>
                         <div style="font-family: 'IBM Plex Mono', monospace; font-size: clamp(24px, 4.6vw, 31px); font-weight: 600; line-height: 1.05; letter-spacing: -1px; overflow-wrap: anywhere;">{{ k.value }}</div>
+                        <sc-if value="{{ k.delta }}" hint-placeholder-val="{{ '' }}">
+                          <div style="font-size: 11px; font-weight: 500; color: {{ k.color }};">{{ k.delta }}</div>
+                        </sc-if>
                         <div style="font-size: 11px; color: var(--dim); overflow-wrap: anywhere;">{{ k.note }}</div>
                         <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.7px; color: var(--dim); text-transform: uppercase;">{{ k.formula }}</div>
                       </div>
@@ -560,7 +601,12 @@
                 <div style="font-size: 13.5px; font-weight: 500;">Form Visibility — {{ builderModuleName }}</div>
                 <div style="font-size: 11.5px; color: var(--dim); margin-top: 2px;">ควบคุมว่าฟอร์มนี้จะปรากฏใน QR User Entry Portal หรือไม่ — ไม่กระทบคำถามหรือข้อมูลที่บันทึกไว้</div>
               </div>
-              <button onClick="{{ toggleBuilderVisible }}" style="min-height: 40px; padding: 0 15px; border-radius: 99px; cursor: pointer; font-size: 12.5px; border: 1px solid {{ builderVisBorder }}; background: {{ builderVisBg }}; color: {{ builderVisColor }};">{{ builderVisLabel }}</button>
+              <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ toggleBuilderVisible }}" style="min-height: 40px; padding: 0 15px; border-radius: 99px; cursor: pointer; font-size: 12.5px; border: 1px solid {{ builderVisBorder }}; background: {{ builderVisBg }}; color: {{ builderVisColor }};">{{ builderVisLabel }}</button>
+              </sc-if>
+              <sc-if value="{{ isViewerRole }}" hint-placeholder-val="{{ false }}">
+                <span style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 15px; border-radius: 99px; font-size: 12.5px; border: 1px solid {{ builderVisBorder }}; background: {{ builderVisBg }}; color: {{ builderVisColor }};">{{ builderVisLabel }}</span>
+              </sc-if>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 11px;">
@@ -570,8 +616,10 @@
                     <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; padding: 4px 9px; border-radius: 7px; border: 1px solid var(--line); color: var(--dim); overflow-wrap: anywhere;">{{ f.fieldId }}</span>
                     <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim);">ORDER {{ f.orderLabel }}</span>
                     <span style="flex: 1;"></span>
-                    <button onClick="{{ f.up }}" aria-label="เลื่อนขึ้น" style="min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer;" style-hover="background: var(--panel-2); color: var(--text);">↑</button>
-                    <button onClick="{{ f.down }}" aria-label="เลื่อนลง" style="min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer;" style-hover="background: var(--panel-2); color: var(--text);">↓</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ f.up }}" aria-label="เลื่อนขึ้น" style="min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer;" style-hover="background: var(--panel-2); color: var(--text);">↑</button>
+                      <button onClick="{{ f.down }}" aria-label="เลื่อนลง" style="min-width: 40px; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer;" style-hover="background: var(--panel-2); color: var(--text);">↓</button>
+                    </sc-if>
                   </div>
 
                   <label style="flex: 2 1 min(250px, 100%); min-width: 0; display: flex; flex-direction: column; gap: 6px;">
@@ -604,7 +652,12 @@
                   </sc-if>
 
                   <div style="flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                    <button onClick="{{ f.toggleRequired }}" style="min-height: 40px; padding: 0 13px; border-radius: 99px; cursor: pointer; font-size: 12px; border: 1px solid {{ f.reqBorder }}; background: {{ f.reqBg }}; color: {{ f.reqColor }};">{{ f.reqLabel }}</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ f.toggleRequired }}" style="min-height: 40px; padding: 0 13px; border-radius: 99px; cursor: pointer; font-size: 12px; border: 1px solid {{ f.reqBorder }}; background: {{ f.reqBg }}; color: {{ f.reqColor }};">{{ f.reqLabel }}</button>
+                    </sc-if>
+                    <sc-if value="{{ isViewerRole }}" hint-placeholder-val="{{ false }}">
+                      <span style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 13px; border-radius: 99px; font-size: 12px; border: 1px solid {{ f.reqBorder }}; background: {{ f.reqBg }}; color: {{ f.reqColor }};">{{ f.reqLabel }}</span>
+                    </sc-if>
                     <sc-if value="{{ f.isEditable }}" hint-placeholder-val="{{ true }}">
                       <button onClick="{{ f.toggleActive }}" style="min-height: 40px; padding: 0 13px; border-radius: 99px; cursor: pointer; font-size: 12px; border: 1px solid {{ f.actBorder }}; background: {{ f.actBg }}; color: {{ f.actColor }};">{{ f.actLabel }}</button>
                     </sc-if>
@@ -626,13 +679,18 @@
               </sc-for>
             </div>
 
-            <button onClick="{{ addField }}" style="min-height: 52px; border-radius: 12px; border: 1px dashed var(--line-2); background: transparent; color: var(--muted); cursor: pointer; font-size: 14px;" style-hover="background: var(--panel); color: var(--text);">+ เพิ่มคำถามใหม่</button>
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ addField }}" style="min-height: 52px; border-radius: 12px; border: 1px dashed var(--line-2); background: transparent; color: var(--muted); cursor: pointer; font-size: 14px;" style-hover="background: var(--panel); color: var(--text);">+ เพิ่มคำถามใหม่</button>
 
-            <div style="position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 13px 0; background: linear-gradient(to top, var(--bg) 60%, transparent);">
-              <div style="flex: 1 1 200px; min-width: 0; font-size: 12.5px; color: var(--dim);">{{ builderStatus }}</div>
-              <button onClick="{{ resetBuilder }}" style="min-height: 46px; padding: 0 17px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13.5px;" style-hover="background: var(--panel-2); color: var(--text);">ยกเลิกการแก้ไข</button>
-              <button onClick="{{ saveBuilder }}" style="min-height: 46px; padding: 0 22px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13.5px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.26); color: var(--text);">บันทึกแบบฟอร์ม</button>
-            </div>
+              <div class="soc-builder-bar" style="position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 13px 0; background: linear-gradient(to top, var(--bg) 60%, transparent);">
+                <div class="soc-builder-bar-status" style="flex: 1 1 200px; min-width: 0; font-size: 12.5px; color: var(--dim);">{{ builderStatus }}</div>
+                <button class="soc-builder-bar-btn" onClick="{{ resetBuilder }}" style="min-height: 46px; padding: 0 17px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13.5px;" style-hover="background: var(--panel-2); color: var(--text);">ยกเลิกการแก้ไข</button>
+                <button class="soc-builder-bar-btn" onClick="{{ saveBuilder }}" style="min-height: 46px; padding: 0 22px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13.5px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.26); color: var(--text);">บันทึกแบบฟอร์ม</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isViewerRole }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 13px 0; font-size: 12.5px; color: var(--dim);">{{ builderStatus }} · สิทธิ์ผู้ชม แก้ไขไม่ได้</div>
+            </sc-if>
           </div>
         </sc-if>
 
@@ -658,8 +716,10 @@
                     <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim);">{{ r.id }}</span>
                     <span style="flex: 1;"></span>
                     <button onClick="{{ r.toggle }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2); color: var(--text);">{{ r.toggleLabel }}</button>
-                    <button onClick="{{ r.edit }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px;" style-hover="background: rgba(70,200,216,0.24);">แก้ไข</button>
-                    <button onClick="{{ r.remove }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid rgba(232,115,95,0.4); background: rgba(232,115,95,0.1); color: var(--danger); cursor: pointer; font-size: 12.5px;" style-hover="background: rgba(232,115,95,0.2);">ลบ</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ r.edit }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px;" style-hover="background: rgba(70,200,216,0.24);">แก้ไข</button>
+                      <button onClick="{{ r.remove }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid rgba(232,115,95,0.4); background: rgba(232,115,95,0.1); color: var(--danger); cursor: pointer; font-size: 12.5px;" style-hover="background: rgba(232,115,95,0.2);">ลบ</button>
+                    </sc-if>
                   </div>
                   <div style="margin-top: 11px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted);">
                     <span>วันที่ข้อมูล <span style="color: var(--text);">{{ r.reportDate }}</span></span>
@@ -953,12 +1013,57 @@
             </section>
 
             <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px;">
+                <h2 style="margin: 0; font-size: 16px; font-weight: 600;">บัญชีของฉัน</h2>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; padding: 4px 9px; border-radius: 99px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent);">{{ myRoleLabel }}</span>
+              </div>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px; overflow-wrap: anywhere;">{{ userEmail }}</div>
+              <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)</label>
+              <input type="password" value="{{ newPassword }}" onChange="{{ setNewPassword }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 14px; margin-bottom: 10px;">
+              <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">ยืนยันรหัสผ่านใหม่</label>
+              <input type="password" value="{{ newPasswordConfirm }}" onChange="{{ setNewPasswordConfirm }}" placeholder="••••••••" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 14px; margin-bottom: 6px;">
+              <sc-if value="{{ pwError }}" hint-placeholder-val="{{ false }}">
+                <div style="margin: 6px 0; font-size: 12.5px; color: var(--danger);">{{ pwError }}</div>
+              </sc-if>
+              <sc-if value="{{ pwNotice }}" hint-placeholder-val="{{ false }}">
+                <div style="margin: 6px 0; font-size: 12.5px; color: var(--ok);">{{ pwNotice }}</div>
+              </sc-if>
+              <button onClick="{{ doChangePassword }}" disabled="{{ pwBusy }}" style="width: 100%; min-height: 46px; margin-top: 8px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13.5px; font-weight: 500;">{{ pwBtnLabel }}</button>
+            </section>
+
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+              <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0; grid-column: 1 / -1;">
+                <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">จัดการผู้ใช้</h2>
+                <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px;">บัญชีที่สมัครเข้ามาใหม่จะเป็น Viewer เสมอ — เลื่อนเป็น Admin ได้จากที่นี่</div>
+                <div style="display: flex; flex-direction: column; gap: 9px;">
+                  <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="2">
+                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg-2);">
+                      <div style="flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; font-size: 13.5px;">{{ u.email }}</div>
+                      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; padding: 4px 9px; border-radius: 99px; border: 1px solid {{ u.badgeBorder }}; background: {{ u.badgeBg }}; color: {{ u.badgeColor }};">{{ u.roleLabel }}</span>
+                      <sc-if value="{{ u.canPromote }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ u.promote }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px;" style-hover="background: rgba(70,200,216,0.24);">เลื่อนเป็น Admin</button>
+                      </sc-if>
+                      <sc-if value="{{ u.canDemote }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ u.demote }}" style="min-height: 40px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2); color: var(--text);">ลดเป็น Viewer</button>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+            </sc-if>
+
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
               <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">ข้อมูลในระบบ</h2>
               <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px;">{{ dataStatus }}</div>
-              <div style="display: flex; flex-direction: column; gap: 9px;">
-                <button onClick="{{ clearTest }}" style="min-height: 48px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13.5px;" style-hover="background: var(--panel-2);">ลบข้อมูลตัวอย่าง (เก็บข้อมูลจริงไว้)</button>
-                <button onClick="{{ resetAll }}" style="min-height: 48px; border-radius: 11px; border: 1px solid rgba(232,115,95,0.4); background: rgba(232,115,95,0.1); color: var(--danger); cursor: pointer; font-size: 13.5px;" style-hover="background: rgba(232,115,95,0.2);">รีเซ็ตระบบทั้งหมด</button>
-              </div>
+              <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 9px;">
+                  <button onClick="{{ clearTest }}" style="min-height: 48px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13.5px;" style-hover="background: var(--panel-2);">ลบข้อมูลตัวอย่าง (เก็บข้อมูลจริงไว้)</button>
+                  <button onClick="{{ resetAll }}" style="min-height: 48px; border-radius: 11px; border: 1px solid rgba(232,115,95,0.4); background: rgba(232,115,95,0.1); color: var(--danger); cursor: pointer; font-size: 13.5px;" style-hover="background: rgba(232,115,95,0.2);">รีเซ็ตระบบทั้งหมด</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ isViewerRole }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size: 12.5px; color: var(--dim);">สิทธิ์ผู้ชม — ดูข้อมูลได้อย่างเดียว ให้ Admin เลื่อนสิทธิ์เพื่อจัดการข้อมูล</div>
+              </sc-if>
             </section>
 
             <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0; grid-column: 1 / -1;">
@@ -992,20 +1097,22 @@
                   </label>
                   <div style="font-size: 11.5px; color: var(--dim); overflow-wrap: anywhere; padding: 9px 11px; border-radius: 9px; background: var(--bg-2); border: 1px solid var(--line);">Final URL: <span style="color: var(--accent); font-family: 'IBM Plex Mono', monospace;">{{ finalUrl }}</span></div>
 
-                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 13px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg-2);">
-                    <div style="min-width: 0;">
-                      <div style="font-size: 13.5px; font-weight: 500;">User Entry Portal</div>
-                      <div style="font-size: 11.5px; color: var(--dim);">ปิดชั่วคราวเพื่อระงับการกรอกข้อมูลจากผู้ใช้ทั้งหมด</div>
+                  <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 13px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg-2);">
+                      <div style="min-width: 0;">
+                        <div style="font-size: 13.5px; font-weight: 500;">User Entry Portal</div>
+                        <div style="font-size: 11.5px; color: var(--dim);">ปิดชั่วคราวเพื่อระงับการกรอกข้อมูลจากผู้ใช้ทั้งหมด</div>
+                      </div>
+                      <button onClick="{{ togglePortalEnabled }}" aria-label="toggle portal" style="flex: none; width: 50px; height: 30px; border-radius: 99px; border: 1px solid {{ toggleBorder }}; background: {{ toggleBg }}; cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: 2px; left: {{ toggleKnobLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 160ms ease;"></span>
+                      </button>
                     </div>
-                    <button onClick="{{ togglePortalEnabled }}" aria-label="toggle portal" style="flex: none; width: 50px; height: 30px; border-radius: 99px; border: 1px solid {{ toggleBorder }}; background: {{ toggleBg }}; cursor: pointer; position: relative;">
-                      <span style="position: absolute; top: 2px; left: {{ toggleKnobLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 160ms ease;"></span>
-                    </button>
-                  </div>
 
-                  <div style="display: flex; flex-wrap: wrap; gap: 9px; padding-top: 4px;">
-                    <button onClick="{{ resetPortalDraft }}" style="min-height: 44px; padding: 0 15px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px;" style-hover="background: var(--panel-2); color: var(--text);">Cancel</button>
-                    <button onClick="{{ savePortal }}" disabled="{{ portalSaveDisabled }}" style="min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid {{ portalSaveBorder }}; background: {{ portalSaveBg }}; color: {{ portalSaveColor }}; cursor: {{ portalSaveCursor }}; font-size: 13px; font-weight: 500;">Save Changes</button>
-                  </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 9px; padding-top: 4px;">
+                      <button onClick="{{ resetPortalDraft }}" style="min-height: 44px; padding: 0 15px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px;" style-hover="background: var(--panel-2); color: var(--text);">Cancel</button>
+                      <button onClick="{{ savePortal }}" disabled="{{ portalSaveDisabled }}" style="min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid {{ portalSaveBorder }}; background: {{ portalSaveBg }}; color: {{ portalSaveColor }}; cursor: {{ portalSaveCursor }}; font-size: 13px; font-weight: 500;">Save Changes</button>
+                    </div>
+                  </sc-if>
                 </div>
 
                 <div style="flex: 1 1 min(260px, 100%); min-width: 0; max-width: 320px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); padding: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px;">
@@ -1018,7 +1125,9 @@
                     <button onClick="{{ copyLink }}" style="min-height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px;" style-hover="background: var(--panel-2);">📋 Copy Link</button>
                     <button onClick="{{ downloadQr }}" style="min-height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px;" style-hover="background: var(--panel-2);">⬇ บันทึก QR</button>
                     <a href="{{ finalUrl }}" target="_blank" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12px;" style-hover="background: var(--panel-2);">↗ Open Portal</a>
-                    <button onClick="{{ requestRegenQr }}" style="min-height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px;" style-hover="background: var(--panel-2);">⟳ Regenerate QR</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ requestRegenQr }}" style="min-height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12px;" style-hover="background: var(--panel-2);">⟳ Regenerate QR</button>
+                    </sc-if>
                   </div>
                 </div>
               </div>
@@ -1286,7 +1395,7 @@ class Component extends DCLogic {
     narrow: false, drawerOpen: false,
     year: 2026, month: 7, date: null,
     chartTypes: {},
-    loading: false,
+    loading: true,
     builderModule: 'traffic', builderDraft: null,
     recordFilter: 'all', recordPage: 0, openRecord: null,
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
@@ -1300,9 +1409,33 @@ class Component extends DCLogic {
     portalDraft: null, qrTick: 0, regenConfirmOpen: false, regenConfirmText: '', disablePortalConfirmOpen: false,
     toast: '', toastColor: 'var(--ok)',
     authTick: 0, loginEmail: '', loginPassword: '', loginError: '', loginBusy: false,
+    authMode: 'login',
+    signupEmail: '', signupPassword: '', signupConfirm: '', signupError: '', signupBusy: false, signupNotice: '',
+    newPassword: '', newPasswordConfirm: '', pwError: '', pwBusy: false, pwNotice: '',
+    usersBusy: false, userList: [],
     rev: 0
   };
 
+  /* records for the calendar month immediately before the one currently selected — used only
+     for the month-over-month delta on each dashboard's headline KPI */
+  prevMonthRecs(module) {
+    const s = this.state;
+    let py = s.year, pm = s.month - 1;
+    if (pm < 0) { pm = 11; py -= 1; }
+    const q = module ? { module: module, year: py, month: pm } : { year: py, month: pm };
+    return this.core().query(q);
+  }
+  /* only meaningful when viewing a whole month (a single day has no "last month" to compare
+     against) and only when last month actually had activity (a 0 baseline makes any change
+     read as a meaningless +∞%) */
+  momDelta(currentTotal, prevTotal) {
+    if (this.state.date) return '';
+    if (!prevTotal) return '';
+    const pct = Math.round((currentTotal - prevTotal) / prevTotal * 100);
+    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '●';
+    const sign = pct > 0 ? '+' : '';
+    return arrow + ' ' + sign + pct + '% จากเดือนที่แล้ว';
+  }
   pickLatestDate() {
     const core = this.core();
     const now = new Date();
@@ -1321,13 +1454,14 @@ class Component extends DCLogic {
          and jumping to "today" a second time once it settles is what actually lands on the
          latest date with real data */
       this.pickLatestDate();
-      core.ready.then(() => this.pickLatestDate());
+      core.ready.then(() => { this.pickLatestDate(); this.setState({ loading: false }); });
       this._unsubAuth = core.auth.subscribe(() => {
         this.setState(s => ({ authTick: s.authTick + 1 }));
         if (core.auth.user()) this.syncThemeFromAccount();
         else this._syncedFor = null;
       });
       this._unsubError = core.onError((msg) => this.flash(msg, 'var(--danger)'));
+      this._unsubProfile = core.auth.subscribeProfile(() => this.setState(s => ({ rev: s.rev + 1 })));
     }
     this._resize = () => {
       const narrow = window.innerWidth < 1080;
@@ -1349,6 +1483,7 @@ class Component extends DCLogic {
     if (this._unsubPortal) this._unsubPortal();
     if (this._unsubAuth) this._unsubAuth();
     if (this._unsubError) this._unsubError();
+    if (this._unsubProfile) this._unsubProfile();
     window.removeEventListener('resize', this._resize);
     if (this._mq && this._mq.removeEventListener) this._mq.removeEventListener('change', this._mqh);
     if (this._toastT) clearTimeout(this._toastT);
@@ -1421,10 +1556,58 @@ class Component extends DCLogic {
   };
   doLogout = () => { this.core().auth.signOut(); };
 
+  goSignupMode = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ authMode: 'signup', signupError: '', signupNotice: '' }); };
+  goLoginMode = (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ authMode: 'login', signupError: '', signupNotice: '' }); };
+  setSignupEmail = (e) => this.setState({ signupEmail: e.target.value, signupError: '' });
+  setSignupPassword = (e) => this.setState({ signupPassword: e.target.value, signupError: '' });
+  setSignupConfirm = (e) => this.setState({ signupConfirm: e.target.value, signupError: '' });
+  doSignUp = async () => {
+    const s = this.state;
+    const email = s.signupEmail.trim();
+    const password = s.signupPassword;
+    if (!email || !password) { this.setState({ signupError: 'กรอกอีเมลและรหัสผ่านให้ครบ' }); return; }
+    if (password.length < 6) { this.setState({ signupError: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' }); return; }
+    if (password !== s.signupConfirm) { this.setState({ signupError: 'รหัสผ่านและรหัสยืนยันไม่ตรงกัน' }); return; }
+    this.setState({ signupBusy: true, signupError: '' });
+    const { data, error } = await this.core().auth.signUp(email, password);
+    if (error) { this.setState({ signupBusy: false, signupError: 'สมัครไม่สำเร็จ: ' + error.message }); return; }
+    if (data && data.session) {
+      this.setState({ signupBusy: false, signupPassword: '', signupConfirm: '' });
+    } else {
+      this.setState({
+        signupBusy: false, signupPassword: '', signupConfirm: '',
+        signupNotice: 'ส่งอีเมลยืนยันไปที่ ' + email + ' แล้ว — เปิดอีเมลกดยืนยัน แล้วกลับมาเข้าสู่ระบบ'
+      });
+    }
+  };
+
   go = (page) => {
     this.setState({ page, drawerOpen: false, loading: true, builderDraft: null });
     if (this._loadT) clearTimeout(this._loadT);
     this._loadT = setTimeout(() => this.setState({ loading: false }), 260);
+    if (page === 'settings' && this.core().auth.isAdmin()) this.loadUserList();
+  };
+  loadUserList = () => {
+    this.setState({ usersBusy: true });
+    this.core().auth.listProfiles().then((rows) => this.setState({ usersBusy: false, userList: rows }));
+  };
+  setUserRole = (userId, role) => {
+    this.core().auth.setUserRole(userId, role).then((res) => {
+      if (res.error) { this.flash('เปลี่ยนสิทธิ์ไม่สำเร็จ: ' + res.error.message, 'var(--danger)'); return; }
+      this.flash('อัปเดตสิทธิ์แล้ว');
+      this.loadUserList();
+    });
+  };
+  setNewPassword = (e) => this.setState({ newPassword: e.target.value, pwError: '', pwNotice: '' });
+  setNewPasswordConfirm = (e) => this.setState({ newPasswordConfirm: e.target.value, pwError: '', pwNotice: '' });
+  doChangePassword = async () => {
+    const s = this.state;
+    if (!s.newPassword || s.newPassword.length < 6) { this.setState({ pwError: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', pwNotice: '' }); return; }
+    if (s.newPassword !== s.newPasswordConfirm) { this.setState({ pwError: 'รหัสผ่านและรหัสยืนยันไม่ตรงกัน', pwNotice: '' }); return; }
+    this.setState({ pwBusy: true, pwError: '', pwNotice: '' });
+    const { error } = await this.core().auth.changePassword(s.newPassword);
+    if (error) { this.setState({ pwBusy: false, pwError: 'เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + error.message }); return; }
+    this.setState({ pwBusy: false, newPassword: '', newPasswordConfirm: '', pwNotice: 'เปลี่ยนรหัสผ่านสำเร็จแล้ว' });
   };
 
   /* ---------- date context (shared by every block) ---------- */
@@ -1705,9 +1888,10 @@ class Component extends DCLogic {
     const rounds = this.golfMetrics(gf).total;
     const people = this.visitorsMetrics(vs).total;
     const latest = all[0];
+    const prevAll = this.prevMonthRecs();
 
     const kpis = [
-      { label: 'รายการบันทึกทั้งหมด', value: core.fmtNum(all.length), note: 'จากทุกโมดูล' + (latest ? ' · อัปเดตล่าสุด ' + core.fmtDate(latest.submittedAt) + ' ' + core.fmtTime(latest.submittedAt) : ''), color: 'var(--accent)', formula: 'COUNT(records)' },
+      { label: 'รายการบันทึกทั้งหมด', value: core.fmtNum(all.length), delta: this.momDelta(all.length, prevAll.length), note: 'จากทุกโมดูล' + (latest ? ' · อัปเดตล่าสุด ' + core.fmtDate(latest.submittedAt) + ' ' + core.fmtTime(latest.submittedAt) : ''), color: 'var(--accent)', formula: 'COUNT(records)' },
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟ', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
       { label: 'ผู้มาเยือน', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' }
@@ -1735,7 +1919,7 @@ class Component extends DCLogic {
         family: 'timeseries', fallback: 'area', data: trend, recordCount: days.length,
         trace: 'trace: all modules → reportDate → SUM → time series' }),
       this.buildChart({ id: 'ov_mix', block: 'Block 02', title: 'สัดส่วนกิจกรรมตามโมดูล',
-        subtitle: 'เทียบปริมาณข้อมูลของแต่ละระบบ · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
+        subtitle: 'รวมเฉพาะข้อมูลที่นับเป็นจำนวน (รถ/รอบ/คน) · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
         family: 'partwhole', fallback: 'donut', centerLabel: 'หน่วยรวม', recordCount: all.length,
         data: [
           { label: 'รถเข้า-ออก', value: vehicles, color: core.COLORS.traffic },
@@ -1775,9 +1959,10 @@ class Component extends DCLogic {
     const P = this.seriesPalette();
     const { dayIn, dayOut, nightIn, nightOut, totalIn, totalOut, net, carTotal, motoTotal } = m;
     const last = recs[0];
+    const prevTotalIn = this.trafficMetrics(this.prevMonthRecs(moduleId), prefix).totalIn;
 
     const kpis = [
-      { label: 'ยอดรถเข้ารวม', value: core.fmtNum(totalIn), note: 'กลางวัน ' + core.fmtNum(dayIn) + ' · กลางคืน ' + core.fmtNum(nightIn), color: core.COLORS.traffic, formula: 'SUM(4 in fields)' },
+      { label: 'ยอดรถเข้ารวม', value: core.fmtNum(totalIn), delta: this.momDelta(totalIn, prevTotalIn), note: 'กลางวัน ' + core.fmtNum(dayIn) + ' · กลางคืน ' + core.fmtNum(nightIn), color: core.COLORS.traffic, formula: 'SUM(4 in fields)' },
       { label: 'ยอดรถออกรวม', value: core.fmtNum(totalOut), note: 'กลางวัน ' + core.fmtNum(dayOut) + ' · กลางคืน ' + core.fmtNum(nightOut), color: '#5b8fd6', formula: 'SUM(4 out fields)' },
       { label: 'ยอดสุทธิ (เข้า−ออก)', value: (net >= 0 ? '+' : '') + core.fmtNum(net), note: net >= 0 ? 'รถคงค้างในพื้นที่' : 'ออกมากกว่าเข้า', color: net >= 0 ? 'var(--ok)' : 'var(--warn)', formula: 'SUM(in) − SUM(out)' },
       { label: 'รถยนต์รวม', value: core.fmtNum(carTotal), note: 'เข้า+ออก ทุกกะ', color: '#6fb2ea', formula: 'SUM(car fields)' },
@@ -1875,9 +2060,10 @@ class Component extends DCLogic {
     const { total, dayRounds, nightRounds, perCart, activeCount } = gm;
     const offCount = gm.offCartCount;
     const last = recs[0];
+    const prevTotal = this.golfMetrics(this.prevMonthRecs('golf')).total;
 
     const kpis = [
-      { label: 'จำนวนรอบรวม', value: core.fmtNum(total), note: 'OFF ไม่ถูกนับเป็นตัวเลข', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
+      { label: 'จำนวนรอบรวม', value: core.fmtNum(total), delta: this.momDelta(total, prevTotal), note: 'OFF ไม่ถูกนับเป็นตัวเลข', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
       { label: 'รอบกะกลางวัน', value: core.fmtNum(dayRounds), note: 'จาก golf_shift', color: '#5fd3a6', formula: 'SUM where shift=day' },
       { label: 'รอบกะกลางคืน', value: core.fmtNum(nightRounds), note: 'จาก golf_shift', color: '#2f8f6c', formula: 'SUM where shift=night' },
       { label: 'รถที่ให้บริการ', value: core.fmtNum(activeCount) + ' / 4', note: 'มีรอบมากกว่า 0', color: 'var(--ok)', formula: 'COUNT(cart>0)' },
@@ -1955,11 +2141,12 @@ class Component extends DCLogic {
     const P = this.seriesPalette();
     const { gen, con, total, depts } = vm;
     const last = recs[0];
+    const prevTotal = this.visitorsMetrics(this.prevMonthRecs('visitors')).total;
 
     const kpis = [
       { label: 'Visitor ทั่วไป', value: core.fmtNum(gen), note: total ? Math.round(gen / total * 100) + '% ของทั้งหมด' : '—', color: core.COLORS.visitors, formula: 'SUM(visitor_general_count)' },
       { label: 'Visitor ผู้รับเหมา', value: core.fmtNum(con), note: total ? Math.round(con / total * 100) + '% ของทั้งหมด' : '—', color: '#d377c4', formula: 'SUM(visitor_contractor_count)' },
-      { label: 'รวมผู้มาเยือน', value: core.fmtNum(total), note: 'ทั่วไป + ผู้รับเหมา', color: 'var(--text)', formula: 'SUM(general) + SUM(contractor)' },
+      { label: 'รวมผู้มาเยือน', value: core.fmtNum(total), delta: this.momDelta(total, prevTotal), note: 'ทั่วไป + ผู้รับเหมา', color: 'var(--text)', formula: 'SUM(general) + SUM(contractor)' },
       { label: 'เฉลี่ยต่อวัน', value: core.fmtNum(recs.length ? total / recs.length : 0), note: core.fmtNum(recs.length) + ' รายการบันทึก', color: 'var(--muted)', formula: 'AVERAGE(per record)' },
       { label: 'สูงสุดต่อรายการ', value: core.fmtNum(core.agg(recs, 'visitor_general_count', 'MAX')), note: 'Visitor ทั่วไป', color: 'var(--muted)', formula: 'MAX(visitor_general_count)' }
     ];
@@ -2023,9 +2210,10 @@ class Component extends DCLogic {
     const recs = this.scopeRecords('elevator');
     const em = this.elevatorMetrics(recs);
     const last = recs[0];
+    const prevTotal = this.elevatorMetrics(this.prevMonthRecs('elevator')).total;
 
     const kpis = [
-      { label: 'Total Reports', value: core.fmtNum(em.total), note: 'ในช่วงที่เลือก', color: core.COLORS.elevator, formula: 'COUNT(records)' },
+      { label: 'Total Reports', value: core.fmtNum(em.total), delta: this.momDelta(em.total, prevTotal), note: 'ในช่วงที่เลือก', color: core.COLORS.elevator, formula: 'COUNT(records)' },
       { label: 'Most Reported Lift', value: em.total ? em.mostReported.code : '—', note: em.total ? em.mostReported.value + ' รายการ' : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'MAX(count by lift)' },
       { label: 'Employee Reports', value: core.fmtNum(em.employeeCount), note: 'ประเภทผู้ใช้ = พนักงาน', color: 'var(--ok)', formula: "COUNT(user_type='พนักงาน')" },
       { label: 'Customer Reports', value: core.fmtNum(em.customerCount), note: 'ประเภทผู้ใช้ = ลูกค้า', color: 'var(--warn)', formula: "COUNT(user_type='ลูกค้า')" }
@@ -2941,6 +3129,8 @@ class Component extends DCLogic {
 
     const authReady = core.auth.ready();
     const authUser = core.auth.user();
+    const isAdmin = core.auth.isAdmin();
+    const myRole = core.auth.role();
 
     return {
       /* auth */
@@ -2948,6 +3138,33 @@ class Component extends DCLogic {
       showLogin: authReady && !authUser,
       isAuthed: authReady && !!authUser,
       userEmail: authUser ? authUser.email : '',
+      isAdmin: isAdmin,
+      isViewerRole: myRole === 'viewer',
+      myRoleLabel: myRole === 'admin' ? 'Admin' : (myRole === 'viewer' ? 'Viewer' : ''),
+      newPassword: s.newPassword,
+      newPasswordConfirm: s.newPasswordConfirm,
+      pwError: s.pwError,
+      pwNotice: s.pwNotice,
+      pwBusy: s.pwBusy,
+      pwBtnLabel: s.pwBusy ? 'กำลังบันทึก…' : 'เปลี่ยนรหัสผ่าน',
+      setNewPassword: this.setNewPassword,
+      setNewPasswordConfirm: this.setNewPasswordConfirm,
+      doChangePassword: this.doChangePassword,
+      userRows: (s.userList || []).map((u) => {
+        const isMe = authUser && u.user_id === authUser.id;
+        const isRowAdmin = u.role === 'admin';
+        return {
+          email: u.email + (isMe ? ' (คุณ)' : ''),
+          roleLabel: isRowAdmin ? 'Admin' : 'Viewer',
+          badgeBorder: isRowAdmin ? 'var(--accent-line)' : 'var(--line)',
+          badgeBg: isRowAdmin ? 'var(--accent-soft)' : 'var(--panel)',
+          badgeColor: isRowAdmin ? 'var(--accent)' : 'var(--muted)',
+          canPromote: !isRowAdmin,
+          canDemote: isRowAdmin && !isMe,
+          promote: () => this.setUserRole(u.user_id, 'admin'),
+          demote: () => this.setUserRole(u.user_id, 'viewer')
+        };
+      }),
       loginEmail: s.loginEmail,
       loginPassword: s.loginPassword,
       loginError: s.loginError,
@@ -2957,6 +3174,22 @@ class Component extends DCLogic {
       setLoginPassword: this.setLoginPassword,
       doLogin: this.doLogin,
       doLogout: this.doLogout,
+      isLoginMode: s.authMode !== 'signup',
+      isSignupMode: s.authMode === 'signup',
+      isSignupForm: !s.signupNotice,
+      signupEmail: s.signupEmail,
+      signupPassword: s.signupPassword,
+      signupConfirm: s.signupConfirm,
+      signupError: s.signupError,
+      signupBusy: s.signupBusy,
+      signupNotice: s.signupNotice,
+      signupBtnLabel: s.signupBusy ? 'กำลังสมัคร…' : 'สมัครสมาชิก',
+      setSignupEmail: this.setSignupEmail,
+      setSignupPassword: this.setSignupPassword,
+      setSignupConfirm: this.setSignupConfirm,
+      doSignUp: this.doSignUp,
+      goSignupMode: this.goSignupMode,
+      goLoginMode: this.goLoginMode,
 
       /* layout */
       narrow: s.narrow,
@@ -3000,7 +3233,8 @@ class Component extends DCLogic {
       clearDate: () => this.setState({ date: null }),
       toggleMonthView: () => {
         if (s.date) { this._lastDate = s.date; this.setState({ date: null }); }
-        else this.setState({ date: this._lastDate || s.date });
+        else if (this._lastDate) this.setState({ date: this._lastDate });
+        else this.pickLatestDate();
       },
       goPdf: () => this.setState({ page: 'pdf', pdfModule: moduleId || 'traffic', pdfPeriod: s.date ? 'day' : 'month', pdfPeriodDay: s.date, pdfPeriodYear: s.year, pdfPeriodMonth: s.month }),
 
@@ -3093,7 +3327,7 @@ class Component extends DCLogic {
           orderLabel: String(i + 1), options: (f.options || []).join(', '), needsOptions: needsOpts,
           isNumber: f.type === 'number',
           isSystem: !!f.system,
-          isEditable: !f.system,
+          isEditable: !f.system && isAdmin,
           typeLabel: (core.TYPES.filter(t => t.id === f.type)[0] || {}).label || f.type,
           cardBorder: f.active === false ? 'var(--line)' : 'var(--line-2)',
           usage: used ? 'มีข้อมูล ' + used + ' รายการ' : 'ยังไม่มีข้อมูล',

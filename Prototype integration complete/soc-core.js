@@ -23,6 +23,7 @@
   var EVT = 'soc:core';
   var PORTAL_EVT = 'soc:portal';
   var AUTH_EVT = 'soc:auth';
+  var PROFILE_EVT = 'soc:profile';
 
   var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f' };
 
@@ -301,10 +302,38 @@
 
   /* ---------- auth (Admin Console only — the entry portal never calls this) ---------- */
   var authState = { session: null, initialized: false };
+  /* role is deny-by-default: `loaded: false` until the profiles-table lookup below actually
+     resolves, so a UI that only shows admin controls when role()==='admin' never flashes them
+     for a viewer (or for an admin) before we actually know — see role() further down. */
+  var profileState = { role: null, loaded: false };
+  function bumpProfile() { try { window.dispatchEvent(new CustomEvent(PROFILE_EVT)); } catch (e) {} }
+  /* Every login re-derives role from the profiles table — it is never trusted from anything
+     the client itself set (unlike theme, which is a pure self-preference in user_metadata).
+     A missing row (first login right after email-confirmation, since profiles only gets a row
+     via self-signup's own insert or this fallback) is healed here as a `viewer` insert — RLS
+     only allows a user to insert their own row as `viewer`, so this can't be used to self-grant
+     admin. */
+  function loadProfile() {
+    var user = authState.session && authState.session.user;
+    if (!user) { profileState = { role: null, loaded: true }; bumpProfile(); return Promise.resolve(); }
+    return sb.from('profiles').select('role').eq('user_id', user.id).maybeSingle().then(function (res) {
+      if (res.error) { profileState = { role: null, loaded: true }; bumpProfile(); return; }
+      if (!res.data) {
+        return sb.from('profiles').insert({ user_id: user.id, email: user.email, role: 'viewer' }).then(function () {
+          profileState = { role: 'viewer', loaded: true };
+          bumpProfile();
+        });
+      }
+      profileState = { role: res.data.role, loaded: true };
+      bumpProfile();
+    });
+  }
   function setSession(session) {
     authState.session = session || null;
     authState.initialized = true;
     try { window.dispatchEvent(new CustomEvent(AUTH_EVT)); } catch (e) {}
+    profileState = { role: null, loaded: false };
+    loadProfile();
   }
   sb.auth.getSession().then(function (res) { setSession(res.data && res.data.session); });
   sb.auth.onAuthStateChange(function (_event, session) { setSession(session); });
@@ -609,7 +638,29 @@
       session: function () { return authState.session; },
       user: function () { return authState.session ? authState.session.user : null; },
       signIn: function (email, password) { return sb.auth.signInWithPassword({ email: email, password: password }); },
+      signUp: function (email, password) { return sb.auth.signUp({ email: email, password: password }); },
       signOut: function () { return sb.auth.signOut(); },
+      changePassword: function (newPassword) { return sb.auth.updateUser({ password: newPassword }); },
+      /* role is the real access-control boundary (enforced by RLS via is_admin() on every
+         write), not just a UI flag — role() returns null until the profiles-table lookup has
+         actually resolved so admin-only controls default to hidden, never default to shown. */
+      roleReady: function () { return profileState.loaded; },
+      role: function () { return profileState.role; },
+      isAdmin: function () { return profileState.role === 'admin'; },
+      subscribeProfile: function (fn) {
+        window.addEventListener(PROFILE_EVT, fn);
+        return function () { window.removeEventListener(PROFILE_EVT, fn); };
+      },
+      /* admin-only in practice (RLS: profiles_select lets a non-admin see only their own row,
+         so this naturally returns just one row for a viewer and everyone for an admin) */
+      listProfiles: function () {
+        return sb.from('profiles').select('*').order('created_at', { ascending: true }).then(function (res) {
+          return res.error ? [] : (res.data || []);
+        });
+      },
+      setUserRole: function (userId, role) {
+        return sb.from('profiles').update({ role: role }).eq('user_id', userId);
+      },
       /* theme is a per-account UI preference, stored in Supabase Auth's own user_metadata rather
          than a new table — ownership is enforced by the auth API itself (a client can only ever
          update its own current session's user), so no new schema or RLS policy is needed. */
