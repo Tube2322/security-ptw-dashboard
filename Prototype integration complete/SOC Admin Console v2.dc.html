@@ -783,7 +783,7 @@
                                 </sc-for>
                               </div>
                               <sc-if value="{{ f.hasCustom }}" hint-placeholder-val="{{ false }}">
-                                <input type="text" value="{{ f.customValue }}" onChange="{{ f.setCustom }}" placeholder="อื่นๆ — พิมพ์แผนกที่ไม่มีในตัวเลือก" style="width: 100%; min-width: 0; min-height: 42px; margin-top: 7px; padding: 0 11px; font-size: 13.5px; border-radius: 10px; border: 1px dashed var(--line-2); background: var(--panel-2); color: var(--text);">
+                                <input type="text" value="{{ f.customValue }}" onChange="{{ f.setCustom }}" placeholder="อื่นๆ — พิมพ์รายละเอียดเพิ่มเติม" style="width: 100%; min-width: 0; min-height: 42px; margin-top: 7px; padding: 0 11px; font-size: 13.5px; border-radius: 10px; border: 1px dashed var(--line-2); background: var(--panel-2); color: var(--text);">
                               </sc-if>
                             </sc-if>
                             <sc-if value="{{ f.error }}" hint-placeholder-val="{{ false }}">
@@ -1376,8 +1376,8 @@ const GOLF_CARTS = ['golf_cart_1', 'golf_cart_2', 'golf_cart_3', 'golf_cart_4'];
    system has no separate code/name columns, so the code is parsed out of the stored value here
    rather than adding a schema column for it. */
 const ELEVATOR_LIFTS = ['PL01 — ลิฟท์ตัวที่ 1', 'PL02 — ลิฟท์ตัวที่ 2', 'PL03 — ลิฟท์ตัวที่ 3', 'PL04 — ลิฟท์ตัวที่ 4', 'CL01 — ลิฟท์ตัวที่ 5', 'CL02 — ลิฟท์ตัวที่ 6', 'SL03 — ลิฟท์ตัวที่ 7', 'SL04 — ลิฟท์ตัวที่ 8'];
-const ELEVATOR_REMARKS = ['กดผิด', 'ยืนพิง/มือโดน/อื่นๆ'];
-const ELEVATOR_USER_TYPES = ['พนักงาน', 'ลูกค้า', 'อื่นๆ'];
+const ELEVATOR_REMARKS = ['กดผิด', 'ยืนพิง', 'อื่นๆ'];
+const ELEVATOR_USER_TYPES = ['พนักงาน', 'ลูกค้า', 'ผู้รับเหมา'];
 function liftCode(v) { return String(v == null ? '' : v).split(' — ')[0]; }
 
 const PDF_THEMES = [
@@ -1867,17 +1867,27 @@ class Component extends DCLogic {
     }));
     let mostReported = liftCounts[0];
     liftCounts.forEach(l => { if (l.value > mostReported.value) mostReported = l; });
-    const remarkCounts = ELEVATOR_REMARKS.map(opt => ({
-      label: opt, value: recs.filter(r => (r.data || {}).elevator_remark === opt).length
+    /* elevator_remark allows free-text "อื่นๆ" — anything not one of the other fixed options
+       (including custom text the user typed) counts under the "อื่นๆ" bucket here rather than
+       vanishing from the chart because it doesn't exact-match a literal option string. */
+    const remarkCounts = ELEVATOR_REMARKS.map((opt, i) => ({
+      label: opt,
+      value: recs.filter(r => {
+        const v = (r.data || {}).elevator_remark;
+        return i === ELEVATOR_REMARKS.length - 1
+          ? (v != null && v !== '' && ELEVATOR_REMARKS.slice(0, -1).indexOf(v) === -1)
+          : v === opt;
+      }).length
     }));
     const userTypeCounts = ELEVATOR_USER_TYPES.map(opt => ({
       label: opt, value: recs.filter(r => (r.data || {}).elevator_user_type === opt).length
     }));
     const employeeCount = userTypeCounts.find(u => u.label === 'พนักงาน').value;
     const customerCount = userTypeCounts.find(u => u.label === 'ลูกค้า').value;
+    const contractorCount = userTypeCounts.find(u => u.label === 'ผู้รับเหมา').value;
     return {
       total: recs.length, liftCounts, mostReported, remarkCounts, userTypeCounts,
-      employeeCount, customerCount, recordCount: recs.length
+      employeeCount, customerCount, contractorCount, recordCount: recs.length
     };
   }
 
@@ -2224,7 +2234,8 @@ class Component extends DCLogic {
       { label: 'Total Reports', value: core.fmtNum(em.total), delta: this.momDelta(em.total, prevTotal), note: 'ในช่วงที่เลือก', color: core.COLORS.elevator, formula: 'COUNT(records)' },
       { label: 'Most Reported Lift', value: em.total ? em.mostReported.code : '—', note: em.total ? em.mostReported.value + ' รายการ' : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'MAX(count by lift)' },
       { label: 'Employee Reports', value: core.fmtNum(em.employeeCount), note: 'ประเภทผู้ใช้ = พนักงาน', color: 'var(--ok)', formula: "COUNT(user_type='พนักงาน')" },
-      { label: 'Customer Reports', value: core.fmtNum(em.customerCount), note: 'ประเภทผู้ใช้ = ลูกค้า', color: 'var(--warn)', formula: "COUNT(user_type='ลูกค้า')" }
+      { label: 'Customer Reports', value: core.fmtNum(em.customerCount), note: 'ประเภทผู้ใช้ = ลูกค้า', color: 'var(--warn)', formula: "COUNT(user_type='ลูกค้า')" },
+      { label: 'Contractor Reports', value: core.fmtNum(em.contractorCount), note: 'ประเภทผู้ใช้ = ผู้รับเหมา', color: 'var(--dim)', formula: "COUNT(user_type='ผู้รับเหมา')" }
     ];
 
     const charts = [
@@ -2241,11 +2252,7 @@ class Component extends DCLogic {
       this.buildChart({ id: 'el_user_type', block: 'Block 03', title: 'ประเภทผู้ใช้',
         subtitle: 'สัดส่วนประเภทผู้ใช้ที่รายงาน · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
         family: 'partwhole', fallback: 'donut', centerLabel: 'รายงานรวม', recordCount: recs.length,
-        data: [
-          { label: 'พนักงาน', value: em.userTypeCounts[0].value, color: core.COLORS.elevator },
-          { label: 'ลูกค้า', value: em.userTypeCounts[1].value, color: '#f0a06a' },
-          { label: 'อื่นๆ', value: em.userTypeCounts[2].value, color: 'var(--dim)' }
-        ],
+        data: em.userTypeCounts.map((u, i) => ({ label: u.label, value: u.value, color: [core.COLORS.elevator, '#f0a06a', 'var(--dim)'][i] })),
         trace: 'trace: elevator_user_type → COUNT → part-to-whole' }),
       this.buildChart({ id: 'el_trend', block: 'Block 04', title: 'แนวโน้มรายงานตามเวลา',
         subtitle: core.thaiMonths[this.state.month] + ' ' + (this.state.year + 543) + ' — ทุกวันที่มีข้อมูล',
@@ -2364,7 +2371,7 @@ class Component extends DCLogic {
         else if (parseFloat(v) < 0) errors[f.fieldId] = 'ค่าต้องไม่ติดลบ';
       }
       if (f.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(String(raw))) errors[f.fieldId] = 'รูปแบบวันที่ไม่ถูกต้อง';
-      if (f.type === 'radio' && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
+      if (f.type === 'radio' && !f.allowCustom && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
       if (f.type === 'select' && !f.allowCustom && (f.options || []).length && f.options.indexOf(raw) === -1) errors[f.fieldId] = 'กรุณาเลือกจากตัวเลือกที่กำหนด';
     });
     return errors;
@@ -2416,8 +2423,10 @@ class Component extends DCLogic {
       const multi = f.type === 'checkbox';
       const cur = multi ? (val || []) : val;
       base.isChoice = true;
+      const otherSlot = (f.options || [])[(f.options || []).length - 1];
+      const customActive = !multi && f.allowCustom && !!cur && (f.options || []).indexOf(cur) === -1;
       base.choices = (f.options || []).map(o => {
-        const on = multi ? cur.indexOf(o) !== -1 : cur === o;
+        const on = multi ? cur.indexOf(o) !== -1 : (o === otherSlot && customActive ? true : cur === o);
         return {
           label: o, checked: on, inputType: multi ? 'checkbox' : 'radio',
           border: on ? 'var(--accent-line)' : 'var(--line)',
@@ -2432,6 +2441,14 @@ class Component extends DCLogic {
           const text = e.target.value;
           const kept = cur.filter(v => (f.options || []).indexOf(v) !== -1);
           this.setEditValue(f.fieldId, text.trim() ? kept.concat([text]) : kept);
+        };
+      }
+      if (!multi && f.allowCustom) {
+        base.hasCustom = true;
+        base.customValue = customActive ? cur : '';
+        base.setCustom = (e) => {
+          const text = e.target.value;
+          this.setEditValue(f.fieldId, text.trim() ? text : otherSlot);
         };
       }
       return base;
