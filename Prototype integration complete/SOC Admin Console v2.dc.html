@@ -1164,28 +1164,32 @@
 
         <!-- COVER -->
         <sc-if value="{{ blk.isCover }}" hint-placeholder-val="{{ false }}">
-          <div style="height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 14px;">
-            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 2.2px; text-transform: uppercase; color: {{ blk.primary }};">SOC COMMAND CENTER</div>
-            <div style="font-size: 30px; font-weight: 700; line-height: 1.2;">OPERATIONAL INTELLIGENCE REPORT</div>
-            <div style="display: inline-flex; align-self: flex-start; margin-top: 6px; padding: 7px 16px; border-radius: 99px; border: 1.5px solid {{ blk.primary }}; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 1px; color: {{ blk.primary }};">{{ blk.coverModuleBadge }}</div>
-            <div style="margin-top: 18px; font-size: 17px; font-weight: 600;">{{ blk.coverReportType }}</div>
-            <div style="font-size: 14px; color: {{ blk.muted }};">{{ blk.coverDataRange }}</div>
-            <div style="font-size: 14px; color: {{ blk.muted }};">จำนวนรายการ: {{ blk.coverRecordCount }}</div>
-            <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid {{ blk.muted }}; font-size: 11.5px; color: {{ blk.muted }};">{{ blk.coverGenerated }}</div>
-            <div style="font-size: 11px; color: {{ blk.muted }};">ธีมรายงาน: {{ blk.coverThemeName }}</div>
+          <div style="position: relative; min-height: 620px; overflow: hidden;">
+            <div style="position: absolute; right: -60px; bottom: -80px; width: 340px; height: 340px; border-radius: 50%; background: {{ blk.primary }}; opacity: 0.07; pointer-events: none;"></div>
+            <div style="position: absolute; right: 36px; bottom: 32px; font-family: 'IBM Plex Mono', monospace; font-size: 110px; font-weight: 700; color: {{ blk.primary }}; opacity: 0.08; line-height: 1; pointer-events: none;">{{ blk.coverMonogram }}</div>
+            <div style="display: flex; flex-direction: column; gap: 14px; position: relative;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 2.4px; text-transform: uppercase; color: {{ blk.primary }};">SOC COMMAND CENTER</div>
+              <div style="font-size: 32px; font-weight: 700; line-height: 1.25;">OPERATIONAL INTELLIGENCE REPORT</div>
+              <div style="display: inline-flex; align-self: flex-start; margin-top: 4px; padding: 8px 18px; border-radius: 99px; border: 1.5px solid {{ blk.primary }}; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; letter-spacing: 1px; color: {{ blk.primary }};">{{ blk.coverModuleBadge }}</div>
+              <div style="margin-top: 14px; font-size: 19px; font-weight: 600;">{{ blk.coverReportType }}</div>
+              <div style="font-size: 14.5px; color: {{ blk.muted }};">{{ blk.coverDataRange }}</div>
+              <div style="font-size: 14.5px; color: {{ blk.muted }};">จำนวนรายการ: {{ blk.coverRecordCount }}</div>
+              <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid {{ blk.muted }}; font-size: 11.5px; color: {{ blk.muted }};">{{ blk.coverGenerated }}</div>
+              <div style="font-size: 11px; color: {{ blk.muted }};">ธีมรายงาน: {{ blk.coverThemeName }}</div>
+            </div>
           </div>
         </sc-if>
 
         <!-- SECTION: KPIs + charts + notes -->
         <sc-if value="{{ blk.isSection }}" hint-placeholder-val="{{ false }}">
-          <div style="border-bottom: 2px solid {{ blk.primary }}; padding-bottom: 8px; margin-bottom: 14px;">
+          <div style="border-bottom: 2px solid {{ blk.primary }}; padding-bottom: 7px; margin-bottom: 12px;">
             <div style="font-size: 19px; font-weight: 700;">{{ blk.sectionTitle }}</div>
             <div style="font-size: 11.5px; color: {{ blk.muted }};">{{ blk.sectionCount }}</div>
           </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px;">
             <sc-for list="{{ blk.kpis }}" as="k" hint-placeholder-count="4">
-              <div style="flex: 1 1 150px; min-width: 140px; border: 1px solid {{ blk.muted }}; border-radius: 10px; padding: 12px 14px;">
+              <div style="flex: 1 1 130px; min-width: 128px; box-sizing: border-box; border: 1px solid {{ blk.muted }}; border-radius: 10px; padding: 10px 12px;">
                 <div style="font-size: 10.5px; color: {{ blk.muted }}; overflow-wrap: anywhere;">{{ k.label }}</div>
                 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; margin-top: 2px;">{{ k.value }}</div>
                 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; color: {{ blk.muted }}; text-transform: uppercase; margin-top: 2px;">{{ k.formula }}</div>
@@ -1406,7 +1410,7 @@ class Component extends DCLogic {
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
     pdfModule: 'traffic', pdfFrom: '', pdfTo: '',
     pdfPeriod: 'day', pdfPeriodYear: 2026, pdfPeriodMonth: 7, pdfPeriodDay: null,
-    pdfInclude: { summary: true, kpi: true, charts: true, formData: true, history: true, submittedBy: true },
+    pdfInclude: { summary: true, kpi: true, charts: true, formData: true, history: false, submittedBy: true },
     pdfTheme: 'modern-blue', pdfOrientationOverride: null,
     capturingPdf: false, pdfGenerating: false, pdfStep: '',
     theme: 'system',
@@ -2525,14 +2529,22 @@ class Component extends DCLogic {
     return this.core().isoDay(d);
   }
   /* dates that actually have records for the chosen module + year/month — for the "specific day" picker */
-  pdfDayOptions() {
+  pdfDayOptionsFor(year, month) {
     const core = this.core();
-    const s = this.state;
     const mod = this.pdfModuleParam();
-    const recs = core.query({ module: mod, year: s.pdfPeriodYear, month: s.pdfPeriodMonth });
+    const recs = core.query({ module: mod, year: year, month: month });
     const set = {};
     recs.forEach(r => { set[r.reportDate] = true; });
     return Object.keys(set).sort();
+  }
+  pdfDayOptions() { return this.pdfDayOptionsFor(this.state.pdfPeriodYear, this.state.pdfPeriodMonth); }
+  /* a <select> whose bound state is null/'' silently shows the browser's own first-option default
+     instead of a blank — so the visible value and pdfPeriodDay can disagree until the user picks a
+     *different* option once. Whenever the day list changes (entering day mode, or changing
+     year/month), sync the state to match what's actually showing instead of leaving it null. */
+  defaultPdfDay(year, month) {
+    const days = this.pdfDayOptionsFor(year, month);
+    return days.length ? days[days.length - 1] : null;
   }
   /* single source of truth for "which records does this export cover" — every period option
      resolves to a SOCCore.query() call, exactly like the dashboard's own scopeRecords(). */
@@ -2821,54 +2833,98 @@ class Component extends DCLogic {
     const blocks = [];
 
     const base = { bg: theme.bg, text: theme.text, muted: theme.muted, primary: theme.primary };
-
-    blocks.push(Object.assign({}, base, {
-      isCover: true, isSection: false, isTable: false,
+    const coverFields = {
       coverModuleBadge: overview ? this.pdfModuleBadge() : this.pdfModuleBadge(s.pdfModule),
       coverReportType: overview ? 'All Operations Report' : this.pdfModuleName(s.pdfModule) + ' Report',
       coverDataRange: 'ข้อมูล: ' + info.label,
       coverRecordCount: core.fmtNum(recs.length) + ' รายการ',
       coverGenerated: 'สร้างรายงานเมื่อ ' + core.fmtDate(core.isoDay(new Date())) + ' เวลา ' + core.pad(new Date().getHours()) + ':' + core.pad(new Date().getMinutes()) + ' น. (เวลาสร้างไฟล์ ไม่ใช่วันที่ของข้อมูล)',
-      coverThemeName: theme.label
-    }));
+      coverThemeName: theme.label,
+      coverMonogram: overview ? 'ALL' : this.pdfModuleName(s.pdfModule).replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() || 'SOC'
+    };
 
-    if (overview && inc.summary) {
-      const kpis = this.pdfSummaryFor('overview', recs);
-      blocks.push(Object.assign({}, base, {
-        isCover: false, isSection: true, isTable: false,
-        sectionTitle: 'Executive Overview', sectionCount: recs.length + ' รายการ (ทุกโมดูล)',
-        kpis: kpis, hasCharts: false, chartBlocks: [], notes: []
-      }));
-    }
+    if (overview) {
+      /* All Operations spans many modules already, so the cover earns its own page — keep it
+         separate the way it always was. */
+      blocks.push(Object.assign({}, base, coverFields, { isCover: true, isSection: false, isTable: false }));
 
-    mods.forEach(m => {
-      const list = recs.filter(r => r.module === m);
-      const kpis = inc.kpi ? this.pdfSummaryFor(m, list) : [];
-      const chartBlocks = (inc.charts && list.length) ? this.pdfChartBlocksFor(m, list) : [];
-      const notes = inc.formData ? this.pdfNotesFor(m, list) : [];
-      if (kpis.length || chartBlocks.length || notes.length) {
+      if (inc.summary) {
+        const kpis = this.pdfSummaryFor('overview', recs);
         blocks.push(Object.assign({}, base, {
           isCover: false, isSection: true, isTable: false,
-          sectionTitle: this.pdfModuleName(m), sectionCount: list.length + ' รายการ',
-          kpis: kpis, hasCharts: chartBlocks.length > 0, chartBlocks: chartBlocks,
-          notes: notes
+          sectionTitle: 'Executive Overview', sectionCount: recs.length + ' รายการ (ทุกโมดูล)',
+          kpis: kpis, hasCharts: false, chartBlocks: [], notes: []
         }));
       }
-      if (inc.history || inc.formData) {
-        const columns = this.pdfColumnsFor(m);
-        const rows = this.pdfRowsFor(m, list);
-        const pages = this.pdfChunk(rows, 18);
-        pages.forEach((pageRows, idx) => {
-          blocks.push(Object.assign({}, base, {
-            isCover: false, isSection: false, isTable: true,
-            tableTitle: this.pdfModuleName(m) + ' — รายละเอียดข้อมูล' + (pages.length > 1 ? ' (หน้า ' + (idx + 1) + '/' + pages.length + ')' : ''),
-            columns: columns,
-            rows: pageRows.map(cells => cells.map(c => ({ text: c })))
-          }));
-        });
-      }
-    });
 
+      mods.forEach(m => {
+        const list = recs.filter(r => r.module === m);
+        const kpis = inc.kpi ? this.pdfSummaryFor(m, list) : [];
+        const chartBlocks = (inc.charts && list.length) ? this.pdfChartBlocksFor(m, list) : [];
+        const notes = inc.formData ? this.pdfNotesFor(m, list) : [];
+        if (kpis.length || chartBlocks.length || notes.length) {
+          blocks.push(Object.assign({}, base, {
+            isCover: false, isSection: true, isTable: false,
+            sectionTitle: this.pdfModuleName(m), sectionCount: list.length + ' รายการ',
+            kpis: kpis, hasCharts: chartBlocks.length > 0, chartBlocks: chartBlocks,
+            notes: notes
+          }));
+        }
+        if (inc.history) {
+          const columns = this.pdfColumnsFor(m);
+          const rows = this.pdfRowsFor(m, list);
+          const pages = this.pdfChunk(rows, 18);
+          pages.forEach((pageRows, idx) => {
+            blocks.push(Object.assign({}, base, {
+              isCover: false, isSection: false, isTable: true,
+              tableTitle: this.pdfModuleName(m) + ' — รายละเอียดข้อมูล' + (pages.length > 1 ? ' (หน้า ' + (idx + 1) + '/' + pages.length + ')' : ''),
+              columns: columns,
+              rows: pageRows.map(cells => cells.map(c => ({ text: c })))
+            }));
+          });
+        }
+      });
+      return blocks;
+    }
+
+    /* Single-module report: no standalone cover page — a full hero page for one line of title
+       text read as broken more than it read as a report ("มีพื้นที่โล่งเลยเอาท์เพี้ยน"), and a
+       one-record report doesn't need a table page either. The KPI/chart section carries a compact
+       brand + period header of its own instead (isReportHeader below), and stays a single
+       print-block/page for the common case — doExport()'s pack-by-measured-height + slice-if-
+       oversized logic still keeps it safe if content ever runs long. */
+    const m = mods[0];
+    const list = recs.filter(r => r.module === m);
+    const kpis = inc.kpi ? this.pdfSummaryFor(m, list) : [];
+    const chartBlocks = (inc.charts && list.length) ? this.pdfChartBlocksFor(m, list) : [];
+    const notes = inc.formData ? this.pdfNotesFor(m, list) : [];
+    if (kpis.length || chartBlocks.length || notes.length) {
+      blocks.push(Object.assign({}, base, {
+        isCover: false, isSection: true, isTable: false,
+        sectionTitle: this.pdfModuleName(m), sectionCount: list.length + ' รายการ · ' + info.label,
+        kpis: kpis, hasCharts: chartBlocks.length > 0, chartBlocks: chartBlocks, notes: notes
+      }));
+    } else {
+      /* content selection excluded everything the section would show (e.g. only "Submission
+         History" checked) — still need *some* header so the report doesn't open on a bare table */
+      blocks.push(Object.assign({}, base, coverFields, { isCover: true, isSection: false, isTable: false }));
+    }
+
+    let columns = [], tablePages = [];
+    if (inc.history) {
+      columns = this.pdfColumnsFor(m);
+      tablePages = this.pdfChunk(this.pdfRowsFor(m, list), 18);
+    }
+    if (tablePages.length) {
+      tablePages.forEach((pageRows, idx) => {
+        blocks.push(Object.assign({}, base, {
+          isCover: false, isSection: false, isTable: true,
+          tableTitle: this.pdfModuleName(m) + ' — รายละเอียดข้อมูล' + (tablePages.length > 1 ? ' (หน้า ' + (idx + 1) + '/' + tablePages.length + ')' : ''),
+          columns: columns,
+          rows: pageRows.map(cells => cells.map(c => ({ text: c })))
+        }));
+      });
+    }
     return blocks;
   }
   /* ---------- QR user entry portal settings ---------- */
@@ -3038,16 +3094,70 @@ class Component extends DCLogic {
       const pdf = new jsPDF(orientation === 'landscape' ? 'l' : 'p', 'mm', 'a4');
       const dpr = Math.max(2, Math.min(3, window.devicePixelRatio || 2)); /* adequate print resolution, capped for memory */
 
+      /* Each block is captured on its own (never rasterized together — that's what keeps a chart
+         or table row from ever being cut mid-element) but is placed by *actual measured* pixel
+         height, not by a guess made before anything rendered: a short block (a cover, a section
+         with only a couple of charts, a 1-row table) packs onto the same page as the next block(s)
+         until the page is full, instead of always eating a full page and leaving the rest blank.
+         A block taller than one page on its own (<=12% over still just gets a barely-visible
+         squish, same as before) is paginated across as many pages as it needs, sliced evenly so
+         the last page isn't a near-blank sliver — that slicing can still cut a chart in half for
+         a block that's genuinely too tall for one page, a real remaining limitation, traded off
+         against visibly distorting or minifying the whole block. */
+      const imgW = pageW - 16;
+      const availH = pageH - 16;
+      const packGapMm = 6;
+      let pageStarted = false;
+      let cursorMm = 0;
+      const startNewPage = () => { if (pageStarted) pdf.addPage(); pageStarted = true; cursorMm = 0; };
+
       for (let i = 0; i < nodes.length; i++) {
         const canvas = await window.html2canvas(nodes[i], { scale: dpr, backgroundColor: theme.bg, useCORS: true });
-        const imgW = pageW - 16;
-        const imgH = Math.min(pageH - 16, canvas.height * imgW / canvas.width);
-        if (i > 0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 8, 8, imgW, imgH);
+        const pxPerMm = canvas.width / imgW;
+        const naturalHmm = canvas.height / pxPerMm;
+
+        if (naturalHmm <= availH * 1.12) {
+          const drawHmm = Math.min(naturalHmm, availH);
+          const neededMm = drawHmm + (cursorMm > 0 ? packGapMm : 0);
+          if (!pageStarted || (cursorMm > 0 && cursorMm + neededMm > availH)) startNewPage();
+          const y = 8 + cursorMm + (cursorMm > 0 ? packGapMm : 0);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 8, y, imgW, drawHmm);
+          cursorMm = (y - 8) + drawHmm;
+        } else {
+          if (!pageStarted || cursorMm > 0) startNewPage();
+          const maxSliceHeightPx = Math.max(1, Math.floor(availH * pxPerMm));
+          const totalSlices = Math.ceil(canvas.height / maxSliceHeightPx);
+          /* redistribute evenly across totalSlices rather than maxing out every page but the
+             last — greedy max-per-page left a near-blank trailing page when the overflow past
+             one page was only a sliver (e.g. 79px of a 1449px page) */
+          const sliceHeightPx = Math.ceil(canvas.height / totalSlices);
+          for (let s = 0; s < totalSlices; s++) {
+            const sy = s * sliceHeightPx;
+            const sh = Math.min(sliceHeightPx, canvas.height - sy);
+            let sliceCanvas = canvas;
+            if (totalSlices > 1) {
+              sliceCanvas = document.createElement('canvas');
+              sliceCanvas.width = canvas.width;
+              sliceCanvas.height = sh;
+              const ctx = sliceCanvas.getContext('2d');
+              ctx.fillStyle = theme.bg;
+              ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+              ctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
+            }
+            if (s > 0) startNewPage();
+            const sliceHmm = sh / pxPerMm;
+            pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.94), 'JPEG', 8, 8, imgW, sliceHmm);
+            cursorMm = sliceHmm;
+          }
+        }
       }
 
       const total = pdf.internal.getNumberOfPages();
-      const genStamp = 'Generated: ' + this.core().fmtDate(this.core().isoDay(new Date())) + ' ' + this.core().pad(new Date().getHours()) + ':' + this.core().pad(new Date().getMinutes());
+      /* footer is drawn with pdf.text() — real vector text via jsPDF's built-in Helvetica, which
+         has no Thai glyphs, unlike the rest of the report (captured as raster images via
+         html2canvas). fmtDateShort() is pure ASCII digits/slashes; fmtDate()'s Thai month
+         abbreviation would render as garbled boxes here. */
+      const genStamp = 'Generated: ' + this.core().fmtDateShort(this.core().isoDay(new Date())) + ' ' + this.core().pad(new Date().getHours()) + ':' + this.core().pad(new Date().getMinutes());
       for (let p = 1; p <= total; p++) {
         pdf.setPage(p);
         pdf.setFontSize(8);
@@ -3432,7 +3542,10 @@ class Component extends DCLogic {
         border: s.pdfPeriod === o.id ? 'var(--accent-line)' : 'var(--line)',
         bg: s.pdfPeriod === o.id ? 'var(--accent-soft)' : 'transparent',
         fg: s.pdfPeriod === o.id ? 'var(--accent)' : 'var(--muted)',
-        pick: () => this.setState({ pdfPeriod: o.id })
+        pick: () => this.setState({
+          pdfPeriod: o.id,
+          pdfPeriodDay: o.id === 'day' && !s.pdfPeriodDay ? this.defaultPdfDay(s.pdfPeriodYear, s.pdfPeriodMonth) : s.pdfPeriodDay
+        })
       })),
       pdfRangeMode: s.pdfPeriod === 'range',
       pdfMonthMode: s.pdfPeriod === 'month',
@@ -3442,10 +3555,10 @@ class Component extends DCLogic {
       setPdfTo: (e) => this.setState({ pdfTo: e.target.value }),
       pdfPeriodYearOptions: [s.pdfPeriodYear - 1, s.pdfPeriodYear, s.pdfPeriodYear + 1].map(y => ({ value: String(y), label: String(y + 543) })),
       pdfPeriodYear: s.pdfPeriodYear,
-      setPdfPeriodYear: (e) => this.setState({ pdfPeriodYear: parseInt(e.target.value, 10), pdfPeriodDay: null }),
+      setPdfPeriodYear: (e) => { const y = parseInt(e.target.value, 10); this.setState({ pdfPeriodYear: y, pdfPeriodDay: this.defaultPdfDay(y, s.pdfPeriodMonth) }); },
       pdfPeriodMonthOptions: core.thaiMonths.map((name, i) => ({ value: String(i), label: name })),
       pdfPeriodMonth: s.pdfPeriodMonth,
-      setPdfPeriodMonth: (e) => this.setState({ pdfPeriodMonth: parseInt(e.target.value, 10), pdfPeriodDay: null }),
+      setPdfPeriodMonth: (e) => { const m = parseInt(e.target.value, 10); this.setState({ pdfPeriodMonth: m, pdfPeriodDay: this.defaultPdfDay(s.pdfPeriodYear, m) }); },
       pdfPeriodDayOptions: this.pdfDayOptions().map(d => ({ value: d, label: core.fmtDate(d) })),
       pdfPeriodDayEmpty: this.pdfDayOptions().length === 0,
       pdfPeriodDay: s.pdfPeriodDay || '',
