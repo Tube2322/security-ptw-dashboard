@@ -421,6 +421,11 @@
                               </g>
                             </sc-for>
                           </svg>
+                          <sc-for list="{{ c.series }}" as="sr2" hint-placeholder-count="1">
+                            <sc-for list="{{ sr2.points }}" as="p2" hint-placeholder-count="6">
+                              <div style="position: absolute; left: {{ p2.leftPct }}; top: {{ p2.labelTop }}; transform: translate(-50%, -100%); font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--chart-text); pointer-events: none; white-space: nowrap;">{{ p2.labelText }}</div>
+                            </sc-for>
+                          </sc-for>
                           <div style="display: flex; gap: 4px; margin-top: 6px;">
                             <sc-for list="{{ c.xLabels }}" as="x" hint-placeholder-count="6">
                               <div title="{{ x }}" class="soc-line-xlabel" style="flex: 1 1 0; min-width: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--chart-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ x }}</div>
@@ -1825,9 +1830,21 @@ class Component extends DCLogic {
     const pts = data.map((d, i) => ({
       cx: x(i).toFixed(1), cy: y(d.value).toFixed(1),
       tipLabel: d.label.replace(/\n/g, ' '), tipValue: core.fmtNum(d.value) + (d.unit ? ' ' + d.unit : ''),
+      labelText: d.display != null ? d.display : core.fmtNum(d.value),
       isLast: i === data.length - 1, selected: !!d.selected
     }));
-    pts.forEach(p => { p.ring = (p.isLast || p.selected) ? '1' : '0'; p.ringR = p.selected ? '6.5' : '5.5'; });
+    pts.forEach(p => {
+      p.ring = (p.isLast || p.selected) ? '1' : '0'; p.ringR = p.selected ? '6.5' : '5.5';
+      /* Value labels are plain HTML overlaid on top of the SVG (positioned via left%/top-px
+         matching the 620x220 viewBox, since the svg's rendered box is width:100% height:230px)
+         rather than SVG <text> — this templating engine wraps every {{ }} interpolation in an
+         HTML <span>, and browsers don't render HTML elements inside <svg><text>, so an in-SVG
+         label would sit in the DOM with correct text yet paint nothing (confirmed: zero-size
+         getBoundingClientRect despite correct textContent). label sits above the point, clamped
+         so it never clips past the top edge on a near-max value. */
+      p.leftPct = (parseFloat(p.cx) / W * 100).toFixed(2) + '%';
+      p.labelTop = (Math.max(10, parseFloat(p.cy) - 10) / H * 230).toFixed(1) + 'px';
+    });
     const path = this.smoothPath(pts);
     const areaPath = pts.length
       ? path + ' L ' + pts[pts.length - 1].cx + ' ' + (H - PAD) + ' L ' + pts[0].cx + ' ' + (H - PAD) + ' Z'
