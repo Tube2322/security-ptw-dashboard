@@ -190,7 +190,7 @@
         f('checkpoint_date', 'วันที่', 'date', { required: true, system: true, group: 'ข้อมูลผู้บันทึก' }),
         f('checkpoint_shift', 'กะกลางวัน/กะกลางคืน', 'radio', { required: true, system: true, group: 'ข้อมูลผู้บันทึก', options: ['กะกลางวัน 08.00-20.00', 'กะกลางคืน 20.00-08.00'] }),
         f('checkpoint_point', 'จุดที่ตรวจ', 'radio', { required: true, system: true, group: 'จุดที่ตรวจ', options: ['จุดที่1', 'จุดที่2', 'จุดที่3', 'จุดที่4'] }),
-        f('checkpoint_time', 'เวลาที่ลงตรวจ', 'time', { group: 'จุดที่ตรวจ', placeholder: 'ตัวอย่าง 09:30' }),
+        f('checkpoint_time', 'เวลาที่ลงตรวจ', 'time', { required: true, system: true, group: 'จุดที่ตรวจ', placeholder: 'ตัวอย่าง 09:30' }),
         f('checkpoint_inspector_name', 'ชื่อผู้ตรวจสอบ', 'text', { group: 'จุดที่ตรวจ', placeholder: 'ใส่ชื่อผู้ตรวจสอบ' }),
         f('checkpoint_remark', 'หมายเหตุ', 'textarea', { group: 'จุดที่ตรวจ', placeholder: 'เหตุการณ์ผิดปกติ (ถ้ามี)' })
       ],
