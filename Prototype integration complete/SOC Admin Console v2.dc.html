@@ -111,6 +111,17 @@
   .soc-pt-dot { opacity: 0.85; transition: opacity 160ms ease; }
   .soc-pt:hover .soc-pt-dot { opacity: 0; }
   .soc-pt-ring { transition: opacity 160ms ease; }
+  .soc-burger { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; transition: background 140ms ease, border-color 140ms ease, transform 100ms ease; }
+  .soc-burger:active { transform: scale(0.92); }
+  .soc-burger-bar { height: 2px; border-radius: 2px; background: var(--text); transition: width 200ms cubic-bezier(0.34, 1.56, 0.64, 1), background 140ms ease, transform 200ms ease; }
+  .soc-burger-bar:nth-child(1) { width: 18px; }
+  .soc-burger-bar:nth-child(2) { width: 12px; }
+  .soc-burger-bar:nth-child(3) { width: 18px; }
+  .soc-burger:hover { border-color: var(--accent-line); }
+  .soc-burger:hover .soc-burger-bar { background: var(--accent); }
+  .soc-burger:hover .soc-burger-bar:nth-child(2) { width: 18px; }
+  .soc-burger:hover .soc-burger-bar:nth-child(1) { transform: translateX(1px); }
+  .soc-burger:hover .soc-burger-bar:nth-child(3) { transform: translateX(-1px); }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   @media print {
     [data-print-hide] { display: none !important; }
@@ -176,7 +187,7 @@
   <div data-print-hide="1" style="display: flex; min-height: 100vh; align-items: stretch;">
 
     <!-- ============ SIDEBAR ============ -->
-    <aside style="width: {{ sidebarW }}; flex: none; display: {{ sidebarDisplay }}; flex-direction: column; background: var(--bg-2); border-right: 1px solid var(--line); position: {{ sidebarPos }}; inset: {{ sidebarInset }}; z-index: 50; overflow-y: auto;">
+    <aside style="width: {{ sidebarW }}; flex: none; display: {{ sidebarDisplay }}; flex-direction: column; background: var(--bg-2); border-right: 1px solid var(--line); position: {{ sidebarPos }}; inset: {{ sidebarInset }}; z-index: 50; overflow-y: auto; transform: {{ sidebarTransform }}; transition: {{ sidebarTransition }};">
       <div style="padding: 16px 14px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid var(--line); min-width: 0;">
         <div style="width: 34px; height: 34px; flex: none; border-radius: 10px; background: linear-gradient(150deg, var(--accent) 0%, #3d7ad6 100%); display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 11px; color: #06121a;">SOC</div>
         <div style="min-width: 0; flex: 1;">
@@ -224,8 +235,8 @@
       </div>
     </aside>
 
-    <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
-      <div onClick="{{ closeDrawer }}" style="position: fixed; inset: 0; z-index: 40; background: rgba(4,6,10,0.6);"></div>
+    <sc-if value="{{ narrow }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeDrawer }}" style="position: fixed; inset: 0; z-index: 40; background: rgba(4,6,10,0.6); opacity: {{ drawerOverlayOpacity }}; pointer-events: {{ drawerOverlayPointer }}; transition: opacity 280ms ease;"></div>
     </sc-if>
 
     <!-- ============ MAIN ============ -->
@@ -238,7 +249,11 @@
              way to navigate). The DATE chip / Export PDF pair stays gated by showDateChip. -->
         <header style="position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: clamp(10px, 2.2vw, 14px) clamp(12px, 2.6vw, 20px);">
         <sc-if value="{{ narrow }}" hint-placeholder-val="{{ false }}">
-          <button onClick="{{ openDrawer }}" aria-label="เปิดเมนู" style="min-width: 44px; min-height: 44px; flex: none; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 16px;">☰</button>
+          <button onClick="{{ openDrawer }}" aria-label="เปิดเมนู" class="soc-burger" style="min-width: 44px; min-height: 44px; padding: 0 13px; flex: none; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); cursor: pointer;">
+            <span class="soc-burger-bar"></span>
+            <span class="soc-burger-bar"></span>
+            <span class="soc-burger-bar"></span>
+          </button>
         </sc-if>
         <div style="min-width: 0; flex: 1 1 220px;">
           <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 1.2px; color: var(--dim); text-transform: uppercase;">{{ pageKicker }}</div>
@@ -3881,9 +3896,15 @@ class Component extends DCLogic {
       openDrawer: () => this.setState({ drawerOpen: true }),
       closeDrawer: () => this.setState({ drawerOpen: false }),
       sidebarW: s.narrow ? '272px' : '246px',
-      sidebarDisplay: s.narrow ? (s.drawerOpen ? 'flex' : 'none') : 'flex',
+      sidebarDisplay: 'flex',
       sidebarPos: s.narrow ? 'fixed' : 'sticky',
       sidebarInset: s.narrow ? '0 auto 0 0' : '0 auto auto auto',
+      /* narrow mode slides the drawer off-canvas with a transform instead of display:none —
+         display can't transition, so the panel used to pop in/out instantly */
+      sidebarTransform: s.narrow ? (s.drawerOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+      sidebarTransition: s.narrow ? 'transform 280ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+      drawerOverlayOpacity: s.drawerOpen ? '1' : '0',
+      drawerOverlayPointer: s.drawerOpen ? 'auto' : 'none',
 
       /* Top level lists only ungrouped modules plus one entry per group, so the five
          monthly-inspection forms are reachable only after opening their group. Once you are
