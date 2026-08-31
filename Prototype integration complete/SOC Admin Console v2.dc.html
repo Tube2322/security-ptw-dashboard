@@ -1987,20 +1987,32 @@ class Component extends DCLogic {
     const trTt = all.filter(r => r.module === 'traffic_tt');
     const gf = all.filter(r => r.module === 'golf');
     const vs = all.filter(r => r.module === 'visitors');
+    const cp = all.filter(r => r.module === 'checkpoint');
+    const el = all.filter(r => r.module === 'elevator');
     const trMain = this.trafficMetrics(tr, 'traffic');
     const trTalayThong = this.trafficMetrics(trTt, 'tt');
     const vehicles = trMain.totalIn + trMain.totalOut + trTalayThong.totalIn + trTalayThong.totalOut;
     const rounds = this.golfMetrics(gf).total;
     const people = this.visitorsMetrics(vs).total;
+    const cm = this.checkpointMetrics(cp);
+    const em = this.elevatorMetrics(el);
     const latest = all[0];
     const prevAll = this.prevMonthRecs();
+
+    const monthlyGroup = core.GROUPS[0];
+    const monthlyMembers = monthlyGroup ? core.groupModules(monthlyGroup.id) : [];
+    const monthlyDone = monthlyMembers.filter(m => all.some(r => r.module === m.id)).length;
 
     const kpis = [
       { label: 'รายการบันทึกทั้งหมด', value: core.fmtNum(all.length), delta: this.momDelta(all.length, prevAll.length), note: 'จากทุกโมดูล' + (latest ? ' · อัปเดตล่าสุด ' + core.fmtDate(latest.submittedAt) + ' ' + core.fmtTime(latest.submittedAt) : ''), color: 'var(--accent)', formula: 'COUNT(records)' },
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟ', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
-      { label: 'ผู้มาเยือน', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' }
-    ];
+      { label: 'ผู้มาเยือน', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
+      { label: 'รอบตรวจจุด', value: core.fmtNum(cm.total), note: cm.total ? 'จุดที่ตรวจบ่อยสุด: ' + cm.mostVisited.label : 'ยังไม่มีรายงาน', color: core.COLORS.checkpoint, formula: 'COUNT(checkpoint records)' },
+      { label: 'รายงานลิฟต์', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
+    ].concat(monthlyGroup ? [
+      { label: monthlyGroup.name, value: monthlyDone + '/' + monthlyMembers.length + ' หัวข้อ', note: 'หัวข้อที่มีรายงานในช่วงที่เลือก', color: monthlyGroup.color, formula: 'COUNT(DISTINCT module) ในกลุ่ม ' + monthlyGroup.id }
+    ] : []);
 
     const dayKeys = {};
     core.query({ year: this.state.year, month: this.state.month }).forEach(r => { dayKeys[r.reportDate] = true; });
@@ -2031,7 +2043,18 @@ class Component extends DCLogic {
           { label: 'รถกอล์ฟ', value: rounds, color: core.COLORS.golf },
           { label: 'ผู้มาเยือน', value: people, color: core.COLORS.visitors }
         ],
-        trace: 'trace: module fields → SUM → part-to-whole' })
+        trace: 'trace: module fields → SUM → part-to-whole' }),
+      this.buildChart({ id: 'ov_reports', block: 'Block 03', title: 'จำนวนรายงานตามโมดูล',
+        subtitle: 'นับจำนวนรายการที่บันทึกในแต่ละโมดูล (ไม่รวมปริมาณ/หน่วยภายใน) · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
+        family: 'category', fallback: 'bar', recordCount: all.length,
+        data: [
+          { label: 'รถ (หลัก+ทะเลทอง)', value: tr.length + trTt.length, color: core.COLORS.traffic, unit: 'รายการ' },
+          { label: 'รถกอล์ฟ', value: gf.length, color: core.COLORS.golf, unit: 'รายการ' },
+          { label: 'ผู้มาเยือน', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' },
+          { label: 'ตรวจจุด', value: cp.length, color: core.COLORS.checkpoint, unit: 'รายการ' },
+          { label: 'ลิฟต์', value: el.length, color: core.COLORS.elevator, unit: 'รายการ' }
+        ].concat(monthlyGroup ? [{ label: monthlyGroup.name, value: monthlyMembers.reduce((n, m) => n + all.filter(r => r.module === m.id).length, 0), color: monthlyGroup.color, unit: 'รายการ' }] : []),
+        trace: 'trace: all modules → COUNT(records) per module → category comparison' })
     ];
 
     return {
