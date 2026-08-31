@@ -65,8 +65,16 @@
     <!-- ===== เลือกโมดูล ===== -->
     <sc-if value="{{ isSelect }}" hint-placeholder-val="{{ true }}">
       <div style="animation: epUp 240ms ease both;">
-        <h1 style="margin: 6px 0 6px; font-size: clamp(22px, 6vw, 28px); line-height: 1.25; font-weight: 600; letter-spacing: -0.4px;">บันทึกข้อมูล</h1>
-        <p style="margin: 0 0 22px; font-size: 15px; color: var(--muted);">{{ portalWelcomeText }}</p>
+        <!-- top level: portal welcome. inside a group: the group's own name + a way back -->
+        <sc-if value="{{ inGroup }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ closeGroup }}" style="margin: 2px 0 14px; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px 0 10px; border-radius: 11px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: 13.5px;" style-hover="background: var(--panel-2); color: var(--text);">← กลับหน้าเลือกประเภท</button>
+          <h1 style="margin: 6px 0 6px; font-size: clamp(22px, 6vw, 28px); line-height: 1.25; font-weight: 600; letter-spacing: -0.4px;">{{ groupName }}</h1>
+          <p style="margin: 0 0 22px; font-size: 15px; color: var(--muted);">{{ groupDesc }}</p>
+        </sc-if>
+        <sc-if value="{{ isTopLevel }}" hint-placeholder-val="{{ true }}">
+          <h1 style="margin: 6px 0 6px; font-size: clamp(22px, 6vw, 28px); line-height: 1.25; font-weight: 600; letter-spacing: -0.4px;">บันทึกข้อมูล</h1>
+          <p style="margin: 0 0 22px; font-size: 15px; color: var(--muted);">{{ portalWelcomeText }}</p>
+        </sc-if>
 
         <div style="display: flex; flex-direction: column; gap: 14px;">
           <sc-for list="{{ modules }}" as="m" hint-placeholder-count="3">
@@ -79,6 +87,21 @@
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px;">
                 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); min-width: 0; overflow-wrap: anywhere;">{{ m.meta }}</span>
                 <span style="flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500; width: 96px; height: 74px">กรอกข้อมูล</span>
+              </div>
+            </button>
+          </sc-for>
+          <!-- group tiles sit after the individual forms, matching the category order the
+               spec lays out; same card shape, but opening one drills into its own list -->
+          <sc-for list="{{ groupTiles }}" as="g" hint-placeholder-count="1">
+            <button onClick="{{ g.open }}" style="width: 100%; text-align: left; cursor: pointer; padding: clamp(16px, 4vw, 20px); border-radius: 16px; border: 1px solid var(--line); background: var(--panel); color: var(--text); display: flex; flex-direction: column; gap: 10px; min-width: 0; transition: background 140ms ease, border-color 140ms ease, transform 90ms ease;" style-hover="background: var(--panel-2); border-color: var(--line-2);" style-active="transform: scale(0.99);">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <span style="width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: rgba(15,70,40,0.06); color: {{ g.color }};">{{ g.code }}</span>
+                <span style="min-width: 0; flex: 1; font-size: clamp(17px, 4.4vw, 19px); font-weight: 600; overflow-wrap: anywhere;">{{ g.name }}</span>
+              </div>
+              <div style="font-size: 13.5px; color: var(--muted); overflow-wrap: anywhere;">{{ g.desc }}</div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); min-width: 0; overflow-wrap: anywhere;">{{ g.meta }}</span>
+                <span style="flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); font-size: 13.5px; font-weight: 500; width: 96px; height: 74px;">เลือกหัวข้อ →</span>
               </div>
             </button>
           </sc-for>
@@ -226,6 +249,10 @@
 class Component extends DCLogic {
   state = {
     view: 'select', module: null, phase: 'ready',
+    /* which module group the tile list is currently inside — null is the top level. Grouped
+       forms are only reachable after opening their group, so the tile list never mixes a
+       daily operational form in with the monthly-inspection ones. */
+    openGroup: null,
     values: {}, errors: {}, banner: '', submitting: false,
     confirm: false, done: null, rev: 0,
     comboOpenField: null
@@ -274,7 +301,15 @@ class Component extends DCLogic {
     }, 450);
   };
 
-  goSelect = () => this.setState({ view: 'select', module: null, values: {}, errors: {}, banner: '', confirm: false });
+  /* returning from a form lands back inside whichever group the form belongs to, rather than
+     dumping the user at the top level and making them drill in again to file the next one */
+  goSelect = () => {
+    const core = this.core();
+    const mod = core && this.state.module ? core.module(this.state.module) : null;
+    this.setState({ view: 'select', openGroup: (mod && mod.group) || null, module: null, values: {}, errors: {}, banner: '', confirm: false });
+  };
+  openGroup = (id) => this.setState({ openGroup: id });
+  closeGroup = () => this.setState({ openGroup: null });
   dirty() {
     const v = this.state.values;
     return Object.keys(v).some(k => {
@@ -359,6 +394,16 @@ class Component extends DCLogic {
     if (mod.kind === 'elevator') {
       const lift = String(d.elevator_lift || '').split(' — ')[0];
       return 'ลิฟท์ ' + lift + ' · ' + (d.elevator_remark || '—') + ' · ' + (d.elevator_user_type || '—');
+    }
+    if (mod.kind === 'checkpoint') {
+      return (d.checkpoint_point || '—') + ' · ' + (d.checkpoint_shift || '—');
+    }
+    /* form-driven modules name no fixed field, so echo back whichever number questions the
+       form currently has — stays correct after the admin reshapes the form */
+    if (mod.kind === 'monthly') {
+      const nums = core.activeFields(rec.module).filter(f => f.type === 'number').slice(0, 3);
+      if (!nums.length) return 'บันทึกผลการตรวจประจำเดือนแล้ว';
+      return nums.map(f => f.label + ' ' + core.fmtNum(core.agg([rec], f.fieldId, 'SUM')) + (f.unit ? ' ' + f.unit : '')).join(' · ');
     }
     const g = core.agg([rec], 'visitor_general_count', 'SUM');
     const c = core.agg([rec], 'visitor_contractor_count', 'SUM');
@@ -460,7 +505,14 @@ class Component extends DCLogic {
     const s = this.state;
     const core = this.core();
     const hidden = core ? (core.getPortal().hiddenModules || []) : [];
-    const mods = core ? core.MODULES.filter(m => !hidden.includes(m.id)) : [];
+    const visible = core ? core.MODULES.filter(m => !hidden.includes(m.id)) : [];
+    /* the tile list is one level at a time: at the top it shows ungrouped forms plus a tile
+       per group that still has something visible in it, and inside a group it shows only that
+       group's forms. Visibility keeps flowing from the existing hiddenModules list — a group
+       whose members are all hidden simply has no tile. */
+    const openGroup = core && s.openGroup ? core.group(s.openGroup) : null;
+    const groupTiles = core ? core.GROUPS.filter(g => visible.some(m => m.group === g.id)) : [];
+    const mods = openGroup ? visible.filter(m => m.group === openGroup.id) : visible.filter(m => !m.group);
     const def = core && s.module ? core.module(s.module) : null;
     const done = s.done;
     const portal = core ? core.getPortal() : { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: '', enabled: true, slug: '', qrVersion: '' };
@@ -491,6 +543,21 @@ class Component extends DCLogic {
         meta: core.activeFields(m.id).length + ' คำถาม · บันทึกแล้ว ' + core.fmtNum(core.recordCount(m.id)) + ' รายการ',
         open: () => this.open(m.id)
       })),
+      /* group tiles sit beside the ungrouped ones at the top level and disappear once you are
+         inside a group — same card shape, but opening one swaps the list instead of a form */
+      groupTiles: openGroup ? [] : groupTiles.map(g => {
+        const members = visible.filter(m => m.group === g.id);
+        return {
+          code: g.code, name: g.name, desc: g.desc, color: g.color,
+          meta: members.length + ' หัวข้อ · บันทึกแล้ว ' + core.fmtNum(members.reduce((n, m) => n + core.recordCount(m.id), 0)) + ' รายการ',
+          open: () => this.openGroup(g.id)
+        };
+      }),
+      inGroup: !!openGroup,
+      isTopLevel: !openGroup,
+      groupName: openGroup ? openGroup.name : '',
+      groupDesc: openGroup ? openGroup.desc : '',
+      closeGroup: this.closeGroup,
 
       activeCode: def ? def.code : '',
       activeName: def ? def.name : '',

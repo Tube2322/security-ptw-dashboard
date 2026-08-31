@@ -25,7 +25,17 @@
   var AUTH_EVT = 'soc:auth';
   var PROFILE_EVT = 'soc:profile';
 
-  var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f' };
+  var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
+
+  /* A group is a *folder* of modules, not a module itself — it owns no fields and no records.
+     Its only job is that both the Admin nav and the Entry Portal require one tap into the
+     group before its member modules become reachable, so five monthly-inspection forms don't
+     sit at the same level as the daily operational ones. Modules opt in with `group: <id>`;
+     everything without a `group` stays top-level exactly as before. */
+  var GROUPS = [
+    { id: 'monthly', code: 'MI', name: 'ตรวจประจำเดือน', en: 'Monthly Inspection',
+      desc: 'สรุปผลการตรวจประจำเดือน 5 หัวข้อ', color: PALETTE.monthly }
+  ];
 
   var MODULES = [
     { id: 'traffic', code: 'TR', name: 'รถเข้า-ออก', en: 'Traffic', formId: 'form_traffic',
@@ -42,8 +52,42 @@
       kind: 'visitors', fieldPrefix: 'visitor', dateField: 'visitor_date', nameField: 'visitor_name', inspectorField: 'visitor_inspector' },
     { id: 'elevator', code: 'EL', name: 'รายงานปุ่มฉุกเฉินลิฟท์', en: 'Elevator Emergency Button', formId: 'form_elevator',
       desc: 'บันทึกรายงานเมื่อมีการกดปุ่มฉุกเฉินในลิฟท์', color: PALETTE.elevator,
-      kind: 'elevator', fieldPrefix: 'elevator', dateField: 'elevator_date', nameField: null, inspectorField: null }
+      kind: 'elevator', fieldPrefix: 'elevator', dateField: 'elevator_date', nameField: null, inspectorField: null },
+    { id: 'checkpoint', code: 'CP', name: 'รายงานการตรวจจุด', en: 'Checkpoint Inspection', formId: 'form_checkpoint',
+      desc: 'บันทึกการลงตรวจจุดตรวจการณ์ประจำกะ', color: PALETTE.checkpoint,
+      kind: 'checkpoint', fieldPrefix: 'checkpoint', dateField: 'checkpoint_date', nameField: 'checkpoint_employee_name', inspectorField: 'checkpoint_inspector_name' },
+
+    /* ---- ตรวจประจำเดือน (group: monthly) ----
+       One record = one month's summary for that category, so these stay sparse (~12/year
+       each). They all share kind:'monthly', which routes them to the *generic* dashboard
+       builder that derives its KPIs and charts from the live field list — these five are the
+       only modules whose questions the admin is expected to reshape freely, so nothing here
+       may depend on a specific fieldId the way the daily modules do. */
+    { id: 'monthly_inspection_golf_cart', code: 'M1', name: 'รถกอล์ฟ', en: 'Monthly – Golf Cart', formId: 'form_monthly_golf_cart',
+      desc: 'สรุปผลตรวจสภาพรถกอล์ฟประจำเดือน', color: PALETTE.monthly, group: 'monthly',
+      kind: 'monthly', fieldPrefix: 'mi_golf', dateField: 'mi_golf_date', nameField: 'mi_golf_name', inspectorField: 'mi_golf_name' },
+    { id: 'monthly_inspection_acc_door', code: 'M2', name: 'ประตู ACC', en: 'Monthly – ACC Door', formId: 'form_monthly_acc_door',
+      desc: 'เช็คความพร้อมใช้ประตู ACC', color: PALETTE.monthly, group: 'monthly',
+      kind: 'monthly', fieldPrefix: 'mi_acc', dateField: 'mi_acc_date', nameField: 'mi_acc_checker_name', inspectorField: 'mi_acc_inspector_name' },
+    { id: 'monthly_inspection_cctv', code: 'M3', name: 'กล้องวงจรปิด', en: 'Monthly – CCTV', formId: 'form_monthly_cctv',
+      desc: 'เช็คความพร้อมใช้งานกล้อง CCTV', color: PALETTE.monthly, group: 'monthly',
+      /* the real form has no name/inspector question at all — same as elevator, which already
+         shows "—" for ผู้กรอก with no ill effect */
+      kind: 'monthly', fieldPrefix: 'mi_cctv', dateField: 'mi_cctv_date', nameField: null, inspectorField: null },
+    { id: 'monthly_inspection_fire_extinguisher', code: 'M4', name: 'ถังดับเพลิง', en: 'Monthly – Fire Extinguisher', formId: 'form_monthly_fire_extinguisher',
+      desc: 'แบบฟอร์มสำรวจถังดับเพลิง', color: PALETTE.monthly, group: 'monthly',
+      kind: 'monthly', fieldPrefix: 'mi_fire_ext', dateField: 'mi_fire_ext_date', nameField: 'mi_fire_ext_checker_name', inspectorField: 'mi_fire_ext_inspector_name' },
+    { id: 'monthly_inspection_fire_exit', code: 'M5', name: 'ประตูหนีไฟ', en: 'Monthly – Fire Exit', formId: 'form_monthly_fire_exit',
+      desc: 'ตรวจเช็คความพร้อมประตูหนีไฟ', color: PALETTE.monthly, group: 'monthly',
+      kind: 'monthly', fieldPrefix: 'mi_fire_exit', dateField: 'mi_fire_exit_date', nameField: 'mi_fire_exit_checker_name', inspectorField: 'mi_fire_exit_inspector_name' }
   ];
+
+  /* The code's own name for each module, kept aside so a custom label (see loadModuleLabels /
+     setModuleName below) can be reset back to it — MODULES[i].name itself gets overwritten in
+     place with whatever the admin saved, since every screen reads the name straight off the
+     shared MODULES array or via module(id) rather than through a separate lookup. */
+  var DEFAULT_MODULE_NAMES = {};
+  MODULES.forEach(function (m) { DEFAULT_MODULE_NAMES[m.id] = m.name; });
 
   var TYPES = [
     { id: 'text', label: 'Short Text' },
@@ -71,6 +115,15 @@
       unit: o.unit || '', allowOff: !!o.allowOff, allowCustom: !!o.allowCustom, system: !!o.system
     };
   }
+
+  /* Golf-cart is the only monthly-inspection category still on the generic total/pass/fail
+     template — the other four have their real question sets typed out in defaultForms()
+     below, taken directly from the site's actual paper/Google-Forms checklists. Replace this
+     entry the same way once that form's real questions are available. */
+  var MONTHLY_FORM_SPECS = [
+    { module: 'monthly_inspection_golf_cart', prefix: 'mi_golf', unit: 'คัน',
+      totalLabel: 'จำนวนรถกอล์ฟที่ตรวจทั้งหมด', passLabel: 'ใช้งานได้ปกติ', failLabel: 'ต้องซ่อม / ไม่พร้อมใช้งาน' }
+  ];
 
   /* The code's own definition of every field, and which ones a dashboard formula reads by
      fieldId (`system: true`). Used to (a) seed the database once, and (b) re-lock the `system`
@@ -131,8 +184,103 @@
         f('elevator_lift', 'ลิฟท์ตัวที่', 'radio', { required: true, system: true, options: ['PL01 — ลิฟท์ตัวที่ 1', 'PL02 — ลิฟท์ตัวที่ 2', 'PL03 — ลิฟท์ตัวที่ 3', 'PL04 — ลิฟท์ตัวที่ 4', 'CL01 — ลิฟท์ตัวที่ 5', 'CL02 — ลิฟท์ตัวที่ 6', 'SL03 — ลิฟท์ตัวที่ 7', 'SL04 — ลิฟท์ตัวที่ 8'] }),
         f('elevator_remark', 'หมายเหตุ', 'radio', { required: true, system: true, options: ['กดผิด', 'ยืนพิง', 'อื่นๆ'], allowCustom: true }),
         f('elevator_user_type', 'ประเภทผู้ใช้', 'radio', { required: true, system: true, options: ['พนักงาน', 'ลูกค้า', 'ผู้รับเหมา'] })
+      ],
+      checkpoint: [
+        f('checkpoint_employee_name', 'ชื่อ', 'text', { required: true, system: true, group: 'ข้อมูลผู้บันทึก', placeholder: 'ใส่ชื่อ' }),
+        f('checkpoint_date', 'วันที่', 'date', { required: true, system: true, group: 'ข้อมูลผู้บันทึก' }),
+        f('checkpoint_shift', 'กะกลางวัน/กะกลางคืน', 'radio', { required: true, system: true, group: 'ข้อมูลผู้บันทึก', options: ['กะกลางวัน 08.00-20.00', 'กะกลางคืน 20.00-08.00'] }),
+        f('checkpoint_point', 'จุดที่ตรวจ', 'radio', { required: true, system: true, group: 'จุดที่ตรวจ', options: ['จุดที่1', 'จุดที่2', 'จุดที่3', 'จุดที่4'] }),
+        f('checkpoint_time', 'เวลาที่ลงตรวจ', 'time', { group: 'จุดที่ตรวจ', placeholder: 'ตัวอย่าง 09:30' }),
+        f('checkpoint_inspector_name', 'ชื่อผู้ตรวจสอบ', 'text', { group: 'จุดที่ตรวจ', placeholder: 'ใส่ชื่อผู้ตรวจสอบ' }),
+        f('checkpoint_remark', 'หมายเหตุ', 'textarea', { group: 'จุดที่ตรวจ', placeholder: 'เหตุการณ์ผิดปกติ (ถ้ามี)' })
+      ],
+
+      /* ---- ตรวจประจำเดือน — the four categories with a real question set (as typed out by
+         the site). Every non-date/name field is left unlocked (`system` omitted, defaults to
+         false), same as every other module's optional/count-type questions — the admin can add,
+         reword or delete any of these, and buildDynamic() picks the change up automatically. */
+      monthly_inspection_cctv: [
+        f('mi_cctv_date', 'วันที่', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_cctv_time', 'เวลา', 'time', { required: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_cctv_nvr_name', 'NVR - ชื่อกล้อง', 'text', { required: true, group: 'ข้อมูลการตรวจ', placeholder: 'ชื่อกล้องตาม NVR' }),
+        f('mi_cctv_location', 'ชั้น/ตำแหน่งกล้อง', 'text', { required: true, group: 'ข้อมูลการตรวจ', placeholder: 'เช่น ชั้น 3 โถงลิฟท์' }),
+        f('mi_cctv_dust', 'มีฝุ่นเกาะหรือไม่', 'radio', { required: true, group: 'สภาพกล้อง', options: ['มี', 'ไม่มี'] }),
+        f('mi_cctv_crack', 'มีรอยแตกหรือไม่', 'radio', { required: true, group: 'สภาพกล้อง', options: ['มี', 'ไม่มี'] }),
+        f('mi_cctv_dirty', 'สิ่งสกปรกเลอะที่ตัวกล้องและเลนส์กล้อง', 'radio', { required: true, group: 'สภาพกล้อง', options: ['มี', 'ไม่มี'] }),
+        f('mi_cctv_status', 'กล้องใช้งานได้ปกติหรือไม่', 'radio', { required: true, group: 'สภาพกล้อง', options: ['ปกติ', 'ไม่สามารถใช้งานได้'] }),
+        f('mi_cctv_note', 'หากพบสิ่งผิดปกติ ระบุข้อและเขียนหมายเหตุ', 'textarea', { group: 'สภาพกล้อง', placeholder: 'ระบุข้อที่พบ และรายละเอียด' })
+      ],
+      monthly_inspection_fire_extinguisher: [
+        f('mi_fire_ext_date', 'วัน/เดือน/ปี', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_fire_ext_floor', 'ชั้นที่', 'radio', { required: true, group: 'ข้อมูลการตรวจ',
+          options: ['ชั้น G', 'ชั้นที่ 1', 'ชั้นที่ 2', 'ชั้นที่ 3', 'ชั้นที่ 4', 'ชั้นที่ 5', 'ชั้นที่ 6', 'ชั้นที่ 7', 'ชั้นที่ 8', 'ชั้นที่ 9', 'ชั้นที่ 10', 'ชั้นที่ 11', 'ชั้นที่ 12 ดาดฟ้า', 'ตึกบริการ ชั้น 1', 'ตึกบริการ ชั้น 2', 'ตึกบริการ ชั้น 3', 'ตึกบริการ ชั้น 4', 'ลานจอด'],
+          allowCustom: true }),
+        f('mi_fire_ext_tank_no', 'ชั้น/ถังที่', 'text', { required: true, group: 'ข้อมูลการตรวจ', placeholder: 'ตัวอย่าง 7-1' }),
+        f('mi_fire_ext_type', 'ชนิดของถัง', 'radio', { required: true, group: 'สภาพถัง', options: ['ABFFC', 'CO2'], allowCustom: true }),
+        f('mi_fire_ext_size', 'ขนาด (ปอนด์)', 'radio', { required: true, group: 'สภาพถัง', options: ['10'], allowCustom: true }),
+        f('mi_fire_ext_condition', 'สภาพถัง', 'radio', { required: true, group: 'สภาพถัง', options: ['ถังบุบ', 'มีรอยขีดข่วน', 'ปกติ'], allowCustom: true }),
+        f('mi_fire_ext_gauge', 'เกจวัด', 'radio', { required: true, group: 'สภาพถัง', options: ['อยู่ในเกจวัด (สีเขียว)', 'ไม่อยู่ในเกจวัด (สีแดง)'], allowCustom: true }),
+        f('mi_fire_ext_pin', 'สลัก', 'radio', { required: true, group: 'สภาพถัง', options: ['มี', 'ไม่มี', 'หลุด'], allowCustom: true }),
+        f('mi_fire_ext_weight', 'น้ำหนัก', 'radio', { required: true, group: 'สภาพถัง', options: ['ปกติ', 'เบา', 'หนัก'], allowCustom: true }),
+        f('mi_fire_ext_hose', 'สายฉีด', 'radio', { required: true, group: 'สภาพถัง', options: ['แตก', 'แข็ง', 'อ่อน', 'ปกติ'], allowCustom: true }),
+        f('mi_fire_ext_obstruction', 'สิ่งกีดขวาง', 'radio', { required: true, group: 'สภาพถัง', options: ['มี', 'ไม่มี'], allowCustom: true }),
+        f('mi_fire_ext_label', 'ป้าย', 'radio', { required: true, group: 'สภาพถัง', options: ['ปกติ', 'ฉีก/ขาด', 'หลุด'], allowCustom: true }),
+        f('mi_fire_ext_checker_name', 'ลงชื่อผู้เช็คถัง', 'text', { required: true, system: true, group: 'ผู้ตรวจสอบ' }),
+        f('mi_fire_ext_inspector_name', 'ลงชื่อผู้ตรวจสอบ', 'text', { required: true, group: 'ผู้ตรวจสอบ' }),
+        f('mi_fire_ext_note', 'หมายเหตุ', 'textarea', { group: 'ผู้ตรวจสอบ' })
+      ],
+      monthly_inspection_acc_door: [
+        f('mi_acc_date', 'วันที่', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_acc_time', 'เวลา', 'time', { required: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_acc_reader_status', 'เครื่องอ่านบัตรและป้อนรหัส (Card Reader & Keypad) ใช้งานได้ปกติหรือไม่', 'radio', { required: true, group: 'ข้อมูลการตรวจ', options: ['ปกติ', 'ผิดปกติ'], allowCustom: true }),
+        f('mi_acc_floor', 'ชั้น', 'radio', { required: true, group: 'ข้อมูลการตรวจ',
+          options: ['G', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12 ดาดฟ้า', 'ตึกบริการ 1', 'ตึกบริการ 2', 'ตึกบริการ 3', 'ตึกบริการ 4', 'ดาดฟ้า ตึกบริการ'],
+          allowCustom: true }),
+        f('mi_acc_electric_lock', 'กลอนไฟฟ้าอยู่ในสภาพสมบูรณ์ปกติหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ปกติ', 'ไม่ปกติ'], allowCustom: true }),
+        f('mi_acc_magnet', 'แผ่นแม่เหล็กทำงานปกติหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ปกติ', 'ไม่ปกติ'], allowCustom: true }),
+        f('mi_acc_alarm_light', 'มีไฟแจ้งเตือนล็อคหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['มีไฟแจ้งเตือน', 'ไม่มีไฟแจ้งเตือน'], allowCustom: true }),
+        f('mi_acc_lock_status', 'ประตูล็อคปกติหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ล็อคปกติ', 'ประตูไม่ล็อค'], allowCustom: true }),
+        f('mi_acc_sensor_box', 'กล่องเซ็นเซอร์สามารถใช้ได้ปกติหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ใช้ได้ปกติ', 'ใช้ไม่ได้'], allowCustom: true }),
+        f('mi_acc_emergency_release', 'กล่อง EMERGENCY DOOR RELEASE อยู่ในสภาพปกติหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ปกติ', 'ไม่ปกติ'], allowCustom: true }),
+        f('mi_acc_note', 'หมายเหตุ', 'textarea', { group: 'สภาพประตู' }),
+        f('mi_acc_checker_name', 'ชื่อผู้เช็คประตู ACC', 'text', { required: true, system: true, group: 'ผู้ตรวจสอบ' }),
+        f('mi_acc_inspector_name', 'ผู้ตรวจสอบ หัวหน้าแผนกรักษาความปลอดภัย', 'text', { required: true, group: 'ผู้ตรวจสอบ' })
+      ],
+      monthly_inspection_fire_exit: [
+        f('mi_fire_exit_date', 'ว/ด/ป', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_fire_exit_time', 'เวลา', 'time', { required: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_fire_exit_door', 'ประตูที่', 'radio', { required: true, group: 'ข้อมูลการตรวจ',
+          options: ['ST 1 (ประตูกลาง)', 'ST 2 (ประตูด้านหน้า)', 'ST 4 (ประตูตรงตู้เต่าบิน)', 'ST 5 (หลังห้อง CCTV)', 'ST 6 (ห้องคลังพัสดุ)'], allowCustom: true }),
+        f('mi_fire_exit_floor', 'ชั้นที่', 'text', { required: true, group: 'ข้อมูลการตรวจ' }),
+        f('mi_fire_exit_obstruction', 'แนวประตูฉุกเฉินมีสิ่งกีดขวางทางหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['มี', 'ไม่มี'] }),
+        f('mi_fire_exit_push_open', 'เมื่อเปิดประตูออก ผลักออกจากด้านในได้หรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ได้', 'ไม่ได้'] }),
+        f('mi_fire_exit_alarm', 'เมื่อเปิดประตูฉุกเฉิน มีเสียงแจ้งเตือนหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['มี', 'ไม่มี'] }),
+        f('mi_fire_exit_lock_outside', 'เมื่อเปิดประตูเข้าจากด้านนอกประตูล็อคหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ล็อค', 'ไม่ล็อค'] }),
+        f('mi_fire_exit_sign', 'ป้ายสัญลักษณ์มีหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['มี', 'ไม่มี'] }),
+        f('mi_fire_exit_damaged', 'ประตูชำรุดหรือไม่', 'radio', { required: true, group: 'สภาพประตู', options: ['ชำรุด', 'ไม่ชำรุด'] }),
+        f('mi_fire_exit_checker_name', 'ลงชื่อผู้ตรวจเช็ค', 'text', { required: true, system: true, group: 'ผู้ตรวจสอบ' }),
+        f('mi_fire_exit_inspector_name', 'ผู้ตรวจสอบ หัวหน้าหน่วยรักษาความปลอดภัย', 'text', { required: true, group: 'ผู้ตรวจสอบ' }),
+        f('mi_fire_exit_note', 'หมายเหตุ', 'textarea', { group: 'ผู้ตรวจสอบ' })
       ]
     };
+    /* The five monthly-inspection forms share one shape — เดือนที่ตรวจ / ผู้ตรวจ, then a
+       total-pass-fail trio, then a note — with only the count wording differing per category.
+       Only the date and name fields are `system` (locked): the dashboard for these modules is
+       generated from whatever fields exist at render time, so the admin is free to delete or
+       replace every count question without breaking anything. */
+    MONTHLY_FORM_SPECS.forEach(function (spec) {
+      var p = spec.prefix;
+      var fields = [
+        f(p + '_date', 'เดือนที่ตรวจ', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ', helper: 'เลือกวันใดก็ได้ในเดือนที่ตรวจ' }),
+        f(p + '_name', 'ชื่อผู้ตรวจ', 'select', { required: true, system: true, group: 'ข้อมูลการตรวจ', options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
+        f(p + '_total', spec.totalLabel, 'number', { required: true, group: 'ผลการตรวจ', placeholder: '0', unit: spec.unit }),
+        f(p + '_pass', spec.passLabel, 'number', { required: true, group: 'ผลการตรวจ', placeholder: '0', unit: spec.unit }),
+        f(p + '_fail', spec.failLabel, 'number', { group: 'ผลการตรวจ', placeholder: '0', unit: spec.unit })
+      ];
+      if (spec.extra) fields = fields.concat(spec.extra(p));
+      fields.push(f(p + '_note', 'หมายเหตุ', 'textarea', { group: 'ผลการตรวจ', placeholder: 'สิ่งที่พบ / รายการที่ต้องแก้ไข (ถ้ามี)' }));
+      forms[spec.module] = fields;
+    });
     Object.keys(forms).forEach(function (k) { forms[k].forEach(function (fl, i) { fl.order = i; }); });
     return forms;
   }
@@ -219,7 +367,10 @@
   var state = {
     forms: emptyForms(),
     formVersion: 1,
-    records: [],
+    records: [], /* only the calendar months ensureRange()/ensureAll() have actually pulled in — see below */
+    dateIndex: {}, /* dateIndex[module][reportDate] = count — cheap, always full-history, powers monthsIndex() */
+    loadedMonths: {}, /* 'YYYY-MM' -> true, once that month's full rows are in state.records */
+    allLoaded: false, /* true once ensureAll() has pulled every record at least once this session */
     counts: emptyCounts(), /* from record_count() RPC — see recordCount() */
     rev: 0
   };
@@ -265,12 +416,78 @@
       bump();
     });
   }
-  function loadRecords() {
+  /* Tier 0 — every module's {reportDate: count}, with no `data` jsonb column, across all of
+     history. Cheap enough (a few hundred KB/year at this app's real volume) to always load in
+     full, and is the only thing monthsIndex()/pickLatestDate() actually need — they never
+     require the full row payload just to know which days have data. */
+  function loadDateIndex() {
+    return sb.from('records').select('module, report_date').then(function (res) {
+      if (res.error) { notifyError('โหลดปฏิทินข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
+      var idx = {};
+      MODULES.forEach(function (m) { idx[m.id] = {}; });
+      (res.data || []).forEach(function (r) {
+        var byModule = idx[r.module] || (idx[r.module] = {});
+        byModule[r.report_date] = (byModule[r.report_date] || 0) + 1;
+      });
+      state.dateIndex = idx;
+      bump();
+    });
+  }
+  function monthBounds(year, month) {
+    return { start: year + '-' + pad(month + 1) + '-01', end: isoDay(new Date(year, month + 1, 0)) };
+  }
+  function monthKeysBetween(from, to) {
+    var out = [];
+    var d = new Date(from + 'T00:00:00'), end = new Date(to + 'T00:00:00');
+    while (d <= end) {
+      out.push(d.getFullYear() + '-' + pad(d.getMonth() + 1));
+      d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
+    return out;
+  }
+  function fetchMonth(key) {
+    var parts = key.split('-');
+    var b = monthBounds(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1);
+    return sb.from('records').select('*').gte('report_date', b.start).lte('report_date', b.end).then(function (res) {
+      if (res.error) { notifyError('โหลดข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
+      var byId = {};
+      state.records.forEach(function (r) { byId[r.id] = r; });
+      (res.data || []).map(recordFromRow).forEach(function (r) { byId[r.id] = r; });
+      state.records = Object.keys(byId).map(function (id) { return byId[id]; });
+      state.loadedMonths[key] = true;
+    });
+  }
+  /* Tier 1 — pulls in full row detail (the `data` jsonb) for only the calendar months a date
+     or date range touches, and only the months not already cached this session. A no-op
+     (resolves immediately, no network call) once everything asked for is already loaded, so
+     it's safe for scopeRecords()/monthRecords()/pdfRecords() to call this on every render. */
+  function ensureRange(from, to) {
+    if (state.allLoaded) return Promise.resolve();
+    var keys = monthKeysBetween(from, to || from).filter(function (k) { return !state.loadedMonths[k]; });
+    if (!keys.length) return Promise.resolve();
+    return Promise.all(keys.map(fetchMonth)).then(bump);
+  }
+  /* Tier 2 — the Records page's "ทั้งหมด" browser and the PDF "ข้อมูลทั้งหมด" period both want
+     genuine full history with no date bound. Real volume here is small (a few MB/year), so a
+     single deliberate full fetch is fine — it just must not be the thing that runs on every
+     page load and every realtime tick, which is what made this expensive before. */
+  function ensureAll() {
+    if (state.allLoaded) return Promise.resolve();
     return sb.from('records').select('*').then(function (res) {
       if (res.error) { notifyError('โหลดข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
       state.records = (res.data || []).map(recordFromRow);
+      state.allLoaded = true;
       bump();
     });
+  }
+  /* Re-pulls only what's actually cached right now — the Tier-0 index (cheap), every month
+     Tier-1 already loaded, and the Tier-2 full set if that was ever loaded — instead of the
+     whole table, so realtime sync cost scales with what's on screen, not with total history. */
+  function refreshLoaded() {
+    var work = [loadDateIndex()];
+    Object.keys(state.loadedMonths).forEach(function (k) { work.push(fetchMonth(k)); });
+    if (state.allLoaded) { state.allLoaded = false; work.push(ensureAll()); }
+    return Promise.all(work).then(bump);
   }
   function loadCounts() {
     return Promise.all(MODULES.map(function (m) {
@@ -286,17 +503,33 @@
       bumpPortal();
     });
   }
+  /* Admin-renamed module titles — overwrites MODULES[i].name in place (see
+     DEFAULT_MODULE_NAMES above) so every screen that reads a module's name, whether via
+     module(id) or by iterating MODULES directly, picks up the rename with no other change. */
+  function loadModuleLabels() {
+    return sb.from('module_labels').select('*').then(function (res) {
+      if (res.error) { notifyError('โหลดชื่อฟอร์มไม่สำเร็จ: ' + res.error.message); return; }
+      MODULES.forEach(function (m) { m.name = DEFAULT_MODULE_NAMES[m.id]; });
+      (res.data || []).forEach(function (r) {
+        var m = null;
+        for (var i = 0; i < MODULES.length; i++) if (MODULES[i].id === r.module) { m = MODULES[i]; break; }
+        if (m) m.name = r.label;
+      });
+      bump();
+    });
+  }
 
-  var ready = Promise.all([loadFormFields(), loadRecords(), loadCounts(), loadPortal()]);
+  var ready = Promise.all([loadFormFields(), loadDateIndex(), loadCounts(), loadPortal(), loadModuleLabels()]);
 
-  /* Wholesale refetch on any change, rather than patching the local cache from the realtime
-     payload — simpler to get right, and this app's data volume (a daily security log for one
-     site) is small enough that re-fetching a table is cheap. */
+  /* Refetches only what's actually cached (see refreshLoaded above), rather than the whole
+     table — a change anywhere shouldn't cost every open Admin tab a full-table download,
+     only a re-pull of whatever month(s) that tab is actually looking at. */
   try {
     sb.channel('soc-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, function () { loadRecords(); loadCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, function () { refreshLoaded(); loadCounts(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'form_fields' }, function () { loadFormFields(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, function () { loadPortal(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'module_labels' }, function () { loadModuleLabels(); })
       .subscribe();
   } catch (e) { /* realtime is a live-sync nicety, not a hard requirement — degrade to no cross-tab push */ }
 
@@ -342,6 +575,39 @@
     MODULES: MODULES, TYPES: TYPES, OPERATORS: OPERATORS, COLORS: PALETTE,
 
     module: function (id) { for (var i = 0; i < MODULES.length; i++) if (MODULES[i].id === id) return MODULES[i]; return null; },
+    defaultModuleName: function (id) { return DEFAULT_MODULE_NAMES[id] || id; },
+
+    /* ---------- module groups ----------
+       A group is a folder, never a data owner: it has no fields and no records of its own.
+       topLevelModules() is what every "list the modules" surface should iterate — the Admin
+       nav, the Entry Portal tiles, the Form Builder tabs — so a grouped module only ever
+       appears after the user has opened its group. Surfaces that are flat lists of *data*
+       rather than navigation (the Records filter, the PDF module picker) keep iterating the
+       full MODULES array, because there filtering by a specific form is the whole point. */
+    GROUPS: GROUPS,
+    group: function (id) { for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i].id === id) return GROUPS[i]; return null; },
+    groupModules: function (groupId) { return MODULES.filter(function (m) { return m.group === groupId; }); },
+    topLevelModules: function () { return MODULES.filter(function (m) { return !m.group; }); },
+    /* Renames a module's display title. Applies to the shared MODULES entry immediately (every
+       nav label, page title and dashboard heading reads m.name straight off that array) and
+       persists in the background — an empty/unchanged name just deletes the override row so the
+       module falls back to its default name. */
+    setModuleName: function (id, name) {
+      var m = this.module(id);
+      if (!m) return;
+      var trimmed = String(name == null ? '' : name).trim();
+      var next = trimmed || DEFAULT_MODULE_NAMES[id];
+      var prev = m.name;
+      if (next === prev) return;
+      m.name = next;
+      bump();
+      var req = (trimmed && trimmed !== DEFAULT_MODULE_NAMES[id])
+        ? sb.from('module_labels').upsert({ module: id, label: trimmed, updated_at: nowIso() })
+        : sb.from('module_labels').delete().eq('module', id);
+      req.then(function (res) {
+        if (res.error) { m.name = prev; bump(); notifyError('บันทึกชื่อฟอร์มไม่สำเร็จ: ' + res.error.message); }
+      });
+    },
 
     /* ---------- form registry ---------- */
     fields: function (m) { return (state.forms[m] || []).slice().sort(function (a, b) { return a.order - b.order; }); },
@@ -399,6 +665,14 @@
         return true;
       });
     },
+    /* Makes sure the given date (or date range)'s full rows are in state.records before a
+       caller relies on query()/allRecords() for them — a no-op once already cached. Every
+       dashboard/PDF read goes through this first; see scopeRecords()/monthRecords()/
+       prevMonthRecs()/pdfRecords() in the Admin Console. */
+    ensureRange: function (from, to) { return ensureRange(from, to); },
+    /* Full, unbounded history — only for the Records page's "ทั้งหมด" browser and the PDF
+       "ข้อมูลทั้งหมด" period, which genuinely need it; everything else stays date-scoped. */
+    ensureAll: function () { return ensureAll(); },
     /* Synchronous count independent of allRecords()/query() — those read `state.records`, which
        Row Level Security leaves empty for an unauthenticated guest (only INSERT is public on
        `records`). The entry portal's module tiles ("บันทึกแล้ว N รายการ") read this instead,
@@ -490,7 +764,7 @@
       state.records = state.records.filter(function (r) { return !r.isTest; });
       bump();
       sb.from('records').delete().eq('is_test', true).then(function (res) {
-        if (res.error) { notifyError('ลบข้อมูลตัวอย่างไม่สำเร็จ: ' + res.error.message); loadRecords(); }
+        if (res.error) { notifyError('ลบข้อมูลตัวอย่างไม่สำเร็จ: ' + res.error.message); refreshLoaded(); }
       });
     },
     /* Factory reset: deletes every record and puts the form registry back to the code's own
@@ -508,7 +782,7 @@
         sb.from('form_fields').delete().neq('module', '')
       ]).then(function (results) {
         var failed = results.filter(function (r) { return r.error; });
-        if (failed.length) { notifyError('รีเซ็ตระบบไม่สำเร็จบางส่วน: ' + failed[0].error.message); loadFormFields(); loadRecords(); return; }
+        if (failed.length) { notifyError('รีเซ็ตระบบไม่สำเร็จบางส่วน: ' + failed[0].error.message); loadFormFields(); refreshLoaded(); return; }
         var rows = [];
         Object.keys(state.forms).forEach(function (m) {
           state.forms[m].forEach(function (fl, i) { rows.push(fieldToRow(m, fl, i)); });
@@ -549,16 +823,26 @@
     },
 
     /* ---------- date index ---------- */
+    /* Reads state.dateIndex (Tier 0 — module/reportDate/count only, no jsonb, always fully
+       loaded) rather than full rows, so asking "which of the last 12 months have data" never
+       needs the heavy per-month row cache to already be populated. */
+    /* `module` may be one id or an array of ids — an array merges their date indexes, which is
+       what a group landing page needs so its month sidebar reflects all its members at once. */
     monthsIndex: function (module, count) {
       count = count || 12;
-      var recs = this.query({ module: module });
+      var ids = Array.isArray(module) ? module : [module];
+      var byDate = {};
+      ids.forEach(function (id) {
+        var src = state.dateIndex[id] || {};
+        Object.keys(src).forEach(function (rd) { byDate[rd] = (byDate[rd] || 0) + src[rd]; });
+      });
       var now = new Date();
       var out = [];
       for (var i = 0; i < count; i++) {
         var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         var pre = d.getFullYear() + '-' + pad(d.getMonth() + 1);
         var set = {};
-        recs.forEach(function (r) { if (String(r.reportDate).slice(0, 7) === pre) set[r.reportDate] = (set[r.reportDate] || 0) + 1; });
+        Object.keys(byDate).forEach(function (rd) { if (rd.slice(0, 7) === pre) set[rd] = byDate[rd]; });
         var dates = Object.keys(set).sort();
         out.push({ year: d.getFullYear(), month: d.getMonth(), prefix: pre, dates: dates, count: dates.length,
           records: dates.reduce(function (a, k) { return a + set[k]; }, 0) });
