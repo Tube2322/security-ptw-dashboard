@@ -143,16 +143,6 @@ module.exports = async (req, res) => {
     const { playwright, chromium } = await loadChromium();
     if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
     const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
-    if (body && body.debug) {
-      const fs = require('fs'), path = require('path');
-      const dir = path.dirname(executablePath);
-      var listing, al2023Listing, packListing;
-      try { listing = fs.readdirSync(dir); } catch (e) { listing = 'readdir failed: ' + e.message; }
-      try { al2023Listing = fs.readdirSync(path.join(dir, 'al2023')); } catch (e) { al2023Listing = 'readdir failed: ' + e.message; }
-      try { packListing = fs.readdirSync(path.join(dir, 'chromium-pack')); } catch (e) { packListing = 'readdir failed: ' + e.message; }
-      res.status(200).json({ ok: true, debug: true, executablePath: executablePath, dir: dir, listing: listing, al2023Listing: al2023Listing, packListing: packListing });
-      return;
-    }
     /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
        chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
        lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
