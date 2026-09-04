@@ -26,13 +26,14 @@
    opaque "FUNCTION_INVOCATION_FAILED" page with no detail, whereas catching it here lets us
    return the real error message as JSON — the only way to see what actually broke without
    access to this project's Vercel runtime logs. */
-function loadChromium() {
+async function loadChromium() {
   const { chromium: playwright } = require('playwright-core');
-  /* @sparticuz/chromium-min ships as an ESM module — require() gets it wrapped as
-     { __esModule: true, default: <the real chromium object> } rather than the object itself
-     (unlike the older @sparticuz/chromium CJS build this replaced), so chromium.executablePath
-     would be undefined without unwrapping .default here. */
-  const chromiumMinExports = require('@sparticuz/chromium-min');
+  /* @sparticuz/chromium-min ships as real ESM (not a CJS build with an __esModule interop flag)
+     — require() of it throws "require() of ES Module ... not supported" on Vercel's Node
+     runtime. Node's local dev build here happens to support synchronous require(esm) and hid
+     this, which is why it only ever showed up once actually deployed. Dynamic import() is what
+     Node's own error message says to use instead, and works for both CJS and ESM targets. */
+  const chromiumMinExports = await import('@sparticuz/chromium-min');
   const chromium = chromiumMinExports.default || chromiumMinExports;
   return { playwright, chromium };
 }
@@ -139,7 +140,7 @@ module.exports = async (req, res) => {
 
   let browser;
   try {
-    const { playwright, chromium } = loadChromium();
+    const { playwright, chromium } = await loadChromium();
     if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
     const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
     if (body && body.debug) {
