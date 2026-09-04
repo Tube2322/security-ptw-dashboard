@@ -558,6 +558,111 @@
                     </sc-for>
                   </div>
 
+                  <!-- MULTI-PERIOD COMPARISON (Overview page only) -->
+                  <sc-if value="{{ pageIsOverview }}" hint-placeholder-val="{{ false }}">
+                    <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+                      <div>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 600;">เปรียบเทียบหลายช่วงเวลา</h2>
+                        <div style="margin-top: 3px; font-size: 12px; color: var(--dim);">เลือกได้ทั้งวันที่เจาะจงและทั้งเดือนผสมกัน สูงสุด 6 ช่วง — คอลัมน์แรกที่เพิ่มคือฐานสำหรับเทียบ %</div>
+                      </div>
+
+                      <!-- module chips -->
+                      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <sc-for list="{{ compareModuleChips }}" as="mc" hint-placeholder-count="4">
+                          <button onClick="{{ mc.pick }}" style="min-height: 34px; padding: 0 12px; border-radius: 9px; cursor: pointer; font-size: 12.5px; border: 1px solid {{ mc.border }}; background: {{ mc.bg }}; color: {{ mc.fg }};" style-hover="border-color: var(--line-2);">{{ mc.label }}</button>
+                        </sc-for>
+                      </div>
+
+                      <!-- period chips -->
+                      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                        <sc-for list="{{ comparePeriodChips }}" as="pc" hint-placeholder-count="2">
+                          <div style="display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 6px 0 12px; border-radius: 9px; border: 1px solid {{ pc.border }}; background: {{ pc.bg }}; font-size: 12.5px; color: var(--text);">
+                            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--dim);">{{ pc.typeTag }}</span>
+                            <span>{{ pc.label }}</span>
+                            <button onClick="{{ pc.remove }}" aria-label="เอาช่วงนี้ออก" style="width: 22px; height: 22px; border-radius: 999px; border: none; background: transparent; color: var(--dim); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--danger);">✕</button>
+                          </div>
+                        </sc-for>
+                        <sc-if value="{{ canAddPeriod }}" hint-placeholder-val="{{ true }}">
+                          <button onClick="{{ openComparePicker }}" style="min-height: 34px; padding: 0 13px; border-radius: 9px; border: 1px dashed var(--line-2); background: transparent; color: var(--accent); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--accent-soft);">+ เพิ่มช่วง</button>
+                        </sc-if>
+                      </div>
+
+                      <!-- inline picker -->
+                      <sc-if value="{{ comparePickerOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2);">
+                          <div style="display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px;">
+                            <button onClick="{{ setPickerDay }}" style="min-height: 30px; padding: 0 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: {{ pickerDayBg }}; color: {{ pickerDayFg }};">📅 วัน</button>
+                            <button onClick="{{ setPickerMonth }}" style="min-height: 30px; padding: 0 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: {{ pickerMonthBg }}; color: {{ pickerMonthFg }};">🗓️ เดือน</button>
+                          </div>
+
+                          <sc-if value="{{ pickerIsDay }}" hint-placeholder-val="{{ false }}">
+                            <input type="date" value="{{ pickerDate }}" onChange="{{ setPickerDate }}" style="min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                          </sc-if>
+                          <sc-if value="{{ pickerIsMonth }}" hint-placeholder-val="{{ true }}">
+                            <select value="{{ pickerYear }}" onChange="{{ setPickerYear }}" style="min-height: 36px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                              <sc-for list="{{ pickerYearOptions }}" as="yo" hint-placeholder-count="3">
+                                <option value="{{ yo.value }}">{{ yo.label }}</option>
+                              </sc-for>
+                            </select>
+                            <select value="{{ pickerMonth }}" onChange="{{ setPickerMonthValue }}" style="min-height: 36px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                              <sc-for list="{{ pickerMonthOptions }}" as="mo" hint-placeholder-count="12">
+                                <option value="{{ mo.value }}">{{ mo.label }}</option>
+                              </sc-for>
+                            </select>
+                          </sc-if>
+
+                          <button onClick="{{ confirmAddPeriod }}" style="min-height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px; font-weight: 600;">เพิ่ม</button>
+                          <button onClick="{{ closeComparePicker }}" style="min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 12.5px;">ยกเลิก</button>
+                        </div>
+                      </sc-if>
+
+                      <!-- table -->
+                      <sc-if value="{{ hasCompareTable }}" hint-placeholder-val="{{ false }}">
+                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                          <table style="width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                              <tr>
+                                <th style="text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-2); font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.8px; color: var(--dim); text-transform: uppercase; font-weight: 500; white-space: nowrap;">ตัวชี้วัด</th>
+                                <sc-for list="{{ compareColumns }}" as="col" hint-placeholder-count="3">
+                                  <th style="text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-2); white-space: nowrap;">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--dim);">{{ col.typeTag }}</span>
+                                      <span style="font-size: 12.5px; font-weight: 600; color: var(--text); text-transform: none;">{{ col.label }}</span>
+                                      <sc-if value="{{ col.isBaseline }}" hint-placeholder-val="{{ false }}">
+                                        <span style="font-size: 10px; color: var(--accent);">ฐาน</span>
+                                      </sc-if>
+                                    </div>
+                                  </th>
+                                </sc-for>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <sc-for list="{{ compareRowsOut }}" as="row" hint-placeholder-count="5">
+                                <tr>
+                                  <td style="padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); color: var(--muted); white-space: nowrap;">{{ row.label }}</td>
+                                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="3">
+                                    <td style="padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); white-space: nowrap;">
+                                      <span style="font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text);">{{ cell.value }}</span>
+                                      <sc-if value="{{ cell.delta }}" hint-placeholder-val="{{ '' }}">
+                                        <span style="margin-left: 7px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; color: {{ cell.deltaColor }}; background: {{ cell.deltaBg }};">{{ cell.delta }}</span>
+                                      </sc-if>
+                                    </td>
+                                  </sc-for>
+                                </tr>
+                              </sc-for>
+                            </tbody>
+                          </table>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ !hasCompareTable }}" hint-placeholder-val="{{ true }}">
+                        <div style="padding: 30px 18px; border-radius: 12px; border: 1px dashed var(--line-2); text-align: center;">
+                          <div style="font-size: 13.5px; color: var(--muted);">เพิ่มช่วงเวลาที่ต้องการเทียบด้านบน (อย่างน้อย 1 ช่วง)</div>
+                        </div>
+                      </sc-if>
+                    </section>
+                  </sc-if>
+
                   <!-- DAILY RECORD TABLE -->
                   <sc-if value="{{ hasTable }}" hint-placeholder-val="{{ false }}">
                     <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
@@ -1521,6 +1626,11 @@ class Component extends DCLogic {
     signupEmail: '', signupPassword: '', signupConfirm: '', signupError: '', signupBusy: false, signupNotice: '',
     newPassword: '', newPasswordConfirm: '', pwError: '', pwBusy: false, pwNotice: '',
     usersBusy: false, userList: [],
+    /* multi-period comparison table (Overview page only) — see periodQuery()/compareRows()/
+       buildCompareTable(). comparePeriods[0] is always the delta baseline. */
+    comparePeriods: [], compareModule: 'all',
+    comparePickerOpen: false, comparePickerType: 'month',
+    comparePickerDate: '', comparePickerYear: new Date().getFullYear(), comparePickerMonth: new Date().getMonth(),
     rev: 0
   };
 
@@ -1544,6 +1654,107 @@ class Component extends DCLogic {
     const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '●';
     const sign = pct > 0 ? '+' : '';
     return arrow + ' ' + sign + pct + '% จากเดือนที่แล้ว';
+  }
+  /* Same shape as momDelta() but for an arbitrary pair of values with no date-based gating —
+     the multi-period comparison table's baseline column has no single "previous period" (the
+     other columns can be any mix of days/months, not necessarily adjacent in time), so every
+     non-baseline cell is compared against the fixed first-added column instead. */
+  pairDelta(value, baseline) {
+    if (!baseline) return '';
+    const pct = Math.round((value - baseline) / baseline * 100);
+    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '●';
+    const sign = pct > 0 ? '+' : '';
+    return arrow + ' ' + sign + pct + '%';
+  }
+  /* {type:'day', date} or {type:'month', year, month} -> the query shape core.query()/
+     ensureScope() already understand, optionally scoped to one module. */
+  periodQuery(period, moduleId) {
+    const base = period.type === 'day' ? { date: period.date } : { year: period.year, month: period.month };
+    if (moduleId && moduleId !== 'all') base.module = moduleId;
+    return base;
+  }
+  periodLabel(period) {
+    const core = this.core();
+    return period.type === 'day' ? core.fmtDate(period.date)
+      : core.thaiMonths[period.month] + ' ' + (period.year + 543);
+  }
+  /* One period -> the row values for whatever module is currently selected in the comparison
+     table. Every number here is read off the same *Metrics() functions each module's own
+     dashboard already uses (trafficMetrics/golfMetrics/visitorsMetrics/checkpointMetrics/
+     elevatorMetrics) — no parallel aggregation logic, just re-presented as table rows. */
+  compareRows(period) {
+    const core = this.core();
+    const mod = this.state.compareModule;
+    this.ensureScope(period);
+    const q = this.periodQuery(period, null);
+
+    if (mod === 'all') {
+      const all = core.query(q);
+      const tr = this.trafficMetrics(all.filter(r => r.module === 'traffic'), 'traffic');
+      const trTt = this.trafficMetrics(all.filter(r => r.module === 'traffic_tt'), 'tt');
+      return [
+        { label: 'ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)', value: tr.totalIn + tr.totalOut + trTt.totalIn + trTt.totalOut, unit: 'คัน' },
+        { label: 'รอบรถกอล์ฟ', value: this.golfMetrics(all.filter(r => r.module === 'golf')).total, unit: 'รอบ' },
+        { label: 'ผู้มาเยือน', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' },
+        { label: 'รอบตรวจจุด', value: this.checkpointMetrics(all.filter(r => r.module === 'checkpoint')).total, unit: 'ครั้ง' },
+        { label: 'รายงานลิฟต์', value: this.elevatorMetrics(all.filter(r => r.module === 'elevator')).total, unit: 'ครั้ง' }
+      ];
+    }
+
+    const recs = core.query(this.periodQuery(period, mod));
+    if (mod === 'traffic' || mod === 'traffic_tt') {
+      const prefix = (core.module(mod) || {}).fieldPrefix || 'traffic';
+      const m = this.trafficMetrics(recs, prefix);
+      return [
+        { label: 'รถยนต์เข้า รวม', value: m.inDay + m.inNight, unit: 'คัน' },
+        { label: 'รถจักรยานยนต์เข้า รวม', value: m.inDayMoto + m.inNightMoto, unit: 'คัน' },
+        { label: 'รถยนต์ออก รวม', value: m.outDay + m.outNight, unit: 'คัน' },
+        { label: 'รถจักรยานยนต์ออก รวม', value: m.outDayMoto + m.outNightMoto, unit: 'คัน' },
+        { label: 'ยอดสุทธิ (เข้า−ออก)', value: m.net, unit: 'คัน' }
+      ];
+    }
+    if (mod === 'golf') {
+      const gm = this.golfMetrics(recs);
+      return [
+        { label: 'จำนวนรอบรวม', value: gm.total, unit: 'รอบ' },
+        { label: 'รอบกะกลางวัน', value: gm.dayRounds, unit: 'รอบ' },
+        { label: 'รอบกะกลางคืน', value: gm.nightRounds, unit: 'รอบ' },
+        { label: 'รถที่ให้บริการ', value: gm.activeCount, unit: '/ 4 คัน' }
+      ];
+    }
+    if (mod === 'visitors') {
+      const vm = this.visitorsMetrics(recs);
+      return [
+        { label: 'Visitor ทั่วไป', value: vm.gen, unit: 'คน' },
+        { label: 'Visitor ผู้รับเหมา', value: vm.con, unit: 'คน' },
+        { label: 'รวมผู้มาเยือน', value: vm.total, unit: 'คน' }
+      ];
+    }
+    if (mod === 'checkpoint') return [{ label: 'รอบตรวจจุดรวม', value: this.checkpointMetrics(recs).total, unit: 'ครั้ง' }];
+    if (mod === 'elevator') return [{ label: 'รายงานลิฟต์รวม', value: this.elevatorMetrics(recs).total, unit: 'ครั้ง' }];
+    return [{ label: 'จำนวนรายการ', value: recs.length, unit: 'รายการ' }];
+  }
+  /* comparePeriods[0] is the fixed baseline (see pairDelta) — removing it in the UI re-indexes
+     the array so whatever is left at index 0 automatically becomes the new baseline, no extra
+     bookkeeping needed here. */
+  buildCompareTable() {
+    const core = this.core();
+    const periods = this.state.comparePeriods;
+    if (!periods.length) return null;
+    const perPeriodRows = periods.map(p => this.compareRows(p));
+    const baselineRows = perPeriodRows[0];
+    return {
+      columns: periods.map((p, i) => ({ id: p.id, label: this.periodLabel(p), typeTag: p.type === 'day' ? 'วัน' : 'เดือน', isBaseline: i === 0 })),
+      rows: baselineRows.map((baseRow, ri) => ({
+        label: baseRow.label,
+        cells: perPeriodRows.map((rows, ci) => {
+          const r = rows[ri] || { value: 0, unit: baseRow.unit };
+          const deltaText = ci === 0 ? '' : this.pairDelta(r.value, baselineRows[ri].value);
+          const dk = this.decorateKpi({ delta: deltaText });
+          return { value: core.fmtNum(r.value) + (r.unit ? ' ' + r.unit : ''), delta: deltaText, deltaColor: dk.deltaColor, deltaBg: dk.deltaBg };
+        })
+      }))
+    };
   }
   pickLatestDate() {
     const core = this.core();
@@ -4007,6 +4218,14 @@ class Component extends DCLogic {
     const availMonths = core.availableMonths(historyScope);
     const availYears = Array.from(new Set(availMonths.map(m => m.year))).sort((a, b) => b - a);
     const monthsInSelYear = availMonths.filter(m => m.year === s.year);
+
+    /* multi-period comparison (Overview page only) — computed here rather than inside buildOverview()
+       since it depends on state.comparePeriods/compareModule, not the page's own date scope. */
+    const compareTable = page === 'overview' ? this.buildCompareTable() : null;
+    const comparePickerScope = s.compareModule === 'all' ? core.MODULES.map(m => m.id) : [s.compareModule];
+    const pickerAvailMonths = core.availableMonths(comparePickerScope);
+    const pickerAvailYears = Array.from(new Set(pickerAvailMonths.map(m => m.year))).sort((a, b) => b - a);
+    const monthsInPickerYear = pickerAvailMonths.filter(m => m.year === s.comparePickerYear);
     const activeMonth = months.filter(m => m.year === s.year && m.month === s.month)[0];
     const dayRecords = historyScope.reduce(
       (acc, id) => acc.concat(core.query({ module: id, year: s.year, month: s.month })), []);
@@ -4218,6 +4437,57 @@ class Component extends DCLogic {
       },
       setDashMonth: (e) => this.setState({ month: parseInt(e.target.value, 10), date: null }),
       goPdf: () => this.setState({ page: 'pdf', pdfModule: moduleId || 'traffic', pdfPeriod: s.date ? 'day' : 'month', pdfPeriodDay: s.date, pdfPeriodYear: s.year, pdfPeriodMonth: s.month }),
+
+      /* ---- multi-period comparison (Overview page) ---- */
+      pageIsOverview: page === 'overview',
+      compareModuleChips: [{ id: 'all', label: 'รวมทุกหัวข้อ' }]
+        .concat(['traffic', 'traffic_tt', 'golf', 'visitors', 'checkpoint', 'elevator'].map(id => ({ id, label: (core.module(id) || {}).name || id })))
+        .map(mc => ({
+          label: mc.label,
+          border: s.compareModule === mc.id ? 'var(--accent-line)' : 'var(--line)',
+          bg: s.compareModule === mc.id ? 'var(--accent-soft)' : 'transparent',
+          fg: s.compareModule === mc.id ? 'var(--accent)' : 'var(--muted)',
+          pick: () => this.setState({ compareModule: mc.id })
+        })),
+      comparePeriodChips: s.comparePeriods.map((p, i) => ({
+        label: this.periodLabel(p),
+        typeTag: p.type === 'day' ? 'วัน' : 'เดือน',
+        border: i === 0 ? 'var(--accent-line)' : 'var(--line)',
+        bg: i === 0 ? 'var(--accent-soft)' : 'var(--panel)',
+        remove: () => this.setState({ comparePeriods: s.comparePeriods.filter(x => x.id !== p.id) })
+      })),
+      canAddPeriod: s.comparePeriods.length < 6,
+      openComparePicker: () => this.setState({ comparePickerOpen: true }),
+      closeComparePicker: () => this.setState({ comparePickerOpen: false }),
+      comparePickerOpen: s.comparePickerOpen,
+      pickerIsDay: s.comparePickerType === 'day',
+      pickerIsMonth: s.comparePickerType === 'month',
+      pickerDayBg: s.comparePickerType === 'day' ? 'var(--panel)' : 'transparent',
+      pickerDayFg: s.comparePickerType === 'day' ? 'var(--text)' : 'var(--muted)',
+      pickerMonthBg: s.comparePickerType === 'month' ? 'var(--panel)' : 'transparent',
+      pickerMonthFg: s.comparePickerType === 'month' ? 'var(--text)' : 'var(--muted)',
+      setPickerDay: () => this.setState({ comparePickerType: 'day' }),
+      setPickerMonth: () => this.setState({ comparePickerType: 'month' }),
+      pickerDate: s.comparePickerDate,
+      setPickerDate: (e) => this.setState({ comparePickerDate: e.target.value }),
+      pickerYear: s.comparePickerYear,
+      setPickerYear: (e) => this.setState({ comparePickerYear: parseInt(e.target.value, 10) }),
+      pickerMonth: s.comparePickerMonth,
+      setPickerMonthValue: (e) => this.setState({ comparePickerMonth: parseInt(e.target.value, 10) }),
+      pickerYearOptions: (pickerAvailYears.length ? pickerAvailYears : [s.comparePickerYear]).map(y => ({ value: y, label: String(y + 543) })),
+      pickerMonthOptions: (monthsInPickerYear.length ? monthsInPickerYear.map(m => m.month) : core.thaiMonths.map((_, i) => i)).map(m => ({ value: m, label: core.thaiMonths[m] })),
+      confirmAddPeriod: () => {
+        if (s.comparePeriods.length >= 6) { this.flash('เทียบได้สูงสุด 6 ช่วง', 'var(--warn)'); return; }
+        if (s.comparePickerType === 'day' && !s.comparePickerDate) { this.flash('กรุณาเลือกวันที่', 'var(--warn)'); return; }
+        const id = Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const period = s.comparePickerType === 'day'
+          ? { id, type: 'day', date: s.comparePickerDate }
+          : { id, type: 'month', year: s.comparePickerYear, month: s.comparePickerMonth };
+        this.setState({ comparePeriods: s.comparePeriods.concat([period]), comparePickerOpen: false, comparePickerDate: '' });
+      },
+      hasCompareTable: !!compareTable,
+      compareColumns: compareTable ? compareTable.columns : [],
+      compareRowsOut: compareTable ? compareTable.rows : [],
 
       loading: s.loading,
       pageEmpty: !s.loading && data.empty,
