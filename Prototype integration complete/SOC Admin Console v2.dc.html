@@ -2502,7 +2502,9 @@ class Component extends DCLogic {
   /* ---------- page builders ---------- */
   buildOverview() {
     const core = this.core();
-    const q = this.state.date ? { date: this.state.date } : { year: this.state.year, month: this.state.month };
+    const g = this.state.dashGranularity;
+    const q = this.scopeQuery(null);
+    this.ensureScope(q);
     const all = core.query(q);
     const tr = all.filter(r => r.module === 'traffic');
     const trTt = all.filter(r => r.module === 'traffic_tt');
@@ -2518,14 +2520,17 @@ class Component extends DCLogic {
     const cm = this.checkpointMetrics(cp);
     const em = this.elevatorMetrics(el);
     const latest = all[0];
-    const prevAll = this.prevMonthRecs();
+    /* same day/week/month/year branch every other dashboard uses — day/month call the exact
+       same functions as before this dropdown existed. */
+    const prevAll = g === 'week' ? this.prevWeekRecs() : g === 'year' ? this.prevYearRecs() : this.prevMonthRecs();
+    const volDelta = (cur, prev) => g === 'month' ? this.momDelta(cur, prev) : (g === 'day' ? '' : this.pairDelta(cur, prev));
 
     const monthlyGroup = core.GROUPS[0];
     const monthlyMembers = monthlyGroup ? core.groupModules(monthlyGroup.id) : [];
     const monthlyDone = monthlyMembers.filter(m => all.some(r => r.module === m.id)).length;
 
     const kpis = [
-      { label: 'รายการบันทึกทั้งหมด', value: core.fmtNum(all.length), delta: this.momDelta(all.length, prevAll.length), note: 'จากทุกโมดูล' + (latest ? ' · อัปเดตล่าสุด ' + core.fmtDate(latest.submittedAt) + ' ' + core.fmtTime(latest.submittedAt) : ''), color: 'var(--accent)', formula: 'COUNT(records)' },
+      { label: 'รายการบันทึกทั้งหมด', value: core.fmtNum(all.length), delta: volDelta(all.length, prevAll.length), note: 'จากทุกโมดูล' + (latest ? ' · อัปเดตล่าสุด ' + core.fmtDate(latest.submittedAt) + ' ' + core.fmtTime(latest.submittedAt) : ''), color: 'var(--accent)', formula: 'COUNT(records)' },
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟ', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
       { label: 'ผู้มาเยือน', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
@@ -2535,26 +2540,33 @@ class Component extends DCLogic {
       { label: monthlyGroup.name, value: monthlyDone + '/' + monthlyMembers.length + ' หัวข้อ', note: 'หัวข้อที่มีรายงานในช่วงที่เลือก', color: monthlyGroup.color, formula: 'COUNT(DISTINCT module) ในกลุ่ม ' + monthlyGroup.id }
     ] : []);
 
-    const dayKeys = {};
-    core.query({ year: this.state.year, month: this.state.month }).forEach(r => { dayKeys[r.reportDate] = true; });
-    const days = Object.keys(dayKeys).sort();
-    const trend = days.map(d => {
-      const dayRecs = core.query({ date: d });
-      return {
-        label: String(parseInt(d.slice(8, 10), 10)),
-        value: core.sumFields(dayRecs.filter(r => r.module === 'traffic'), TRAFFIC_IN.concat(TRAFFIC_OUT))
-          + core.sumFields(dayRecs.filter(r => r.module === 'traffic_tt'), TT_IN.concat(TT_OUT))
-          + core.sumFields(dayRecs.filter(r => r.module === 'golf'), GOLF_CARTS)
-          + core.agg(dayRecs.filter(r => r.module === 'visitors'), 'visitor_general_count', 'SUM')
-          + core.agg(dayRecs.filter(r => r.module === 'visitors'), 'visitor_contractor_count', 'SUM'),
-        color: 'var(--accent)', isoDate: d, selected: d === this.state.date
-      };
-    });
+    /* week/day/month bucket by day (unchanged shape for day/month — same trend the page always
+       showed); year buckets by calendar month instead, same as every other dashboard's
+       year-granularity trend chart. */
+    const valueOfRecs = (rs) => core.sumFields(rs.filter(r => r.module === 'traffic'), TRAFFIC_IN.concat(TRAFFIC_OUT))
+      + core.sumFields(rs.filter(r => r.module === 'traffic_tt'), TT_IN.concat(TT_OUT))
+      + core.sumFields(rs.filter(r => r.module === 'golf'), GOLF_CARTS)
+      + core.agg(rs.filter(r => r.module === 'visitors'), 'visitor_general_count', 'SUM')
+      + core.agg(rs.filter(r => r.module === 'visitors'), 'visitor_contractor_count', 'SUM');
+    const wb = this.weekBounds(this.state.date);
+    const trendRecs = g === 'week' ? core.query({ from: wb.from, to: wb.to })
+      : g === 'year' ? core.query({ from: this.state.year + '-01-01', to: this.state.year + '-12-31' })
+      : core.query({ year: this.state.year, month: this.state.month });
+    let trend;
+    if (g === 'year') {
+      const byMonth = {};
+      trendRecs.forEach(r => { const k = r.reportDate.slice(0, 7); (byMonth[k] = byMonth[k] || []).push(r); });
+      trend = Object.keys(byMonth).sort().map(k => ({ label: core.thaiMonthsShort[parseInt(k.slice(5, 7), 10) - 1], value: valueOfRecs(byMonth[k]), color: 'var(--accent)', isoDate: k + '-01', selected: false }));
+    } else {
+      const byDay = {};
+      trendRecs.forEach(r => { (byDay[r.reportDate] = byDay[r.reportDate] || []).push(r); });
+      trend = Object.keys(byDay).sort().map(d => ({ label: String(parseInt(d.slice(8, 10), 10)), value: valueOfRecs(byDay[d]), color: 'var(--accent)', isoDate: d, selected: d === this.state.date }));
+    }
 
     const charts = [
-      this.buildChart({ id: 'ov_trend', block: 'Block 01', title: 'ปริมาณกิจกรรมรวมต่อวัน',
-        subtitle: 'ทุกโมดูลรวมกัน — ' + core.thaiMonths[this.state.month] + ' ' + (this.state.year + 543) + ' · อ้างอิงจาก ' + core.fmtNum(days.length) + ' วันที่มีข้อมูล',
-        family: 'timeseries', fallback: 'area', data: trend, recordCount: days.length,
+      this.buildChart({ id: 'ov_trend', block: 'Block 01', title: g === 'year' ? 'ปริมาณกิจกรรมรวมรายเดือน' : 'ปริมาณกิจกรรมรวมต่อวัน',
+        subtitle: 'ทุกโมดูลรวมกัน — ' + this.periodLabelText() + ' · อ้างอิงจาก ' + core.fmtNum(trend.length) + (g === 'year' ? ' เดือนที่มีข้อมูล' : ' วันที่มีข้อมูล'),
+        family: 'timeseries', fallback: 'area', data: trend, recordCount: trend.length,
         trace: 'trace: all modules → reportDate → SUM → time series' }),
       this.buildChart({ id: 'ov_mix', block: 'Block 02', title: 'สัดส่วนกิจกรรมตามโมดูล',
         subtitle: 'รวมเฉพาะข้อมูลที่นับเป็นจำนวน (รถ/รอบ/คน) · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
@@ -4616,13 +4628,11 @@ class Component extends DCLogic {
       isPdf: page === 'pdf',
       isSettings: page === 'settings',
 
-      /* the day/week/month/year dropdown replaces the DATE chip only on a module's own
-         dashboard (traffic/traffic_tt/golf/visitors/checkpoint/elevator) — Overview keeps its
-         existing 2-button day/month toggle (it has the separate multi-period compare block
-         instead), and a ตรวจประจำเดือน module never shows either since scopeQuery() pins it to
-         'day' regardless. */
-      showGranularityPicker: isDash && !!moduleId && (core.module(moduleId) || {}).kind !== 'monthly',
-      showDateChip: isDash && !(!!moduleId && (core.module(moduleId) || {}).kind !== 'monthly'),
+      /* the day/week/month/year dropdown covers every module dashboard plus Overview now —
+         only a ตรวจประจำเดือน module (buildDynamic) still shows the plain DATE chip, since
+         scopeQuery() pins those to 'day' regardless of dashGranularity. */
+      showGranularityPicker: isDash && (page === 'overview' || (!!moduleId && (core.module(moduleId) || {}).kind !== 'monthly')),
+      showDateChip: isDash && !(page === 'overview' || (!!moduleId && (core.module(moduleId) || {}).kind !== 'monthly')),
       hasDate: !!s.date,
       dateLabel: s.date ? core.fmtDate(s.date) : core.thaiMonths[s.month] + ' ' + (s.year + 543) + ' (ทั้งเดือน)',
       dateChipTitle: s.date ? 'กดเพื่อดูทั้งเดือน' : 'กดเพื่อกลับไปดูวันที่ล่าสุด',
