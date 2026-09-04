@@ -3959,6 +3959,20 @@ class Component extends DCLogic {
       return [core.fmtDateShort(r.reportDate)].concat(cells).concat([r.submittedBy, core.fmtTime(r.submittedAt)]);
     });
   }
+  /* One report block rasterized, with a watchdog. html2canvas waits on the browser's own
+     rendering, which a background tab throttles to a standstill — switch tabs mid-export and the
+     capture can simply never resolve, leaving both export buttons stuck on "กำลังสร้าง…" with no
+     error and no way back except a reload (seen in testing: an export left running in a hidden
+     tab was still on the first block 15 minutes later). The timeout turns that into the same
+     visible failure any other export error produces, so the UI always comes back. */
+  captureBlock(node, dpr, bg) {
+    const capture = window.html2canvas(node, { scale: dpr, backgroundColor: bg, useCORS: true });
+    let timer;
+    const watchdog = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('capture timed out — the tab may have been in the background')), 90000);
+    });
+    return Promise.race([capture, watchdog]).finally(() => clearTimeout(timer));
+  }
   pdfModuleName(m) {
     const mod = this.core().module(m);
     return mod ? mod.name + ' (' + mod.en + ')' : m;
@@ -4377,7 +4391,7 @@ class Component extends DCLogic {
       const startNewPage = () => { if (pageStarted) pdf.addPage(); pageStarted = true; cursorMm = 0; };
 
       for (let i = 0; i < nodes.length; i++) {
-        const canvas = await window.html2canvas(nodes[i], { scale: dpr, backgroundColor: theme.bg, useCORS: true });
+        const canvas = await this.captureBlock(nodes[i], dpr, theme.bg);
         const pxPerMm = canvas.width / imgW;
         const naturalHmm = canvas.height / pxPerMm;
 
@@ -4486,7 +4500,7 @@ class Component extends DCLogic {
       const theme = this.pdfThemeObj();
       const canvases = [];
       for (let i = 0; i < nodes.length; i++) {
-        canvases.push(await window.html2canvas(nodes[i], { scale: dpr, backgroundColor: theme.bg, useCORS: true }));
+        canvases.push(await this.captureBlock(nodes[i], dpr, theme.bg));
       }
 
       const wb = new window.ExcelJS.Workbook();
