@@ -166,13 +166,23 @@ async function fillQuestion(item, field, rawValue) {
     return;
   }
 
-  // radio — match the choice whose visible label equals our stored value exactly.
+  // radio — match the choice whose label equals our stored value.
+  // textContent, not innerText: innerText is the *rendered* text and depends on layout, so a
+  // choice that is present but not laid out the way headless Chromium expects can come back as
+  // an empty string and silently fail to match (that is what made every CCTV radio miss while
+  // the identical strings compared equal in a real browser). textContent is layout-independent.
+  // Internal whitespace is collapsed on both sides so a stray newline in their markup can't
+  // break an otherwise exact match either.
+  const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().normalize('NFC');
+  const target = norm(value);
   const choices = item.locator('[data-automation-id="choiceItem"]');
   const count = await choices.count();
+  const seen = [];
   for (let i = 0; i < count; i++) {
     const c = choices.nth(i);
-    const label = (await c.innerText()).trim();
-    if (label === value) { await c.click(); return; }
+    const label = norm(await c.textContent());
+    seen.push(label);
+    if (label === target) { await c.click(); return; }
   }
   // allowCustom field whose value isn't one of the fixed options falls back to the form's own
   // "อื่นๆ" (other) choice + its free-text box. Microsoft Forms tags that specific radio with
@@ -189,14 +199,16 @@ async function fillQuestion(item, field, rawValue) {
     await otherInput.fill(value);
     return;
   }
-  if (count > 0) {
-    // no distinct "other" row found at all — last resort, matches the old behavior
-    await choices.last().click();
-    const otherInput = item.locator('input[data-automation-id="textInput"]').last();
-    await otherInput.fill(value);
-    return;
-  }
-  throw new Error(`no choices found for radio field ${field.id}`);
+  /* No exact match and no "other" row to put the value in. The old code guessed here — it
+     clicked whatever the last choice happened to be and tried to type into a text box next to
+     it — which on a form with no "other" option (CCTV) just hung for 30s on a locator that
+     doesn't exist, and on a form that *does* have one would have quietly filed a real answer as
+     free text under "อื่นๆ". Both are worse than refusing: a value that doesn't fit their
+     choices means our form and theirs have drifted, and that needs a human, not a guess. */
+  throw new Error(
+    `no matching choice for ${field.id}: sent "${value}", form offers ` +
+    (seen.length ? seen.map(s => `"${s}"`).join(', ') : '(no choices found)')
+  );
 }
 
 module.exports = async (req, res) => {
