@@ -120,6 +120,7 @@ module.exports = async (req, res) => {
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = null; } }
   const moduleId = body && body.module;
   const data = (body && body.data) || {};
+  const dryRun = !!(body && body.dryRun);
   const form = FORMS[moduleId];
   if (!form) { res.status(400).json({ ok: false, error: 'unsupported module: ' + moduleId }); return; }
 
@@ -141,6 +142,15 @@ module.exports = async (req, res) => {
 
     for (let i = 0; i < form.fields.length; i++) {
       await fillQuestion(items.nth(i), form.fields[i], data[form.fields[i].id]);
+    }
+
+    /* dryRun proves the whole pipeline (chromium launch, navigation, question-count match,
+       every field fill) works without the one irreversible step — clicking submit on a form
+       that belongs to another department and can't be un-submitted from our side. */
+    if (dryRun) {
+      await browser.close();
+      res.status(200).json({ ok: true, dryRun: true, questionsFilled: form.fields.length });
+      return;
     }
 
     await page.locator('[data-automation-id="submitButton"]').click();
