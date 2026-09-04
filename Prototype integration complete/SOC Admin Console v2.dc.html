@@ -1923,10 +1923,16 @@ class Component extends DCLogic {
      pdfSeriesColor(), which intentionally follows each PDF theme's own print palette. */
   seriesPalette() {
     const core = this.core();
+    /* traffic's own hand-picked hue set (rich green ↔ olive, not the app's cyan-leaning
+       --accent token) — user asked for something visually cohesive and explicitly ruled out
+       both blue AND cyan/light-blue, so borrowing --chart-primary (= --accent) here would
+       have kept exactly the tone that was rejected. Car and moto each keep one fixed hue
+       across the whole traffic dashboard; night is a darker shade of the same hue, not a
+       different color, so day/night reads as one series dimmed rather than four unrelated
+       colors. */
     return {
-      trafficCarDay: 'var(--chart-primary)', trafficMotoDay: 'var(--chart-secondary)',
-      trafficCarNight: 'color-mix(in srgb, var(--chart-primary) 60%, black)',
-      trafficMotoNight: 'color-mix(in srgb, var(--chart-secondary) 60%, black)',
+      trafficCarDay: '#2f9e6e', trafficMotoDay: '#8fbf3f',
+      trafficCarNight: '#1f6b4a', trafficMotoNight: '#5c7a2a',
       golfDay: core.COLORS.golf, golfNight: '#2f8f6c',
       visitorGeneral: core.COLORS.visitors, visitorContractor: '#d377c4'
     };
@@ -2252,7 +2258,7 @@ class Component extends DCLogic {
         subtitle: core.thaiMonths[this.state.month] + ' ' + (this.state.year + 543) + ' — ทุกวันที่มีข้อมูล',
         family: 'timeseries', fallback: 'line', lockType: 'bar', recordCount: this.monthRecords(moduleId).length,
         data: this.trendData(moduleId, (r) => core.sumFields([r], ids.IN.concat(ids.OUT)), core.COLORS.traffic),
-        lineColor: core.COLORS.traffic, lineFill: 'color-mix(in srgb, var(--chart-primary) 16%, transparent)',
+        lineColor: core.COLORS.traffic, lineFill: 'color-mix(in srgb, #2f9e6e 16%, transparent)',
         trace: 'trace: month records → group by reportDate → SUM' })
     ];
 
@@ -3656,7 +3662,7 @@ class Component extends DCLogic {
     } else if (yest.reason !== 'before_opening') {
       note = 'ไม่มีข้อมูลของวันก่อนหน้าสำหรับเปรียบเทียบ · ' + baseNote;
     }
-    return { label: 'ยอดคงเหลือสะสม', value: core.fmtNum(today.total), delta, note, color: 'var(--chart-primary)', formula: 'opening balance + Σ(in − out)' };
+    return { label: 'ยอดคงเหลือสะสม', value: core.fmtNum(today.total), delta, note, color: '#2f9e6e', formula: 'opening balance + Σ(in − out)' };
   }
   togglePortalEnabled = () => {
     if (this.portalDraft().enabled) { this.setState({ disablePortalConfirmOpen: true }); return; }
