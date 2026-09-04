@@ -128,6 +128,14 @@ module.exports = async (req, res) => {
   try {
     if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
     const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+    if (body && body.debug) {
+      const fs = require('fs'), path = require('path');
+      const dir = path.dirname(executablePath);
+      var listing;
+      try { listing = fs.readdirSync(dir); } catch (e) { listing = 'readdir failed: ' + e.message; }
+      res.status(200).json({ ok: true, debug: true, executablePath: executablePath, dir: dir, listing: listing, hasNss: Array.isArray(listing) && listing.includes('libnss3.so') });
+      return;
+    }
     /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path
        even though chromium-min just unpacked them right next to the binary — the dynamic loader
        never looks in /tmp/chromium-pack on its own. Pointing LD_LIBRARY_PATH at that directory
