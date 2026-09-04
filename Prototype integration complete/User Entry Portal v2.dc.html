@@ -418,6 +418,7 @@ class Component extends DCLogic {
      the record's own perspective (it's already saved in our own database either way); the done
      screen just reflects whether the forward itself worked so a failure isn't silent. */
   forwardToMsForms(moduleId, payload) {
+    if (moduleId === 'traffic' || moduleId === 'golf') { this.forwardTrafficGolf(moduleId, payload); return; }
     const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit', 'monthly_inspection_acc_door', 'monthly_inspection_cctv', 'monthly_inspection_golf_cart', 'visitors'];
     if (FORWARDABLE.indexOf(moduleId) === -1) return;
     const core = this.core();
@@ -432,6 +433,34 @@ class Component extends DCLogic {
       .then(j => this.setState({ msForwardStatus: j && j.ok ? 'ok' : 'failed' }))
       .catch(() => this.setState({ msForwardStatus: 'failed' }));
   }
+  /* รถเข้า-ออก + รถกอล์ฟ — the other department keeps both in ONE form, so a submission can only
+     go out once both of our modules have that day's data. Nothing here changes either form or
+     either dashboard: the two records stay separate in our own database and are only merged for
+     the outgoing submission, by the ms_forms_traffic_golf() RPC (the entry portal is a guest and
+     can't read the counterpart's rows itself).
+     Sending exactly once per day, without any extra "already sent" bookkeeping, falls out of the
+     two counts the RPC returns: the record that completes the pair is by definition the FIRST
+     record of its own module that day (mine === 1) while the other module already has one. A
+     second golf shift later that day sees mine === 2 and correctly stays quiet. */
+  forwardTrafficGolf(moduleId, payload) {
+    const core = this.core();
+    if (!(core.getPortal().msFormsForwarding || {}).traffic_golf_daily) return;
+    const date = payload[moduleId === 'traffic' ? 'traffic_date' : 'golf_date'];
+    if (!date) return;
+    this.setState({ msForwardStatus: 'sending', msForwardPayload: payload });
+    core.msFormsTrafficGolf(date).then(res => {
+      const mine = moduleId === 'traffic' ? res.traffic_count : res.golf_count;
+      const other = moduleId === 'traffic' ? res.golf_count : res.traffic_count;
+      if (!other) { this.setState({ msForwardStatus: 'waiting' }); return; }
+      if (mine !== 1) { this.setState({ msForwardStatus: 'alreadySent' }); return; }
+      return fetch('/api/forward-msforms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module: 'traffic_golf_daily', data: res.data })
+      })
+        .then(r => r.json().catch(() => ({ ok: false })))
+        .then(j => this.setState({ msForwardStatus: j && j.ok ? 'ok' : 'failed', msForwardPayload: res.data }));
+    }).catch(() => this.setState({ msForwardStatus: 'failed' }));
+  }
   msForwardBlock() {
     const status = this.state.msForwardStatus;
     if (!status) return null;
@@ -440,6 +469,14 @@ class Component extends DCLogic {
     }
     if (status === 'ok') {
       return { text: '✓ ส่งต่อเข้า Microsoft Forms สำเร็จ', border: 'rgba(22,155,70,0.4)', bg: 'rgba(22,155,70,0.1)', color: '#0d5c2c', showCopy: false };
+    }
+    /* traffic/golf only — their form needs both modules, so a lone record isn't a failure, it's
+       simply not a complete submission yet (and the pair may already have gone out earlier). */
+    if (status === 'waiting') {
+      return { text: 'บันทึกแล้ว · ฟอร์มของอีกแผนกรวมรถเข้า-ออกกับรถกอล์ฟไว้ด้วยกัน ระบบจะส่งต่อให้อัตโนมัติเมื่อมีข้อมูลอีกฟอร์มของวันเดียวกัน', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
+    }
+    if (status === 'alreadySent') {
+      return { text: '✓ บันทึกแล้ว · ข้อมูลของวันนี้ถูกส่งต่อเข้า Microsoft Forms ไปก่อนหน้านี้แล้ว', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
     }
     // failed — data is already safe in our own system either way; give a copy-paste fallback
     // so the forward doesn't just silently fail to reach the other department.

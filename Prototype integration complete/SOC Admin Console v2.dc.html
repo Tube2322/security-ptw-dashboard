@@ -5304,7 +5304,9 @@ class Component extends DCLogic {
         { id: 'monthly_inspection_acc_door', name: 'ตรวจประจำเดือน — ประตู ACC' },
         { id: 'monthly_inspection_cctv', name: 'ตรวจประจำเดือน — กล้องวงจรปิด' },
         { id: 'monthly_inspection_golf_cart', name: 'ตรวจประจำเดือน — รถกอล์ฟ' },
-        { id: 'visitors', name: 'ผู้มาเยือน' }
+        { id: 'visitors', name: 'ผู้มาเยือน-Visitor' },
+        /* one toggle for two of our modules: their form asks both in a single submission */
+        { id: 'traffic_golf_daily', name: 'รถเข้า-ออก-Traffic Flow + รถกอล์ฟ-Golf Fleet (ฟอร์มรวมของอีกแผนก)' }
       ].map(row => {
         const on = !!(core.getPortal().msFormsForwarding || {})[row.id];
         return {

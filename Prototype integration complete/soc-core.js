@@ -691,6 +691,16 @@
        `records`). The entry portal's module tiles ("บันทึกแล้ว N รายการ") read this instead,
        backed by the record_count() RPC, which returns only a number, never row contents. */
     recordCount: function (module) { return state.counts[module] || 0; },
+    /* One day's traffic + golf answers already merged into the shape the other department's
+       combined Microsoft Form expects, plus how many records of each module that day has.
+       Same reason recordCount() exists: a guest can't SELECT `records`, so the entry portal
+       can't assemble this itself — the RPC is SECURITY DEFINER and returns aggregates only. */
+    msFormsTrafficGolf: function (date) {
+      return sb.rpc('ms_forms_traffic_golf', { p_date: date }).then(function (res) {
+        if (res.error) throw new Error(res.error.message);
+        return res.data;
+      });
+    },
     addRecord: function (module, data, meta) {
       meta = meta || {};
       var mod = this.module(module) || {};
