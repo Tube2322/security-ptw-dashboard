@@ -146,9 +146,11 @@ module.exports = async (req, res) => {
     if (body && body.debug) {
       const fs = require('fs'), path = require('path');
       const dir = path.dirname(executablePath);
-      var listing;
+      var listing, al2023Listing, packListing;
       try { listing = fs.readdirSync(dir); } catch (e) { listing = 'readdir failed: ' + e.message; }
-      res.status(200).json({ ok: true, debug: true, executablePath: executablePath, dir: dir, listing: listing, hasNss: Array.isArray(listing) && listing.includes('libnss3.so') });
+      try { al2023Listing = fs.readdirSync(path.join(dir, 'al2023')); } catch (e) { al2023Listing = 'readdir failed: ' + e.message; }
+      try { packListing = fs.readdirSync(path.join(dir, 'chromium-pack')); } catch (e) { packListing = 'readdir failed: ' + e.message; }
+      res.status(200).json({ ok: true, debug: true, executablePath: executablePath, dir: dir, listing: listing, al2023Listing: al2023Listing, packListing: packListing });
       return;
     }
     /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path
