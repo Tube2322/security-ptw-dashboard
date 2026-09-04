@@ -1325,6 +1325,7 @@
                     <div style="min-width: 0;">
                       <div style="font-size: 13.5px; font-weight: 500;">{{ mf.name }}</div>
                       <div style="font-size: 11.5px; color: var(--dim);">{{ mf.status }}</div>
+                      <div style="font-size: 11.5px; color: {{ mf.lastColor }}; margin-top: 3px; overflow-wrap: anywhere;">{{ mf.lastText }}</div>
                     </div>
                     <button onClick="{{ mf.toggle }}" aria-label="toggle ms forms forwarding" style="flex: none; width: 50px; height: 30px; border-radius: 99px; border: 1px solid {{ mf.toggleBorder }}; background: {{ mf.toggleBg }}; cursor: pointer; position: relative;">
                       <span style="position: absolute; top: 2px; left: {{ mf.toggleKnobLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 160ms ease;"></span>
@@ -1666,6 +1667,7 @@ class Component extends DCLogic {
     builderModule: 'traffic', builderDraft: null, moduleNameDraft: null,
     recordFilter: 'all', recordPage: 0, openRecord: null,
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
+    msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
     pdfModule: 'traffic', pdfFrom: '', pdfTo: '',
     pdfPeriod: 'day', pdfPeriodYear: 2026, pdfPeriodMonth: 7, pdfPeriodDay: null,
@@ -3959,6 +3961,31 @@ class Component extends DCLogic {
       return [core.fmtDateShort(r.reportDate)].concat(cells).concat([r.submittedBy, core.fmtTime(r.submittedAt)]);
     });
   }
+  /* The newest ms_forms_outbox row for one target form — what actually happened last time this
+     topic was forwarded, as opposed to whether the toggle is on. */
+  msFormsLast(target) {
+    const rows = (this.state.msOutbox || []).filter(r => r.target_form === target);
+    if (!rows.length) return null;
+    return rows.slice().sort((a, b) => String(b.report_date).localeCompare(String(a.report_date)))[0];
+  }
+  msFormsLastText(target) {
+    const row = this.msFormsLast(target);
+    if (!row) return 'ยังไม่เคยส่ง';
+    const core = this.core();
+    const when = core.fmtDate(row.report_date);
+    if (row.status === 'sent') return '✓ ส่งสำเร็จ · ข้อมูลวันที่ ' + when;
+    if (row.status === 'failed') return '⚠ ส่งไม่สำเร็จ ' + row.attempts + ' ครั้ง · ข้อมูลวันที่ ' + when + (row.last_error ? ' — ' + row.last_error : '');
+    if (row.status === 'sending') return 'กำลังส่ง · ข้อมูลวันที่ ' + when;
+    /* pending only ever happens for the combined form, where it means exactly one thing */
+    return 'รอข้อมูลอีกฟอร์มของวันที่ ' + when;
+  }
+  msFormsLastColor(target) {
+    const row = this.msFormsLast(target);
+    if (!row) return 'var(--dim)';
+    if (row.status === 'sent') return 'var(--ok)';
+    if (row.status === 'failed') return 'var(--danger)';
+    return 'var(--muted)';
+  }
   /* One report block rasterized, with a watchdog. html2canvas waits on the browser's own
      rendering, which a background tab throttles to a standstill — switch tabs mid-export and the
      capture can simply never resolve, leaving both export buttons stuck on "กำลังสร้าง…" with no
@@ -4606,6 +4633,13 @@ class Component extends DCLogic {
     /* Records (browses full history) and Settings (shows a true total + test-record count)
        are the only pages that genuinely need everything, not just the selected scope. */
     if (page === 'records' || page === 'settings') core.ensureAll();
+    /* the Microsoft Forms queue's own state — only the Settings page shows it, and it's fetched
+       once per visit rather than kept live: a forward that happens while this page is open is
+       reflected on the next visit, which is what a status line needs to be. */
+    if (page === 'settings' && !this._outboxLoaded) {
+      this._outboxLoaded = true;
+      core.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
+    }
 
     let data = { kpis: [], charts: [], infoBlocks: [], tableRows: [], tableColumns: [], empty: true, tableTitle: '', tableNote: '' };
     if (page === 'overview') data = this.buildOverview();
@@ -5326,6 +5360,8 @@ class Component extends DCLogic {
         return {
           id: row.id, name: row.name,
           status: on ? 'เปิดอยู่ — ส่งต่ออัตโนมัติทุกครั้งที่มีการกรอก' : 'ปิดอยู่ — ไม่ส่งต่อ',
+          lastText: this.msFormsLastText(row.id),
+          lastColor: this.msFormsLastColor(row.id),
           toggle: () => this.toggleMsFormsForwarding(row.id),
           toggleBorder: on ? 'var(--accent-line)' : 'var(--line)',
           toggleBg: on ? 'var(--accent-soft)' : 'var(--panel-2)',

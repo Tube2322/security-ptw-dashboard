@@ -425,40 +425,61 @@ class Component extends DCLogic {
     const on = !!(core.getPortal().msFormsForwarding || {})[moduleId];
     if (!on) return;
     this.setState({ msForwardStatus: 'sending', msForwardPayload: payload });
+    const mod = core.module(moduleId) || {};
+    const reportDate = payload[mod.dateField] || core.isoDay(new Date());
     fetch('/api/forward-msforms', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ module: moduleId, data: payload })
     })
       .then(r => r.json().catch(() => ({ ok: false })))
-      .then(j => this.setState({ msForwardStatus: j && j.ok ? 'ok' : 'failed' }))
-      .catch(() => this.setState({ msForwardStatus: 'failed' }));
+      .then(j => {
+        const ok = !!(j && j.ok);
+        this.setState({ msForwardStatus: ok ? 'ok' : 'failed' });
+        /* recorded so the admin Settings page can show one honest status line per topic —
+           best-effort, never allowed to turn a successful forward into a visible failure */
+        core.msFormsLog(moduleId, reportDate, ok, ok ? null : ((j && j.error) || 'forward failed')).catch(() => {});
+      })
+      .catch(() => {
+        this.setState({ msForwardStatus: 'failed' });
+        core.msFormsLog(moduleId, reportDate, false, 'network error').catch(() => {});
+      });
   }
   /* รถเข้า-ออก + รถกอล์ฟ — the other department keeps both in ONE form, so a submission can only
      go out once both of our modules have that day's data. Nothing here changes either form or
      either dashboard: the two records stay separate in our own database and are only merged for
      the outgoing submission, by the ms_forms_traffic_golf() RPC (the entry portal is a guest and
      can't read the counterpart's rows itself).
-     Sending exactly once per day, without any extra "already sent" bookkeeping, falls out of the
-     two counts the RPC returns: the record that completes the pair is by definition the FIRST
-     record of its own module that day (mine === 1) while the other module already has one. A
-     second golf shift later that day sees mine === 2 and correctly stays quiet. */
+     Every submission of either module parks the day's merged answers in ms_forms_outbox and asks
+     it what to do next, so the queue — not this browser — decides whether anything goes out:
+     'waiting' while the day's other form is still missing (the parked payload keeps being
+     refreshed, so a golf shift filled in later still counts), 'in_progress' when another device
+     is mid-send, 'already_sent' once it has gone, and 'send' exactly once, for whoever claims it. */
   forwardTrafficGolf(moduleId, payload) {
     const core = this.core();
     if (!(core.getPortal().msFormsForwarding || {}).traffic_golf_daily) return;
     const date = payload[moduleId === 'traffic' ? 'traffic_date' : 'golf_date'];
     if (!date) return;
     this.setState({ msForwardStatus: 'sending', msForwardPayload: payload });
-    core.msFormsTrafficGolf(date).then(res => {
-      const mine = moduleId === 'traffic' ? res.traffic_count : res.golf_count;
-      const other = moduleId === 'traffic' ? res.golf_count : res.traffic_count;
-      if (!other) { this.setState({ msForwardStatus: 'waiting' }); return; }
-      if (mine !== 1) { this.setState({ msForwardStatus: 'alreadySent' }); return; }
+    core.msFormsEnqueueTrafficGolf(date).then(res => {
+      if (!res || res.action === 'waiting') { this.setState({ msForwardStatus: 'waiting' }); return; }
+      if (res.action === 'already_sent') { this.setState({ msForwardStatus: 'alreadySent' }); return; }
+      if (res.action === 'in_progress') { this.setState({ msForwardStatus: 'inProgress' }); return; }
       return fetch('/api/forward-msforms', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ module: 'traffic_golf_daily', data: res.data })
       })
         .then(r => r.json().catch(() => ({ ok: false })))
-        .then(j => this.setState({ msForwardStatus: j && j.ok ? 'ok' : 'failed', msForwardPayload: res.data }));
+        .then(j => {
+          const ok = !!(j && j.ok);
+          this.setState({ msForwardStatus: ok ? 'ok' : 'failed', msForwardPayload: res.data });
+          /* releasing the claim matters as much as recording success: a row left in 'sending'
+             blocks the next attempt until its claim goes stale */
+          return core.msFormsMark(res.id, ok, ok ? null : ((j && j.error) || 'forward failed'));
+        })
+        .catch(() => {
+          this.setState({ msForwardStatus: 'failed' });
+          return core.msFormsMark(res.id, false, 'network error');
+        });
     }).catch(() => this.setState({ msForwardStatus: 'failed' }));
   }
   msForwardBlock() {
@@ -477,6 +498,9 @@ class Component extends DCLogic {
     }
     if (status === 'alreadySent') {
       return { text: '✓ บันทึกแล้ว · ข้อมูลของวันนี้ถูกส่งต่อเข้า Microsoft Forms ไปก่อนหน้านี้แล้ว', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
+    }
+    if (status === 'inProgress') {
+      return { text: 'บันทึกแล้ว · ข้อมูลของวันนี้กำลังถูกส่งต่อจากอีกเครื่องอยู่', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
     }
     // failed — data is already safe in our own system either way; give a copy-paste fallback
     // so the forward doesn't just silently fail to reach the other department.
