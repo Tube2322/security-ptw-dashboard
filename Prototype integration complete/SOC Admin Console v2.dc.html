@@ -267,7 +267,10 @@
           <h1 style="margin: 1px 0 0; font-size: clamp(17px, 3.6vw, 22px); font-weight: 600; letter-spacing: -0.2px; overflow-wrap: anywhere;">{{ pageTitle }}</h1>
         </div>
         <sc-if value="{{ showDateChip }}" hint-placeholder-val="{{ true }}">
-          <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+          <!-- same flex: none overflow as the granularity row below: at 375px this kept its
+               max-content width (455px measured on the ตรวจประจำเดือน page) and pushed the whole
+               page into horizontal scroll -->
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
             <div style="display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 2px;">
               <button onClick="{{ setDayView }}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12.5px; font-weight: 600; background: {{ dayBtnBg }}; color: {{ dayBtnFg }};">📅 รายวัน</button>
               <button onClick="{{ setMonthView }}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12.5px; font-weight: 600; background: {{ monthBtnBg }}; color: {{ monthBtnFg }};">🗓️ รายเดือน</button>
