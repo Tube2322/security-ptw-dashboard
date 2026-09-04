@@ -32,6 +32,8 @@
     --accent: #46c8d8; --accent-soft: rgba(70,200,216,0.14); --accent-line: rgba(70,200,216,0.42);
     --ok: #3fbf8f; --warn: #d9b45c; --danger: #e8735f; --grid: rgba(255,255,255,0.07);
     --chart-primary: var(--accent); --chart-secondary: var(--ok); --chart-accent: var(--warn);
+    --chart-tertiary: #7fd9b4; --chart-positive: var(--ok); --chart-warning: var(--warn);
+    --chart-negative: var(--danger); --chart-neutral: var(--dim);
     --chart-grid: var(--grid); --chart-text: var(--text); --chart-muted: var(--muted);
     --chart-tooltip-bg: #141a24; --chart-tooltip-border: var(--line-2); --chart-shadow: rgba(0,0,0,0.38);
   }
@@ -41,6 +43,8 @@
     --text: #16202e; --muted: #5c6878; --dim: #7d8797;
     --accent: #1c8f9e; --accent-soft: rgba(28,143,158,0.12); --accent-line: rgba(28,143,158,0.4);
     --ok: #2b9270; --warn: #a8802a; --danger: #c04b38; --grid: rgba(15,25,40,0.08);
+    --chart-tertiary: #4fa88a; --chart-positive: var(--ok); --chart-warning: var(--warn);
+    --chart-negative: var(--danger); --chart-neutral: var(--dim);
     --chart-tooltip-bg: #ffffff; --chart-shadow: rgba(20,30,50,0.16);
   }
   html[data-soc-theme="green"] {
@@ -49,7 +53,9 @@
     --text: #12271b; --muted: #5c7568; --dim: #7e9689;
     --accent: #169b46; --accent-soft: rgba(22,155,70,0.12); --accent-line: rgba(22,155,70,0.45);
     --ok: #169b46; --warn: #a8802a; --danger: #d1483a; --grid: rgba(15,70,40,0.08);
-    --chart-primary: var(--accent); --chart-secondary: #3fa8c9; --chart-accent: #d9b45c;
+    --chart-primary: var(--accent); --chart-secondary: #5fc98a; --chart-accent: #d9b45c;
+    --chart-tertiary: #3fa8c9; --chart-positive: var(--ok); --chart-warning: var(--warn);
+    --chart-negative: var(--danger); --chart-neutral: var(--dim);
     --chart-grid: var(--grid); --chart-text: var(--text); --chart-muted: var(--muted);
     --chart-tooltip-bg: #ffffff; --chart-tooltip-border: var(--line-2); --chart-shadow: rgba(20,60,40,0.14);
   }
@@ -1415,10 +1421,10 @@ const TT_IN = trafficFieldIds('tt').IN;
 const TT_OUT = trafficFieldIds('tt').OUT;
 const GOLF_CARTS = ['golf_cart_1', 'golf_cart_2', 'golf_cart_3', 'golf_cart_4'];
 
-/* elevator_lift stores the full option string ("PL01 — ลิฟท์ตัวที่ 1") — the dynamic field
+/* elevator_lift stores the full option string ("PL01 — ลิฟต์ตัวที่ 1") — the dynamic field
    system has no separate code/name columns, so the code is parsed out of the stored value here
    rather than adding a schema column for it. */
-const ELEVATOR_LIFTS = ['PL01 — ลิฟท์ตัวที่ 1', 'PL02 — ลิฟท์ตัวที่ 2', 'PL03 — ลิฟท์ตัวที่ 3', 'PL04 — ลิฟท์ตัวที่ 4', 'CL01 — ลิฟท์ตัวที่ 5', 'CL02 — ลิฟท์ตัวที่ 6', 'SL03 — ลิฟท์ตัวที่ 7', 'SL04 — ลิฟท์ตัวที่ 8'];
+const ELEVATOR_LIFTS = ['PL01 — ลิฟต์ตัวที่ 1', 'PL02 — ลิฟต์ตัวที่ 2', 'PL03 — ลิฟต์ตัวที่ 3', 'PL04 — ลิฟต์ตัวที่ 4', 'CL01 — ลิฟต์ตัวที่ 5', 'CL02 — ลิฟต์ตัวที่ 6', 'SL03 — ลิฟต์ตัวที่ 7', 'SL04 — ลิฟต์ตัวที่ 8'];
 const ELEVATOR_REMARKS = ['กดผิด', 'ยืนพิง', 'อื่นๆ'];
 const ELEVATOR_USER_TYPES = ['พนักงาน', 'ลูกค้า', 'ผู้รับเหมา'];
 function liftCode(v) { return String(v == null ? '' : v).split(' — ')[0]; }
@@ -1439,7 +1445,7 @@ const PDF_THEMES = [
 const CHART_LABELS = { line: 'Line', area: 'Area', bar: 'Bar', rank: 'Bar H', donut: 'Donut', pie: 'Pie' };
 /* slice colors for charts built from an admin-editable question, where the number of answer
    options isn't known ahead of time — the module's own accent takes slice 0, these follow */
-const DYNAMIC_SERIES = ['#e0925f', '#5b8ff9', '#3fbf8f', '#d6b850', '#a874e8', 'var(--dim)'];
+const DYNAMIC_SERIES = ['#e0925f', 'var(--chart-tertiary)', '#3fbf8f', '#d6b850', '#a874e8', 'var(--dim)'];
 const SUITABLE = {
   timeseries: ['line', 'area', 'bar'],
   category: ['bar', 'rank', 'donut', 'pie'],
@@ -1460,7 +1466,7 @@ class Component extends DCLogic {
     pdfModule: 'traffic', pdfFrom: '', pdfTo: '',
     pdfPeriod: 'day', pdfPeriodYear: 2026, pdfPeriodMonth: 7, pdfPeriodDay: null,
     pdfInclude: { summary: true, kpi: true, charts: true, formData: true, history: false, submittedBy: true },
-    pdfTheme: 'modern-blue', pdfOrientationOverride: null,
+    pdfTheme: 'emerald', pdfOrientationOverride: null,
     capturingPdf: false, pdfGenerating: false, pdfStep: '',
     theme: 'system',
     portalDraft: null, qrTick: 0, regenConfirmOpen: false, regenConfirmText: '', disablePortalConfirmOpen: false,
@@ -1882,8 +1888,9 @@ class Component extends DCLogic {
   seriesPalette() {
     const core = this.core();
     return {
-      trafficCarDay: core.COLORS.traffic, trafficMotoDay: '#6fb2ea',
-      trafficCarNight: '#4c86cc', trafficMotoNight: '#35619b',
+      trafficCarDay: 'var(--chart-primary)', trafficMotoDay: 'var(--chart-secondary)',
+      trafficCarNight: 'color-mix(in srgb, var(--chart-primary) 60%, black)',
+      trafficMotoNight: 'color-mix(in srgb, var(--chart-secondary) 60%, black)',
       golfDay: core.COLORS.golf, golfNight: '#2f8f6c',
       visitorGeneral: core.COLORS.visitors, visitorContractor: '#d377c4'
     };
@@ -1936,6 +1943,30 @@ class Component extends DCLogic {
       outNight: S([p('_car_out_night')]), outNightMoto: S([p('_moto_out_night')]),
       recordCount: recs.length
     };
+  }
+  /* Day-over-day comparison for the traffic "daily net" KPI (Part 9/10 of the traffic-flow
+     update): only meaningful when a single date is selected (day-over-day has no meaning
+     averaged across a whole month). Distinguishes "no previous day recorded" from "previous
+     day was recorded as zero" — collapsing both into a silent 0 would either divide by zero
+     or misreport a real gap in the record as if nothing changed. */
+  trafficDayDelta(moduleId, prefix, todayNet) {
+    if (!this.state.date) return { text: '', note: '' };
+    const core = this.core();
+    const d = new Date(this.state.date + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
+    this.ensureScope({ date: y });
+    const yRecs = core.query({ module: moduleId, date: y });
+    if (!yRecs.length) return { text: '', note: 'ไม่มีข้อมูลของวันก่อนหน้าสำหรับเปรียบเทียบ' };
+    const yNet = this.trafficMetrics(yRecs, prefix).net;
+    const diff = todayNet - yNet;
+    const diffText = (diff >= 0 ? '+' : '') + core.fmtNum(diff) + ' คัน';
+    if (yNet === 0) {
+      return { text: (diff >= 0 ? '▲ ' : diff < 0 ? '▼ ' : '● ') + diffText, note: 'ไม่สามารถคำนวณเปอร์เซ็นต์เปรียบเทียบจากฐาน 0 ได้' };
+    }
+    const pct = Math.round(diff / Math.abs(yNet) * 1000) / 10;
+    const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '●';
+    return { text: arrow + ' ' + (pct >= 0 ? '+' : '') + pct + '% · ' + diffText, note: diffText + ' เทียบกับเมื่อวาน' };
   }
   golfMetrics(recs) {
     const core = this.core();
@@ -2117,17 +2148,24 @@ class Component extends DCLogic {
     const recs = this.scopeRecords(moduleId);
     const m = this.trafficMetrics(recs, prefix);
     const P = this.seriesPalette();
-    const { dayIn, dayOut, nightIn, nightOut, totalIn, totalOut, net, carTotal, motoTotal } = m;
+    const { net } = m;
+    const carInTotal = m.inDay + m.inNight, motoInTotal = m.inDayMoto + m.inNightMoto;
+    const carOutTotal = m.outDay + m.outNight, motoOutTotal = m.outDayMoto + m.outNightMoto;
     const last = recs[0];
-    const prevTotalIn = this.trafficMetrics(this.prevMonthRecs(moduleId), prefix).totalIn;
+    const netDelta = this.trafficDayDelta(moduleId, prefix, net);
 
+    /* "มอเตอร์ไซค์" stays the field label inside the form itself (Form Builder / entry form is
+       unchanged), but the headline KPI cards use the more formal "รถจักรยานยนต์" per the
+       traffic-flow UI update. รถเข้า/รถออก each keep one fixed color everywhere on this
+       dashboard (chart-primary/secondary for the two vehicle types), not a new color per card. */
     const kpis = [
-      { label: 'ยอดรถเข้ารวม', value: core.fmtNum(totalIn), delta: this.momDelta(totalIn, prevTotalIn), note: 'กลางวัน ' + core.fmtNum(dayIn) + ' · กลางคืน ' + core.fmtNum(nightIn), color: core.COLORS.traffic, formula: 'SUM(4 in fields)' },
-      { label: 'ยอดรถออกรวม', value: core.fmtNum(totalOut), note: 'กลางวัน ' + core.fmtNum(dayOut) + ' · กลางคืน ' + core.fmtNum(nightOut), color: '#5b8fd6', formula: 'SUM(4 out fields)' },
-      { label: 'ยอดสุทธิ (เข้า−ออก)', value: (net >= 0 ? '+' : '') + core.fmtNum(net), note: net >= 0 ? 'รถคงค้างในพื้นที่' : 'ออกมากกว่าเข้า', color: net >= 0 ? 'var(--ok)' : 'var(--warn)', formula: 'SUM(in) − SUM(out)' },
-      { label: 'รถยนต์รวม', value: core.fmtNum(carTotal), note: 'เข้า+ออก ทุกกะ', color: '#6fb2ea', formula: 'SUM(car fields)' },
-      { label: 'มอเตอร์ไซค์รวม', value: core.fmtNum(motoTotal), note: 'เข้า+ออก ทุกกะ', color: '#4171b8', formula: 'SUM(moto fields)' },
-      { label: 'จำนวนรายการ', value: core.fmtNum(recs.length), note: 'ในช่วงที่เลือก', color: 'var(--muted)', formula: 'COUNT(records)' }
+      { label: 'รถจักรยานยนต์เข้า รวม', value: core.fmtNum(motoInTotal), note: 'กลางวัน ' + core.fmtNum(m.inDayMoto) + ' · กลางคืน ' + core.fmtNum(m.inNightMoto) + ' คัน', color: P.trafficMotoDay, formula: 'SUM(moto_in_day + moto_in_night)' },
+      { label: 'รถยนต์เข้า รวม', value: core.fmtNum(carInTotal), note: 'กลางวัน ' + core.fmtNum(m.inDay) + ' · กลางคืน ' + core.fmtNum(m.inNight) + ' คัน', color: P.trafficCarDay, formula: 'SUM(car_in_day + car_in_night)' },
+      { label: 'รถจักรยานยนต์ออก รวม', value: core.fmtNum(motoOutTotal), note: 'กลางวัน ' + core.fmtNum(m.outDayMoto) + ' · กลางคืน ' + core.fmtNum(m.outNightMoto) + ' คัน', color: P.trafficMotoNight, formula: 'SUM(moto_out_day + moto_out_night)' },
+      { label: 'รถยนต์ออก รวม', value: core.fmtNum(carOutTotal), note: 'กลางวัน ' + core.fmtNum(m.outDay) + ' · กลางคืน ' + core.fmtNum(m.outNight) + ' คัน', color: P.trafficCarNight, formula: 'SUM(car_out_day + car_out_night)' },
+      { label: 'ยอดสุทธิของวัน (เข้า−ออก)', value: (net >= 0 ? '+' : '') + core.fmtNum(net), delta: netDelta.text,
+        note: netDelta.note || (net >= 0 ? 'รถเข้ามากกว่ารถออก' : 'รถออกมากกว่ารถเข้า') + ' — ยังไม่รวมยอดคงเหลือสะสม เนื่องจากไม่มีข้อมูลยอดตั้งต้น',
+        color: net >= 0 ? 'var(--chart-positive)' : 'var(--chart-warning)', formula: 'SUM(in) − SUM(out)' }
     ];
 
     const charts = [
@@ -2177,7 +2215,7 @@ class Component extends DCLogic {
         subtitle: core.thaiMonths[this.state.month] + ' ' + (this.state.year + 543) + ' — ทุกวันที่มีข้อมูล',
         family: 'timeseries', fallback: 'line', lockType: 'bar', recordCount: this.monthRecords(moduleId).length,
         data: this.trendData(moduleId, (r) => core.sumFields([r], ids.IN.concat(ids.OUT)), core.COLORS.traffic),
-        lineColor: core.COLORS.traffic, lineFill: 'rgba(74,163,232,0.16)',
+        lineColor: core.COLORS.traffic, lineFill: 'color-mix(in srgb, var(--chart-primary) 16%, transparent)',
         trace: 'trace: month records → group by reportDate → SUM' })
     ];
 
@@ -2381,8 +2419,8 @@ class Component extends DCLogic {
     ];
 
     const charts = [
-      this.buildChart({ id: 'el_lift', block: 'Block 01', title: 'รายงานแยกตามลิฟท์',
-        subtitle: 'จำนวนรายงานต่อลิฟท์แต่ละตัว · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
+      this.buildChart({ id: 'el_lift', block: 'Block 01', title: 'รายงานแยกตามลิฟต์',
+        subtitle: 'จำนวนรายงานต่อลิฟต์แต่ละตัว · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
         family: 'category', fallback: 'bar', recordCount: recs.length,
         data: em.liftCounts.map(l => ({ label: l.code, value: l.value, color: core.COLORS.elevator })),
         trace: 'trace: elevator_lift (parsed code) → COUNT → category comparison' }),
@@ -2409,7 +2447,7 @@ class Component extends DCLogic {
       infoBlocks: [{
         block: 'Block 05', title: 'ข้อมูลการบันทึก',
         rows: last ? [
-          { label: 'ลิฟท์', value: core.fmtValue((last.data || {}).elevator_lift), color: 'var(--text)' },
+          { label: 'ลิฟต์', value: core.fmtValue((last.data || {}).elevator_lift), color: 'var(--text)' },
           { label: 'หมายเหตุ', value: core.fmtValue((last.data || {}).elevator_remark), color: 'var(--text)' },
           { label: 'ประเภทผู้ใช้', value: core.fmtValue((last.data || {}).elevator_user_type), color: 'var(--text)' },
           { label: 'วันที่ของข้อมูล', value: core.fmtDate(last.reportDate), color: 'var(--text)' },
@@ -2417,9 +2455,9 @@ class Component extends DCLogic {
           { label: 'Record ID', value: last.id, color: 'var(--dim)' }
         ] : [{ label: 'สถานะ', value: 'ไม่มีรายการในช่วงที่เลือก', color: 'var(--muted)' }]
       }],
-      tableTitle: 'รายงานปุ่มฉุกเฉินลิฟท์ — รายการบันทึกในช่วงที่เลือก',
+      tableTitle: 'รายงานปุ่มฉุกเฉินลิฟต์ — รายการบันทึกในช่วงที่เลือก',
       tableNote: core.fmtNum(recs.length) + ' รายการ',
-      tableColumns: ['วันที่ข้อมูล', 'ลิฟท์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'],
+      tableColumns: ['วันที่ข้อมูล', 'ลิฟต์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'],
       tableRows: recs.map(r => {
         const d = r.data || {};
         return { cells: [
@@ -3188,7 +3226,7 @@ class Component extends DCLogic {
     if (mod.kind === 'elevator') {
       const em = this.elevatorMetrics(recs);
       return [
-        { title: 'รายงานแยกตามลิฟท์', kind: 'bar',
+        { title: 'รายงานแยกตามลิฟต์', kind: 'bar',
           geo: this.pdfChartGeometry(em.liftCounts.map((l, i) => ({ label: l.code, value: l.value, color: this.pdfSeriesColor(i % 4) }))) },
         { title: 'สาเหตุ / หมายเหตุ', kind: 'donut',
           geo: this.pdfChartGeometry(em.remarkCounts.map((r, i) => ({ label: r.label, value: r.value, color: this.pdfSeriesColor(i) }))) },
@@ -3303,7 +3341,7 @@ class Component extends DCLogic {
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(tm.totalIn + tm.totalOut + tmTt.totalIn + tmTt.totalOut), formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟรวม', value: core.fmtNum(gm.total), formula: 'SUM(golf_cart_1..4)' },
       { label: 'ผู้มาเยือนรวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' },
-      { label: 'รายงานปุ่มฉุกเฉินลิฟท์รวม', value: core.fmtNum(el.length), formula: 'COUNT(elevator records)' },
+      { label: 'รายงานปุ่มฉุกเฉินลิฟต์รวม', value: core.fmtNum(el.length), formula: 'COUNT(elevator records)' },
       { label: 'รายงานการตรวจจุดรวม', value: core.fmtNum(cp.length), formula: 'COUNT(checkpoint records)' }
     ];
   }
@@ -3319,7 +3357,7 @@ class Component extends DCLogic {
     const mod = this.core().module(m) || {};
     if (mod.kind === 'traffic') return ['วันที่ข้อมูล', 'ผู้กรอก', 'เข้า', 'ออก', 'สุทธิ', 'เวลาส่ง'];
     if (m === 'golf') return ['วันที่ข้อมูล', 'ผู้กรอก', 'กะ', 'รถ1', 'รถ2', 'รถ3', 'รถ4', 'รวม'];
-    if (mod.kind === 'elevator') return ['วันที่ข้อมูล', 'ลิฟท์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'];
+    if (mod.kind === 'elevator') return ['วันที่ข้อมูล', 'ลิฟต์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'];
     if (mod.kind === 'checkpoint') return ['วันที่ข้อมูล', 'ชื่อ', 'กะ', 'จุดที่ตรวจ', 'เวลาที่ลงตรวจ', 'ผู้ตรวจสอบ', 'เวลาส่ง'];
     /* explicit branch for the same reason as pdfSummaryFor — the fallback below is the
        visitors layout, which would mislabel every column for a form-driven module */
@@ -3775,7 +3813,7 @@ class Component extends DCLogic {
       traffic_tt: { kicker: 'Traffic Module — Talay Thong', title: 'รถเข้า-ออก ทะเลทอง' },
       golf: { kicker: 'Golf Fleet Module', title: 'รถกอล์ฟ' },
       visitors: { kicker: 'Visitors Module', title: 'ผู้มาเยือน' },
-      elevator: { kicker: 'Elevator Module', title: 'รายงานปุ่มฉุกเฉินลิฟท์' },
+      elevator: { kicker: 'Elevator Module', title: 'รายงานปุ่มฉุกเฉินลิฟต์' },
       checkpoint: { kicker: 'Checkpoint Module', title: 'รายงานการตรวจจุด' },
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },

@@ -25,7 +25,10 @@
   var AUTH_EVT = 'soc:auth';
   var PROFILE_EVT = 'soc:profile';
 
-  var PALETTE = { traffic: '#4aa3e8', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
+  /* traffic uses the shared --chart-primary token (theme-reactive, never blue) rather than a
+     flat hex like the other modules — it is the module Part 1 of the color-system update
+     specifically targeted, so it needed a token, not just a different fixed color. */
+  var PALETTE = { traffic: 'var(--chart-primary)', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
 
   /* A group is a *folder* of modules, not a module itself — it owns no fields and no records.
      Its only job is that both the Admin nav and the Entry Portal require one tap into the
@@ -50,8 +53,8 @@
     { id: 'visitors', code: 'VS', name: 'ผู้มาเยือน', en: 'Visitors', formId: 'form_visitors',
       desc: 'บันทึกผู้มาเยือนทั่วไปและผู้รับเหมา', color: PALETTE.visitors,
       kind: 'visitors', fieldPrefix: 'visitor', dateField: 'visitor_date', nameField: 'visitor_name', inspectorField: 'visitor_inspector' },
-    { id: 'elevator', code: 'EL', name: 'รายงานปุ่มฉุกเฉินลิฟท์', en: 'Elevator Emergency Button', formId: 'form_elevator',
-      desc: 'บันทึกรายงานเมื่อมีการกดปุ่มฉุกเฉินในลิฟท์', color: PALETTE.elevator,
+    { id: 'elevator', code: 'EL', name: 'รายงานปุ่มฉุกเฉินลิฟต์', en: 'Elevator Emergency Button', formId: 'form_elevator',
+      desc: 'บันทึกรายงานเมื่อมีการกดปุ่มฉุกเฉินในลิฟต์', color: PALETTE.elevator,
       kind: 'elevator', fieldPrefix: 'elevator', dateField: 'elevator_date', nameField: null, inspectorField: null },
     { id: 'checkpoint', code: 'CP', name: 'รายงานการตรวจจุด', en: 'Checkpoint Inspection', formId: 'form_checkpoint',
       desc: 'บันทึกการลงตรวจจุดตรวจการณ์ประจำกะ', color: PALETTE.checkpoint,
@@ -181,7 +184,7 @@
       ],
       elevator: [
         f('elevator_date', 'วันที่', 'date', { required: true, system: true }),
-        f('elevator_lift', 'ลิฟท์ตัวที่', 'radio', { required: true, system: true, options: ['PL01 — ลิฟท์ตัวที่ 1', 'PL02 — ลิฟท์ตัวที่ 2', 'PL03 — ลิฟท์ตัวที่ 3', 'PL04 — ลิฟท์ตัวที่ 4', 'CL01 — ลิฟท์ตัวที่ 5', 'CL02 — ลิฟท์ตัวที่ 6', 'SL03 — ลิฟท์ตัวที่ 7', 'SL04 — ลิฟท์ตัวที่ 8'] }),
+        f('elevator_lift', 'ลิฟต์ตัวที่', 'radio', { required: true, system: true, options: ['PL01 — ลิฟต์ตัวที่ 1', 'PL02 — ลิฟต์ตัวที่ 2', 'PL03 — ลิฟต์ตัวที่ 3', 'PL04 — ลิฟต์ตัวที่ 4', 'CL01 — ลิฟต์ตัวที่ 5', 'CL02 — ลิฟต์ตัวที่ 6', 'SL03 — ลิฟต์ตัวที่ 7', 'SL04 — ลิฟต์ตัวที่ 8'] }),
         f('elevator_remark', 'หมายเหตุ', 'radio', { required: true, system: true, options: ['กดผิด', 'ยืนพิง', 'อื่นๆ'], allowCustom: true }),
         f('elevator_user_type', 'ประเภทผู้ใช้', 'radio', { required: true, system: true, options: ['พนักงาน', 'ลูกค้า', 'ผู้รับเหมา'] })
       ],
@@ -203,7 +206,7 @@
         f('mi_cctv_date', 'วันที่', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ' }),
         f('mi_cctv_time', 'เวลา', 'time', { required: true, group: 'ข้อมูลการตรวจ' }),
         f('mi_cctv_nvr_name', 'NVR - ชื่อกล้อง', 'text', { required: true, group: 'ข้อมูลการตรวจ', placeholder: 'ชื่อกล้องตาม NVR' }),
-        f('mi_cctv_location', 'ชั้น/ตำแหน่งกล้อง', 'text', { required: true, group: 'ข้อมูลการตรวจ', placeholder: 'เช่น ชั้น 3 โถงลิฟท์' }),
+        f('mi_cctv_location', 'ชั้น/ตำแหน่งกล้อง', 'text', { required: true, group: 'ข้อมูลการตรวจ', placeholder: 'เช่น ชั้น 3 โถงลิฟต์' }),
         f('mi_cctv_dust', 'มีฝุ่นเกาะหรือไม่', 'radio', { required: true, group: 'สภาพกล้อง', options: ['มี', 'ไม่มี'] }),
         f('mi_cctv_crack', 'มีรอยแตกหรือไม่', 'radio', { required: true, group: 'สภาพกล้อง', options: ['มี', 'ไม่มี'] }),
         f('mi_cctv_dirty', 'สิ่งสกปรกเลอะที่ตัวกล้องและเลนส์กล้อง', 'radio', { required: true, group: 'สภาพกล้อง', options: ['มี', 'ไม่มี'] }),
