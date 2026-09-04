@@ -652,10 +652,11 @@
       });
       return out;
     },
-    /* Replaces the whole field list for one module. Applies to the local cache immediately
-       (so Form Builder shows the saved state right away) and persists as delete-all-then-insert
-       for that module in the background — this table is small and admin-only, so the brief
-       window without row-level atomicity is an accepted tradeoff, not a real risk. */
+    /* Replaces the whole field list for one module. Applies to the local cache immediately (so
+       Form Builder shows the saved state right away) and persists through set_form_fields(),
+       which does the delete and the insert in one transaction. It used to issue them as two
+       separate requests from here: an insert that never landed left the module with no fields at
+       all in the database — every guard would then open that form and find zero questions. */
     setFields: function (m, list) {
       var next = list.map(function (x, i) { return Object.assign({}, x, { order: i }); });
       applySystemFlags((function () { var o = {}; o[m] = next; return o; })());
@@ -664,8 +665,7 @@
       state.formVersion = (state.formVersion || 1) + 1;
       bump();
       var rows = next.map(function (fl, i) { return fieldToRow(m, fl, i); });
-      sb.from('form_fields').delete().eq('module', m)
-        .then(function () { return sb.from('form_fields').insert(rows); })
+      sb.rpc('set_form_fields', { p_module: m, p_rows: rows })
         .then(function (res) {
           if (res.error) { state.forms[m] = prev; bump(); notifyError('บันทึกแบบฟอร์มไม่สำเร็จ: ' + res.error.message); }
         });
