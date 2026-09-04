@@ -3924,38 +3924,39 @@ class Component extends DCLogic {
       return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtNum(g), core.fmtNum(c), core.fmtNum(g + c), core.fmtValue(d.visitor_org)];
     });
   }
-  /* Same column shape and same per-module field reads as pdfRowsFor() — the only difference
-     is numeric columns come back as real JS numbers instead of comma-formatted display
-     strings ("1,234"), so Excel can actually sort/sum/filter them instead of treating every
-     cell as text. Excel is the whole reason this function exists separately from pdfRowsFor;
-     a PDF table has no such use for the distinction. */
+  /* Excel's data sheet deliberately does NOT reuse pdfColumnsFor()/pdfRowsFor() — those
+     collapse a form down to a handful of summarized columns (traffic's ten in/out fields
+     become just "เข้า"/"ออก"/"สุทธิ"), which is right for a PDF table but is exactly what the
+     user asked to stop doing here: every question on the form gets its own column, so the
+     sheet is the form itself laid out one row per submission — reading straight off
+     core.activeFields(m), the same canonical field list/order Form Builder itself edits, so a
+     question renamed or reordered there is reflected here with no code change. */
+  /* excludes the module's own dateField — it's already the leading "วันที่ข้อมูล" column below,
+     so this just avoids showing the same date twice under two different headers. Unlike
+     pdfDynamicFields(), textarea (long notes) is kept: Excel has no fixed-column-width
+     constraint a PDF table has, and a note field is real data someone exporting to Excel
+     would want, not something to silently drop. */
+  xlsxFieldsFor(m) {
+    const mod = this.core().module(m) || {};
+    return this.core().activeFields(m).filter(f => f.fieldId !== mod.dateField);
+  }
+  xlsxColumnsFor(m) {
+    return ['วันที่ข้อมูล'].concat(this.xlsxFieldsFor(m).map(f => f.label)).concat(['ผู้กรอก', 'เวลาส่ง']);
+  }
+  /* real JS numbers for number-type questions (Excel can sort/sum them), OFF stays literal
+     text, checkbox's array answer joins into one readable cell. */
   xlsxRowsFor(m, recs) {
     const core = this.core();
-    const mod = core.module(m) || {};
+    const fields = this.xlsxFieldsFor(m);
     return recs.map(r => {
       const d = r.data || {};
-      if (mod.kind === 'traffic') {
-        const ids = trafficFieldIds(mod.fieldPrefix || 'traffic');
-        const i = core.sumFields([r], ids.IN), o = core.sumFields([r], ids.OUT);
-        return [core.fmtDateShort(r.reportDate), r.submittedBy, i, o, i - o, core.fmtTime(r.submittedAt)];
-      }
-      if (m === 'golf') {
-        const cv = (id) => core.isOff(d[id]) ? 'OFF' : core.num(d[id]);
-        return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtValue(d.golf_shift), cv('golf_cart_1'), cv('golf_cart_2'), cv('golf_cart_3'), cv('golf_cart_4'), core.sumFields([r], GOLF_CARTS)];
-      }
-      if (mod.kind === 'elevator') {
-        return [core.fmtDateShort(r.reportDate), liftCode(d.elevator_lift), core.fmtValue(d.elevator_remark), core.fmtValue(d.elevator_user_type), core.fmtTime(r.submittedAt)];
-      }
-      if (mod.kind === 'checkpoint') {
-        return [core.fmtDateShort(r.reportDate), core.fmtValue(d.checkpoint_employee_name), core.fmtValue(d.checkpoint_shift), core.fmtValue(d.checkpoint_point), core.fmtValue(d.checkpoint_time), core.fmtValue(d.checkpoint_inspector_name), core.fmtTime(r.submittedAt)];
-      }
-      if (mod.kind === 'monthly') {
-        return [core.fmtDateShort(r.reportDate)]
-          .concat(this.pdfDynamicFields(m).map(f => f.type === 'number' ? core.num(d[f.fieldId]) : core.fmtValue(d[f.fieldId])))
-          .concat([core.fmtTime(r.submittedAt)]);
-      }
-      const g = core.agg([r], 'visitor_general_count', 'SUM'), c = core.agg([r], 'visitor_contractor_count', 'SUM');
-      return [core.fmtDateShort(r.reportDate), r.submittedBy, g, c, g + c, core.fmtValue(d.visitor_org)];
+      const cells = fields.map(f => {
+        const raw = d[f.fieldId];
+        if (f.type === 'number') return core.isOff(raw) ? 'OFF' : core.num(raw);
+        if (f.type === 'checkbox') return Array.isArray(raw) ? raw.join(', ') : core.fmtValue(raw);
+        return core.fmtValue(raw);
+      });
+      return [core.fmtDateShort(r.reportDate)].concat(cells).concat([r.submittedBy, core.fmtTime(r.submittedAt)]);
     });
   }
   pdfModuleName(m) {
@@ -4545,7 +4546,7 @@ class Component extends DCLogic {
         mods.forEach(m => {
           const list = recs.filter(r => r.module === m);
           if (!list.length) return;
-          const columns = this.pdfColumnsFor(m);
+          const columns = this.xlsxColumnsFor(m);
           const rows = this.xlsxRowsFor(m, list);
           const sheetName = ((core.module(m) || {}).en || m).replace(/[\\/?*[\]]/g, '').slice(0, 31) || m;
           const ws = wb.addWorksheet(sheetName);
