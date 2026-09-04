@@ -25,9 +25,10 @@
   var AUTH_EVT = 'soc:auth';
   var PROFILE_EVT = 'soc:profile';
 
-  /* traffic's hue matches seriesPalette().trafficCarDay in the Admin Console — pink, per the
-     traffic-flow color update (not the app's cyan-leaning --accent token, and not blue). */
-  var PALETTE = { traffic: '#d6558a', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
+  /* traffic and traffic_tt match seriesPalette()'s trafficCarDay per module in the Admin
+     Console — same pink family, different hue angle (rose vs orchid) so the two traffic pages
+     are tellable apart by color, not just by name. */
+  var PALETTE = { traffic: '#d6558a', traffic_tt: '#b8478f', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
 
   /* A group is a *folder* of modules, not a module itself — it owns no fields and no records.
      Its only job is that both the Admin nav and the Entry Portal require one tap into the
@@ -44,7 +45,7 @@
       desc: 'บันทึกจำนวนรถเข้า-ออก แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic,
       kind: 'traffic', fieldPrefix: 'traffic', dateField: 'traffic_date', nameField: 'traffic_name', inspectorField: 'traffic_inspector' },
     { id: 'traffic_tt', code: 'TT', name: 'รถเข้า-ออก ทะเลทอง', en: 'Traffic – Talay Thong', formId: 'form_traffic_tt',
-      desc: 'บันทึกจำนวนรถเข้า-ออก พื้นที่ทะเลทอง แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic,
+      desc: 'บันทึกจำนวนรถเข้า-ออก พื้นที่ทะเลทอง แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic_tt,
       kind: 'traffic', fieldPrefix: 'tt', dateField: 'tt_date', nameField: 'tt_name', inspectorField: 'tt_inspector' },
     { id: 'golf', code: 'GF', name: 'รถกอล์ฟ', en: 'Golf Fleet', formId: 'form_golf',
       desc: 'บันทึกจำนวนรอบรถกอล์ฟรายคัน รองรับสถานะ OFF', color: PALETTE.golf,
