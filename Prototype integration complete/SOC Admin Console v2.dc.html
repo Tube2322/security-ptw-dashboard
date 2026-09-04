@@ -299,6 +299,7 @@
         <!-- day/week/month/year dropdown — module dashboards only, see showGranularityPicker -->
         <sc-if value="{{ showGranularityPicker }}" hint-placeholder-val="{{ false }}">
           <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
             <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
               <option value="day">📅 รายวัน</option>
               <option value="week">🗓️ รายสัปดาห์</option>
@@ -338,6 +339,10 @@
                 </sc-for>
               </select>
             </sc-if>
+
+            <button onClick="{{ nextPeriod }}" aria-label="ช่วงถัดไป" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">▶</button>
+
+            <span style="font-size: 12px; color: var(--dim);">{{ comparisonBaselineLabel }}</span>
 
             <button onClick="{{ goPdf }}" style="min-height: 40px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2); color: var(--text);">Export PDF</button>
           </div>
@@ -2312,6 +2317,46 @@ class Component extends DCLogic {
     }
     if (s.dashGranularity === 'year') return 'ปี ' + (s.year + 543);
     return core.thaiMonths[s.month] + ' ' + (s.year + 543);
+  }
+  /* ◀▶ moves the current period one unit back/forward without opening the picker — day/week
+     shift state.date, month/year shift state.month/state.year, matching whatever
+     scopeQuery()/prevWeekRecs()/prevMonthRecs()/prevYearRecs() already treat as "one unit". */
+  shiftPeriod(delta) {
+    const core = this.core();
+    const s = this.state;
+    const g = s.dashGranularity;
+    if (g === 'day' || g === 'week') {
+      const d = new Date((s.date || core.isoDay(new Date())) + 'T00:00:00');
+      d.setDate(d.getDate() + delta * (g === 'week' ? 7 : 1));
+      this.setState({ date: core.isoDay(d) });
+    } else if (g === 'month') {
+      let m = s.month + delta, y = s.year;
+      if (m < 0) { m = 11; y -= 1; } else if (m > 11) { m = 0; y += 1; }
+      this.setState({ month: m, year: y, date: null });
+    } else {
+      this.setState({ year: s.year + delta });
+    }
+  }
+  /* one-line "เทียบกับ ..." caption shown once in the header rather than repeated on every KPI
+     card — the baseline period is the same for all of them, so six copies of the same text
+     would just be clutter. */
+  comparisonBaselineLabel() {
+    const core = this.core();
+    const s = this.state;
+    const g = s.dashGranularity;
+    if (g === 'day') {
+      const d = new Date((s.date || core.isoDay(new Date())) + 'T00:00:00'); d.setDate(d.getDate() - 1);
+      return 'เทียบกับ ' + core.fmtDate(core.isoDay(d));
+    }
+    if (g === 'week') {
+      const wb = this.weekBounds(s.date);
+      const start = new Date(wb.from + 'T00:00:00'); start.setDate(start.getDate() - 7);
+      const end = new Date(wb.to + 'T00:00:00'); end.setDate(end.getDate() - 7);
+      return 'เทียบกับ ' + core.fmtDateShort(core.isoDay(start)) + ' – ' + core.fmtDateShort(core.isoDay(end));
+    }
+    if (g === 'year') return 'เทียบกับ ปี ' + (s.year - 1 + 543);
+    let pm = s.month - 1, py = s.year; if (pm < 0) { pm = 11; py -= 1; }
+    return 'เทียบกับ ' + core.thaiMonths[pm] + ' ' + (py + 543);
   }
 
   /* ---------- shared aggregation (single source of truth for dashboard AND pdf) ----------
@@ -4628,6 +4673,9 @@ class Component extends DCLogic {
       dashDate: s.date || core.isoDay(new Date()),
       setDashDate: (e) => this.setState({ date: e.target.value }),
       weekRangeLabel: (() => { const wb = this.weekBounds(s.date); return core.fmtDateShort(wb.from) + ' – ' + core.fmtDateShort(wb.to); })(),
+      prevPeriod: () => this.shiftPeriod(-1),
+      nextPeriod: () => this.shiftPeriod(1),
+      comparisonBaselineLabel: this.comparisonBaselineLabel(),
       goPdf: () => this.setState({ page: 'pdf', pdfModule: moduleId || 'traffic', pdfPeriod: s.date ? 'day' : 'month', pdfPeriodDay: s.date, pdfPeriodYear: s.year, pdfPeriodMonth: s.month }),
 
       /* ---- multi-period comparison (Overview page) ---- */
