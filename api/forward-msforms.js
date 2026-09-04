@@ -22,7 +22,12 @@
    fail the same way). */
 
 const { chromium: playwright } = require('playwright-core');
-const chromium = require('@sparticuz/chromium-min');
+/* @sparticuz/chromium-min ships as an ESM module — require() gets it wrapped as
+   { __esModule: true, default: <the real chromium object> } rather than the object itself
+   (unlike the older @sparticuz/chromium CJS build this replaced), so chromium.executablePath
+   would be undefined without unwrapping .default here. */
+const chromiumMinExports = require('@sparticuz/chromium-min');
+const chromium = chromiumMinExports.default || chromiumMinExports;
 const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
 
 const FORMS = {
