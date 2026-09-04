@@ -412,13 +412,13 @@ class Component extends DCLogic {
   /* Auto-forwards a just-submitted record into the matching Microsoft Forms survey
      (api/forward-msforms.js — a headless-browser fill, since Forms has no write API).
      Only fires for the modules in FORWARDABLE below (they each have a mapped target form in
-     that file's FORMS table — four ตรวจประจำเดือน ones plus the daily visitor log), and only when the admin has
+     that file's FORMS table — all five ตรวจประจำเดือน ones plus the daily visitor log), and only when the admin has
      switched it on for that module in Settings (portal_settings.ms_forms_forwarding) — off by
      default so this never fires against a live external form unannounced. Fire-and-forget from
      the record's own perspective (it's already saved in our own database either way); the done
      screen just reflects whether the forward itself worked so a failure isn't silent. */
   forwardToMsForms(moduleId, payload) {
-    const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit', 'monthly_inspection_acc_door', 'monthly_inspection_cctv', 'visitors'];
+    const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit', 'monthly_inspection_acc_door', 'monthly_inspection_cctv', 'monthly_inspection_golf_cart', 'visitors'];
     if (FORWARDABLE.indexOf(moduleId) === -1) return;
     const core = this.core();
     const on = !!(core.getPortal().msFormsForwarding || {})[moduleId];

@@ -119,15 +119,6 @@
     };
   }
 
-  /* Golf-cart is the only monthly-inspection category still on the generic total/pass/fail
-     template — the other four have their real question sets typed out in defaultForms()
-     below, taken directly from the site's actual paper/Google-Forms checklists. Replace this
-     entry the same way once that form's real questions are available. */
-  var MONTHLY_FORM_SPECS = [
-    { module: 'monthly_inspection_golf_cart', prefix: 'mi_golf', unit: 'คัน',
-      totalLabel: 'จำนวนรถกอล์ฟที่ตรวจทั้งหมด', passLabel: 'ใช้งานได้ปกติ', failLabel: 'ต้องซ่อม / ไม่พร้อมใช้งาน' }
-  ];
-
   /* The code's own definition of every field, and which ones a dashboard formula reads by
      fieldId (`system: true`). Used to (a) seed the database once, and (b) re-lock the `system`
      flag on whatever the database returns — see applySystemFlags(). */
@@ -279,26 +270,30 @@
         f('mi_fire_exit_checker_name', 'ลงชื่อผู้ตรวจเช็ค', 'text', { required: true, system: true, group: 'ผู้ตรวจสอบ' }),
         f('mi_fire_exit_inspector_name', 'ผู้ตรวจสอบ หัวหน้าหน่วยรักษาความปลอดภัย', 'text', { required: true, group: 'ผู้ตรวจสอบ' }),
         f('mi_fire_exit_note', 'หมายเหตุ', 'textarea', { group: 'ผู้ตรวจสอบ' })
+      ],
+      /* Golf cart — one submission per cart, matching the other department's own checklist
+         question-for-question (their questions 3–12 are multi-select with an "อื่นๆ" box, so
+         these are `checkbox` + allowCustom rather than radio; option text is copied verbatim
+         from their form so the auto-forward can match each choice exactly). mi_golf_date has
+         no counterpart on their form — it stays because this module is filed by month on our
+         side (see MODULES' dateField) and is simply not forwarded. */
+      monthly_inspection_golf_cart: [
+        f('mi_golf_date', 'เดือนที่ตรวจ', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ', helper: 'เลือกวันใดก็ได้ในเดือนที่ตรวจ' }),
+        f('mi_golf_name', 'ชื่อ - นามสกุล', 'select', { required: true, system: true, group: 'ข้อมูลการตรวจ', options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
+        f('mi_golf_cart', 'รถกอล์ฟ', 'radio', { required: true, group: 'ข้อมูลการตรวจ', options: ['รถกอล์ฟ 1', 'รถกอล์ฟ 2', 'รถกอล์ฟ 3', 'รถกอล์ฟ 4'] }),
+        f('mi_golf_body', 'รอบรถ', 'checkbox', { required: true, group: 'สภาพรถ', options: ['มีรอยแตก/หัก', 'รอยขีดข่วน', 'พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_steering', 'พวงมาลัย', 'checkbox', { required: true, group: 'สภาพรถ', options: ['ปกติ', 'ผิดปกติ'], allowCustom: true }),
+        f('mi_golf_horn', 'แตร', 'checkbox', { required: true, group: 'สภาพรถ', options: ['ดัง', 'ไม่ดัง', 'พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_seat', 'เบาะ', 'checkbox', { required: true, group: 'สภาพรถ', options: ['มีรอยฉีก/ขาด', 'สกปรก', 'สะอาด', 'พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_tire', 'ล้อ/ลมยาง', 'checkbox', { required: true, group: 'สภาพรถ', options: ['ยางแบน', 'ยางรั่ว', 'ลมยาง/ปกติ พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_cleanliness', 'ความสะอาด', 'checkbox', { required: true, group: 'สภาพรถ', options: ['สะอาด', 'ไม่สะอาด'], allowCustom: true }),
+        f('mi_golf_battery', 'แบตเตอร์รี่', 'checkbox', { required: true, group: 'สภาพรถ', options: ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_suspension', 'ช่วงล่าง', 'checkbox', { required: true, group: 'สภาพรถ', options: ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_canvas', 'ผ้าใบกันฝน', 'checkbox', { required: true, group: 'สภาพรถ', options: ['มีรอยฉีก/ขาด', 'พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_status', 'สถานะรถ', 'checkbox', { required: true, group: 'สภาพรถ', options: ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน'], allowCustom: true }),
+        f('mi_golf_note', 'หมายเหตุ', 'textarea', { group: 'สภาพรถ', placeholder: 'สิ่งที่พบ / รายการที่ต้องแก้ไข (ถ้ามี)' })
       ]
     };
-    /* The five monthly-inspection forms share one shape — เดือนที่ตรวจ / ผู้ตรวจ, then a
-       total-pass-fail trio, then a note — with only the count wording differing per category.
-       Only the date and name fields are `system` (locked): the dashboard for these modules is
-       generated from whatever fields exist at render time, so the admin is free to delete or
-       replace every count question without breaking anything. */
-    MONTHLY_FORM_SPECS.forEach(function (spec) {
-      var p = spec.prefix;
-      var fields = [
-        f(p + '_date', 'เดือนที่ตรวจ', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ', helper: 'เลือกวันใดก็ได้ในเดือนที่ตรวจ' }),
-        f(p + '_name', 'ชื่อผู้ตรวจ', 'select', { required: true, system: true, group: 'ข้อมูลการตรวจ', options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
-        f(p + '_total', spec.totalLabel, 'number', { required: true, group: 'ผลการตรวจ', placeholder: '0', unit: spec.unit }),
-        f(p + '_pass', spec.passLabel, 'number', { required: true, group: 'ผลการตรวจ', placeholder: '0', unit: spec.unit }),
-        f(p + '_fail', spec.failLabel, 'number', { group: 'ผลการตรวจ', placeholder: '0', unit: spec.unit })
-      ];
-      if (spec.extra) fields = fields.concat(spec.extra(p));
-      fields.push(f(p + '_note', 'หมายเหตุ', 'textarea', { group: 'ผลการตรวจ', placeholder: 'สิ่งที่พบ / รายการที่ต้องแก้ไข (ถ้ามี)' }));
-      forms[spec.module] = fields;
-    });
     Object.keys(forms).forEach(function (k) { forms[k].forEach(function (fl, i) { fl.order = i; }); });
     return forms;
   }
