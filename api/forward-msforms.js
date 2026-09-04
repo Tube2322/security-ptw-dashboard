@@ -21,13 +21,21 @@
    must stay pinned to the exact release matching the chromium-min version below (mismatched pairs
    fail the same way). */
 
-const { chromium: playwright } = require('playwright-core');
-/* @sparticuz/chromium-min ships as an ESM module — require() gets it wrapped as
-   { __esModule: true, default: <the real chromium object> } rather than the object itself
-   (unlike the older @sparticuz/chromium CJS build this replaced), so chromium.executablePath
-   would be undefined without unwrapping .default here. */
-const chromiumMinExports = require('@sparticuz/chromium-min');
-const chromium = chromiumMinExports.default || chromiumMinExports;
+/* requiring playwright-core / chromium-min lazily, inside the handler's own try/catch, is
+   deliberate: a require()-time crash outside any try/catch surfaces to the caller as Vercel's
+   opaque "FUNCTION_INVOCATION_FAILED" page with no detail, whereas catching it here lets us
+   return the real error message as JSON — the only way to see what actually broke without
+   access to this project's Vercel runtime logs. */
+function loadChromium() {
+  const { chromium: playwright } = require('playwright-core');
+  /* @sparticuz/chromium-min ships as an ESM module — require() gets it wrapped as
+     { __esModule: true, default: <the real chromium object> } rather than the object itself
+     (unlike the older @sparticuz/chromium CJS build this replaced), so chromium.executablePath
+     would be undefined without unwrapping .default here. */
+  const chromiumMinExports = require('@sparticuz/chromium-min');
+  const chromium = chromiumMinExports.default || chromiumMinExports;
+  return { playwright, chromium };
+}
 const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
 
 const FORMS = {
@@ -131,6 +139,7 @@ module.exports = async (req, res) => {
 
   let browser;
   try {
+    const { playwright, chromium } = loadChromium();
     if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
     const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
     if (body && body.debug) {
