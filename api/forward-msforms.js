@@ -153,13 +153,14 @@ module.exports = async (req, res) => {
       res.status(200).json({ ok: true, debug: true, executablePath: executablePath, dir: dir, listing: listing, al2023Listing: al2023Listing, packListing: packListing });
       return;
     }
-    /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path
-       even though chromium-min just unpacked them right next to the binary — the dynamic loader
-       never looks in /tmp/chromium-pack on its own. Pointing LD_LIBRARY_PATH at that directory
-       before launch is what actually lets the binary find them; without this line the launch
-       fails the exact same way whether the binary came from the bundled package or a downloaded
-       pack, which is why switching packages alone didn't fix it. */
-    process.env.LD_LIBRARY_PATH = require('path').dirname(executablePath);
+    /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
+       chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
+       lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
+       by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
+       alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
+    var pathMod = require('path');
+    var execDir = pathMod.dirname(executablePath);
+    process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
     browser = await playwright.launch({
       args: chromium.args,
       executablePath: executablePath,
