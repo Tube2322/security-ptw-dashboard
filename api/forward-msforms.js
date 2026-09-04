@@ -126,9 +126,18 @@ module.exports = async (req, res) => {
 
   let browser;
   try {
+    if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
+    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+    /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path
+       even though chromium-min just unpacked them right next to the binary — the dynamic loader
+       never looks in /tmp/chromium-pack on its own. Pointing LD_LIBRARY_PATH at that directory
+       before launch is what actually lets the binary find them; without this line the launch
+       fails the exact same way whether the binary came from the bundled package or a downloaded
+       pack, which is why switching packages alone didn't fix it. */
+    process.env.LD_LIBRARY_PATH = require('path').dirname(executablePath);
     browser = await playwright.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
+      executablePath: executablePath,
       headless: true
     });
     const page = await browser.newPage();
