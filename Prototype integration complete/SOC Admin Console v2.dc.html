@@ -3689,14 +3689,26 @@ class Component extends DCLogic {
     const next = Object.assign({}, current, { [moduleId]: !current[moduleId] });
     core.setPortal({ msFormsForwarding: next });
   }
+  /* Enable/disable saves immediately via core.setPortal() instead of going through the
+     name/slug/welcome draft — unlike those fields, this one has an on-screen status badge
+     ("Portal Active"/"Portal Disabled") that visibly claims to be the live state the instant
+     it changes, so it must actually BE the live state at that instant, not a pending edit
+     waiting on a separate "Save Changes" click. (Bug found in QA: the toggle used to only
+     patch the draft, so confirming "disable" flipped the badge red while the real portal
+     stayed open to submissions until someone remembered to hit Save.) If a draft is open for
+     the other fields, it's kept in sync too so the two controls never disagree on-screen. */
   togglePortalEnabled = () => {
     if (this.portalDraft().enabled) { this.setState({ disablePortalConfirmOpen: true }); return; }
-    this.patchPortal({ enabled: true });
+    this.core().setPortal({ enabled: true });
+    if (this.state.portalDraft) this.patchPortal({ enabled: true });
+    this.flash('✓ เปิดใช้งาน Portal แล้ว');
   };
   cancelDisablePortal = () => this.setState({ disablePortalConfirmOpen: false });
   confirmDisablePortal = () => {
-    this.patchPortal({ enabled: false });
+    this.core().setPortal({ enabled: false });
+    if (this.state.portalDraft) this.patchPortal({ enabled: false });
     this.setState({ disablePortalConfirmOpen: false });
+    this.flash('✓ ปิดใช้งาน Portal แล้ว — ผู้ใช้จะกรอกข้อมูลไม่ได้จนกว่าจะเปิดใหม่', 'var(--warn)');
   };
   copyLink = () => {
     const url = this.core().portalUrl(this.portalDraft().slug, this.portalDraft().qrVersion);
