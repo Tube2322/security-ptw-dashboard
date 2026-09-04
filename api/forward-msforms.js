@@ -77,6 +77,38 @@ const FORMS = {
       { id: 'mi_fire_exit_inspector_name', type: 'text' },
       { id: 'mi_fire_exit_note', type: 'text' }
     ]
+  },
+  monthly_inspection_acc_door: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UNUVEMTBYVTNDMk9JQzVWMjNLQVRMRUVHQi4u&origin=QRCode',
+    fields: [
+      { id: 'mi_acc_date', type: 'date' },
+      { id: 'mi_acc_time', type: 'text' },
+      { id: 'mi_acc_reader_status', type: 'radio' },
+      { id: 'mi_acc_floor', type: 'radio' },
+      { id: 'mi_acc_electric_lock', type: 'radio' },
+      { id: 'mi_acc_magnet', type: 'radio' },
+      { id: 'mi_acc_alarm_light', type: 'radio' },
+      { id: 'mi_acc_lock_status', type: 'radio' },
+      { id: 'mi_acc_sensor_box', type: 'radio' },
+      { id: 'mi_acc_emergency_release', type: 'radio' },
+      { id: 'mi_acc_note', type: 'text' },
+      { id: 'mi_acc_checker_name', type: 'text' },
+      { id: 'mi_acc_inspector_name', type: 'text' }
+    ]
+  },
+  monthly_inspection_cctv: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UM1pSTTM1U1gzTEY4UjdMSlRaQktHS0pUVS4u&origin=QRCode',
+    fields: [
+      { id: 'mi_cctv_date', type: 'date' },
+      { id: 'mi_cctv_time', type: 'text' },
+      { id: 'mi_cctv_nvr_name', type: 'text' },
+      { id: 'mi_cctv_location', type: 'text' },
+      { id: 'mi_cctv_dust', type: 'radio' },
+      { id: 'mi_cctv_crack', type: 'radio' },
+      { id: 'mi_cctv_dirty', type: 'radio' },
+      { id: 'mi_cctv_status', type: 'radio' },
+      { id: 'mi_cctv_note', type: 'text' }
+    ]
   }
 };
 
@@ -106,10 +138,7 @@ async function fillQuestion(item, field, rawValue) {
     return;
   }
 
-  // radio — match the choice whose visible label equals our stored value exactly; an
-  // allowCustom field whose value isn't one of the fixed options falls back to the form's own
-  // "อื่นๆ" choice (assumed to be the last one, matching every form checked so far) plus its
-  // free-text box, rather than silently picking nothing.
+  // radio — match the choice whose visible label equals our stored value exactly.
   const choices = item.locator('[data-automation-id="choiceItem"]');
   const count = await choices.count();
   for (let i = 0; i < count; i++) {
@@ -117,9 +146,24 @@ async function fillQuestion(item, field, rawValue) {
     const label = (await c.innerText()).trim();
     if (label === value) { await c.click(); return; }
   }
+  // allowCustom field whose value isn't one of the fixed options falls back to the form's own
+  // "อื่นๆ" (other) choice + its free-text box. Microsoft Forms tags that specific radio with
+  // aria-label="คำตอบอื่น" (Thai for "other answer") regardless of whether it's wrapped in the
+  // same choiceItem markup the fixed choices use — some forms render it as an ordinary last
+  // choiceItem (choices.last() alone used to work), others render it as a separate row with no
+  // choiceItem wrapper at all (found on the Visitors form: 2 real choiceItems + a bare radio/
+  // textInput pair for "other", so choices.last() silently clicked the wrong fixed choice
+  // instead). Matching on the aria-label directly works for both layouts.
+  const otherRadio = item.locator('[aria-label="คำตอบอื่น"][role="radio"], input[aria-label="คำตอบอื่น"]').first();
+  if (await otherRadio.count() > 0) {
+    await otherRadio.click();
+    const otherInput = item.locator('input[aria-label="คำตอบอื่น"], input[placeholder="อื่นๆ"]').first();
+    await otherInput.fill(value);
+    return;
+  }
   if (count > 0) {
-    const other = choices.last();
-    await other.click();
+    // no distinct "other" row found at all — last resort, matches the old behavior
+    await choices.last().click();
     const otherInput = item.locator('input[data-automation-id="textInput"]').last();
     await otherInput.fill(value);
     return;
