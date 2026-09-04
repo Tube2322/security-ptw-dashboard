@@ -9,10 +9,21 @@
    text all matched soc-core.js's defaultForms() for these two modules exactly). If the other
    department edits their form (adds/removes/reorders a question), the position mapping goes
    stale — the question-count check below turns that into a clean failure instead of silently
-   writing an answer into the wrong question. */
+   writing an answer into the wrong question.
+
+   Chromium binary: @sparticuz/chromium (the full package) ships its binary as local files that
+   Vercel's build-time bundler is expected to trace and include — in practice that tracing missed
+   files this binary depends on (libnss3.so and friends), so every launch failed with "error while
+   loading shared libraries: libnss3.so: cannot open shared object file" before ever reaching the
+   form. @sparticuz/chromium-min instead downloads a matching prebuilt pack from the package's own
+   GitHub release at cold start and unpacks it into /tmp — sidesteps Vercel's bundler entirely, and
+   is the combination the package's own README documents as working with Vercel. CHROMIUM_PACK_URL
+   must stay pinned to the exact release matching the chromium-min version below (mismatched pairs
+   fail the same way). */
 
 const { chromium: playwright } = require('playwright-core');
-const chromium = require('@sparticuz/chromium');
+const chromium = require('@sparticuz/chromium-min');
+const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
 
 const FORMS = {
   monthly_inspection_fire_extinguisher: {
@@ -116,7 +127,7 @@ module.exports = async (req, res) => {
   try {
     browser = await playwright.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
       headless: true
     });
     const page = await browser.newPage();

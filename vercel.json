@@ -2,7 +2,7 @@
   "outputDirectory": "Prototype integration complete",
   "cleanUrls": false,
   "functions": {
-    "api/forward-msforms.js": { "maxDuration": 30 }
+    "api/forward-msforms.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/admin", "destination": "/SOC%20Admin%20Console%20v2.dc.html" },

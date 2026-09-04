@@ -3,7 +3,7 @@
   "private": true,
   "engines": { "node": "24.x" },
   "dependencies": {
-    "playwright-core": "1.47.2",
-    "@sparticuz/chromium": "123.0.1"
+    "playwright-core": "1.62.1",
+    "@sparticuz/chromium-min": "149.0.0"
   }
 }
