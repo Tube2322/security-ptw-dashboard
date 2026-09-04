@@ -435,7 +435,7 @@ class Component extends DCLogic {
     const status = this.state.msForwardStatus;
     if (!status) return null;
     if (status === 'sending') {
-      return { text: 'กำลังส่งต่อข้อมูลไปยัง Microsoft Forms ของอีกแผนก…', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
+      return { text: 'กำลังส่งต่อข้อมูลไปยัง Microsoft Forms…', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
     }
     if (status === 'ok') {
       return { text: '✓ ส่งต่อเข้า Microsoft Forms สำเร็จ', border: 'rgba(22,155,70,0.4)', bg: 'rgba(22,155,70,0.1)', color: '#0d5c2c', showCopy: false };
