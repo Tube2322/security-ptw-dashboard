@@ -24,6 +24,7 @@
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
+<script src="./vendor/exceljs.min.js"></script>
 <style>
   :root {
     --bg: #0a0d12; --bg-2: #0e131b; --panel: rgba(255,255,255,0.035); --panel-2: rgba(255,255,255,0.07);
@@ -1190,6 +1191,7 @@
               </sc-if>
 
               <button onClick="{{ doExport }}" disabled="{{ pdfBtnDisabled }}" style="margin-top: 14px; width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ pdfCursor }}; font-size: 15px; font-weight: 500; border: 1px solid {{ pdfBtnBorder }}; background: {{ pdfBtnBg }}; color: {{ pdfBtnColor }};">{{ pdfBtnLabel }}</button>
+              <button onClick="{{ doExportExcel }}" disabled="{{ xlsxBtnDisabled }}" style="margin-top: 8px; width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ pdfCursor }}; font-size: 15px; font-weight: 500; border: 1px solid {{ xlsxBtnBorder }}; background: {{ xlsxBtnBg }}; color: {{ xlsxBtnColor }};">{{ xlsxBtnLabel }}</button>
               <div style="margin-top: 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); overflow-wrap: anywhere;">{{ pdfFileName }}</div>
             </section>
 
@@ -3922,6 +3924,40 @@ class Component extends DCLogic {
       return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtNum(g), core.fmtNum(c), core.fmtNum(g + c), core.fmtValue(d.visitor_org)];
     });
   }
+  /* Same column shape and same per-module field reads as pdfRowsFor() — the only difference
+     is numeric columns come back as real JS numbers instead of comma-formatted display
+     strings ("1,234"), so Excel can actually sort/sum/filter them instead of treating every
+     cell as text. Excel is the whole reason this function exists separately from pdfRowsFor;
+     a PDF table has no such use for the distinction. */
+  xlsxRowsFor(m, recs) {
+    const core = this.core();
+    const mod = core.module(m) || {};
+    return recs.map(r => {
+      const d = r.data || {};
+      if (mod.kind === 'traffic') {
+        const ids = trafficFieldIds(mod.fieldPrefix || 'traffic');
+        const i = core.sumFields([r], ids.IN), o = core.sumFields([r], ids.OUT);
+        return [core.fmtDateShort(r.reportDate), r.submittedBy, i, o, i - o, core.fmtTime(r.submittedAt)];
+      }
+      if (m === 'golf') {
+        const cv = (id) => core.isOff(d[id]) ? 'OFF' : core.num(d[id]);
+        return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtValue(d.golf_shift), cv('golf_cart_1'), cv('golf_cart_2'), cv('golf_cart_3'), cv('golf_cart_4'), core.sumFields([r], GOLF_CARTS)];
+      }
+      if (mod.kind === 'elevator') {
+        return [core.fmtDateShort(r.reportDate), liftCode(d.elevator_lift), core.fmtValue(d.elevator_remark), core.fmtValue(d.elevator_user_type), core.fmtTime(r.submittedAt)];
+      }
+      if (mod.kind === 'checkpoint') {
+        return [core.fmtDateShort(r.reportDate), core.fmtValue(d.checkpoint_employee_name), core.fmtValue(d.checkpoint_shift), core.fmtValue(d.checkpoint_point), core.fmtValue(d.checkpoint_time), core.fmtValue(d.checkpoint_inspector_name), core.fmtTime(r.submittedAt)];
+      }
+      if (mod.kind === 'monthly') {
+        return [core.fmtDateShort(r.reportDate)]
+          .concat(this.pdfDynamicFields(m).map(f => f.type === 'number' ? core.num(d[f.fieldId]) : core.fmtValue(d[f.fieldId])))
+          .concat([core.fmtTime(r.submittedAt)]);
+      }
+      const g = core.agg([r], 'visitor_general_count', 'SUM'), c = core.agg([r], 'visitor_contractor_count', 'SUM');
+      return [core.fmtDateShort(r.reportDate), r.submittedBy, g, c, g + c, core.fmtValue(d.visitor_org)];
+    });
+  }
   pdfModuleName(m) {
     const mod = this.core().module(m);
     return mod ? mod.name + ' (' + mod.en + ')' : m;
@@ -4399,6 +4435,143 @@ class Component extends DCLogic {
       this.flash('✓ ดาวน์โหลดไฟล์ PDF สำเร็จ (' + total + ' หน้า)');
     } catch (e) {
       this.flash('ไม่สามารถสร้าง PDF ได้ กรุณาลองใหม่อีกครั้ง', 'var(--danger)');
+    } finally {
+      this.setState({ capturingPdf: false, pdfGenerating: false, pdfStep: '' });
+    }
+  };
+
+  /* same shape as pdfSafetyIssues() — same "never silently produce an empty/broken file"
+     rule — just checking for ExcelJS instead of jsPDF. */
+  xlsxSafetyIssues() {
+    const issues = [];
+    const info = this.pdfRecords();
+    if (!info.recs.length) issues.push(info.zeroMsg || 'ไม่พบข้อมูลสำหรับเงื่อนไขที่เลือก กรุณาเลือกช่วงข้อมูลใหม่');
+    if (!this.includeAnySelected()) issues.push('กรุณาเลือกเนื้อหาอย่างน้อย 1 รายการ');
+    if (!window.html2canvas || !window.ExcelJS) issues.push('ไลบรารีสร้าง Excel ยังโหลดไม่เสร็จ กรุณาลองใหม่อีกครั้ง');
+    return issues;
+  }
+  /* '#d6558a' -> 'FFD6558A' — the ARGB hex ExcelJS fill/font colors need */
+  xlsxColor(hex) {
+    const h = String(hex || '#888888').replace('#', '').toUpperCase();
+    return 'FF' + (h.length === 6 ? h : '888888');
+  }
+  doExportExcel = async () => {
+    if (this.state.pdfGenerating) return; /* shares the PDF re-entrancy guard — the print sheet can only serve one export at a time */
+    const issues = this.xlsxSafetyIssues();
+    if (issues.length) { this.flash(issues[0], 'var(--warn)'); return; }
+    const core = this.core();
+    const s = this.state;
+    const { recs } = this.pdfRecords();
+
+    this.setState({ pdfGenerating: true, capturingPdf: true, pdfStep: 'preparing' });
+    this.flash('กำลังเตรียมข้อมูลรายงาน…');
+    await new Promise(r => setTimeout(r, 60));
+    try {
+      /* same blocks + same off-screen print-sheet + same per-block html2canvas capture
+         doExport() already does — Excel only differs in what it DOES with the result: the
+         data tables come from real typed rows (xlsxRowsFor) instead of a rasterized table
+         image, so only the isSection (KPI+chart) canvases actually get used below. */
+      const blocks = this.pdfBuildBlocks(recs);
+      this.setState({ pdfStep: 'charts' });
+      await new Promise(r => setTimeout(r, 60));
+      this.setState({ pdfStep: 'layout' });
+      await new Promise(r => setTimeout(r, 120));
+
+      const nodes = Array.from(document.querySelectorAll('[data-print-block]'));
+      if (!nodes.length) throw new Error('no print blocks rendered');
+
+      this.setState({ pdfStep: 'generating' });
+      const dpr = Math.max(2, Math.min(3, window.devicePixelRatio || 2));
+      const theme = this.pdfThemeObj();
+      const canvases = [];
+      for (let i = 0; i < nodes.length; i++) {
+        canvases.push(await window.html2canvas(nodes[i], { scale: dpr, backgroundColor: theme.bg, useCORS: true }));
+      }
+
+      const wb = new window.ExcelJS.Workbook();
+      wb.creator = 'SOC Command Center';
+      wb.created = new Date();
+
+      const overview = s.pdfModule === 'overview';
+      const mods = overview ? core.MODULES.map(m => m.id) : [s.pdfModule];
+      const inc = s.pdfInclude;
+      const info = this.pdfRecords();
+
+      /* ---- สรุป ---- */
+      const sum = wb.addWorksheet('สรุป');
+      sum.columns = [{ width: 34 }, { width: 22 }, { width: 40 }];
+      sum.addRow(['SOC Command Center — Operational Report']).font = { bold: true, size: 16 };
+      sum.addRow([overview ? 'All Operations Report' : this.pdfModuleName(s.pdfModule)]);
+      sum.addRow(['ข้อมูล: ' + info.label]);
+      sum.addRow(['จำนวนรายการ: ' + core.fmtNum(recs.length)]);
+      sum.addRow(['สร้างรายงานเมื่อ: ' + core.fmtDate(core.isoDay(new Date())) + ' ' + core.pad(new Date().getHours()) + ':' + core.pad(new Date().getMinutes()) + ' น.']);
+      sum.addRow([]);
+      if (inc.kpi) {
+        mods.forEach(m => {
+          const list = recs.filter(r => r.module === m);
+          const kpis = this.pdfSummaryFor(m, list);
+          if (!kpis.length) return;
+          const titleRow = sum.addRow([this.pdfModuleName(m)]);
+          titleRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+          titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: this.xlsxColor((core.module(m) || {}).color) } };
+          const colHeader = sum.addRow(['ตัวชี้วัด', 'ค่า', 'สูตร']);
+          colHeader.font = { bold: true };
+          kpis.forEach(k => sum.addRow([k.label, k.value, k.formula]));
+          sum.addRow([]);
+        });
+      }
+
+      /* ---- กราฟ ---- */
+      if (inc.charts) {
+        const chartsSheet = wb.addWorksheet('กราฟ');
+        let rowCursor = 0;
+        blocks.forEach((blk, i) => {
+          if (!blk.isSection || !blk.hasCharts || !canvases[i]) return;
+          const canvas = canvases[i];
+          const titleRow = chartsSheet.getRow(rowCursor + 1);
+          titleRow.getCell(1).value = blk.sectionTitle;
+          titleRow.font = { bold: true, size: 13 };
+          rowCursor += 2;
+          const dispWidth = 720;
+          const dispHeight = Math.round(canvas.height * (dispWidth / canvas.width));
+          const imgId = wb.addImage({ base64: canvas.toDataURL('image/png'), extension: 'png' });
+          chartsSheet.addImage(imgId, { tl: { col: 0, row: rowCursor }, ext: { width: dispWidth, height: dispHeight } });
+          rowCursor += Math.ceil(dispHeight / 20) + 2;
+        });
+      }
+
+      /* ---- one real, unpaginated, sortable data sheet per included module ---- */
+      if (inc.history) {
+        mods.forEach(m => {
+          const list = recs.filter(r => r.module === m);
+          if (!list.length) return;
+          const columns = this.pdfColumnsFor(m);
+          const rows = this.xlsxRowsFor(m, list);
+          const sheetName = ((core.module(m) || {}).en || m).replace(/[\\/?*[\]]/g, '').slice(0, 31) || m;
+          const ws = wb.addWorksheet(sheetName);
+          ws.columns = columns.map((c, ci) => ({ header: c, key: 'c' + ci, width: Math.max(12, c.length + 4) }));
+          const headerRow = ws.getRow(1);
+          headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+          headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: this.xlsxColor((core.module(m) || {}).color) } };
+          rows.forEach(r => ws.addRow(r));
+          ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+          ws.views = [{ state: 'frozen', ySplit: 1 }];
+        });
+      }
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = this.pdfFileName().replace(/\.pdf$/, '.xlsx');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      this.flash('✓ ดาวน์โหลดไฟล์ Excel สำเร็จ');
+    } catch (e) {
+      this.flash('ไม่สามารถสร้างไฟล์ Excel ได้ กรุณาลองใหม่อีกครั้ง', 'var(--danger)');
     } finally {
       this.setState({ capturingPdf: false, pdfGenerating: false, pdfStep: '' });
     }
@@ -5049,6 +5222,14 @@ class Component extends DCLogic {
       pdfKpis: pdfKpis,
       pdfFileName: this.pdfFileName(),
       doExport: this.doExport,
+
+      /* ---- Export Excel — same selection panel/state as PDF, see doExportExcel() ---- */
+      xlsxBtnDisabled: this.xlsxSafetyIssues().length > 0 || s.pdfGenerating,
+      xlsxBtnLabel: s.pdfGenerating ? (pdfStepLabels[s.pdfStep] || 'กำลังสร้าง Excel…') : '⬇ ดาวน์โหลดไฟล์ Excel',
+      xlsxBtnBorder: !this.xlsxSafetyIssues().length ? 'var(--ok)' : 'var(--line)',
+      xlsxBtnBg: !this.xlsxSafetyIssues().length ? 'color-mix(in srgb, var(--ok) 14%, transparent)' : 'var(--panel)',
+      xlsxBtnColor: !this.xlsxSafetyIssues().length ? 'var(--ok)' : 'var(--dim)',
+      doExportExcel: this.doExportExcel,
 
       /* preview panel — recomputes on every state change, never stale */
       previewModuleLabel: pdfMod.name,
