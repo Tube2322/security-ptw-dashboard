@@ -402,7 +402,7 @@ class Component extends DCLogic {
     }
     if (mod.kind === 'elevator') {
       const lift = String(d.elevator_lift || '').split(' — ')[0];
-      return 'ลิฟท์ ' + lift + ' · ' + (d.elevator_remark || '—') + ' · ' + (d.elevator_user_type || '—');
+      return 'ลิฟต์ ' + lift + ' · ' + (d.elevator_remark || '—') + ' · ' + (d.elevator_user_type || '—');
     }
     if (mod.kind === 'checkpoint') {
       return (d.checkpoint_point || '—') + ' · ' + (d.checkpoint_shift || '—');
