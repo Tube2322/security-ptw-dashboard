@@ -2197,17 +2197,25 @@ class Component extends DCLogic {
     const carOutTotal = m.outDay + m.outNight, motoOutTotal = m.outDayMoto + m.outNightMoto;
     const last = recs[0];
     const netDelta = this.trafficDayDelta(moduleId, prefix, net);
+    /* Month-over-month sits alongside the existing day-over-day: trafficDayDelta() only speaks
+       when a single date is selected, momDelta() only speaks when a whole month is — so exactly
+       one of the two ever renders per card, the same split the overview/golf/visitors KPIs
+       already use. prevM is this same moduleId's previous calendar month, so ปริมาณรถ compares
+       against ตัวมันเองเดือนก่อน, never against the other traffic module. */
+    const prevM = this.trafficMetrics(this.prevMonthRecs(moduleId), prefix);
+    const prevCarInTotal = prevM.inDay + prevM.inNight, prevMotoInTotal = prevM.inDayMoto + prevM.inNightMoto;
+    const prevCarOutTotal = prevM.outDay + prevM.outNight, prevMotoOutTotal = prevM.outDayMoto + prevM.outNightMoto;
 
     /* "มอเตอร์ไซค์" stays the field label inside the form itself (Form Builder / entry form is
        unchanged), but the headline KPI cards use the more formal "รถจักรยานยนต์" per the
        traffic-flow UI update. รถเข้า/รถออก each keep one fixed color everywhere on this
        dashboard (chart-primary/secondary for the two vehicle types), not a new color per card. */
     const kpis = [
-      { label: 'รถจักรยานยนต์เข้า รวม', value: core.fmtNum(motoInTotal), note: 'กลางวัน ' + core.fmtNum(m.inDayMoto) + ' · กลางคืน ' + core.fmtNum(m.inNightMoto) + ' คัน', color: P.trafficMotoDay, formula: 'SUM(moto_in_day + moto_in_night)' },
-      { label: 'รถยนต์เข้า รวม', value: core.fmtNum(carInTotal), note: 'กลางวัน ' + core.fmtNum(m.inDay) + ' · กลางคืน ' + core.fmtNum(m.inNight) + ' คัน', color: P.trafficCarDay, formula: 'SUM(car_in_day + car_in_night)' },
-      { label: 'รถจักรยานยนต์ออก รวม', value: core.fmtNum(motoOutTotal), note: 'กลางวัน ' + core.fmtNum(m.outDayMoto) + ' · กลางคืน ' + core.fmtNum(m.outNightMoto) + ' คัน', color: P.trafficMotoNight, formula: 'SUM(moto_out_day + moto_out_night)' },
-      { label: 'รถยนต์ออก รวม', value: core.fmtNum(carOutTotal), note: 'กลางวัน ' + core.fmtNum(m.outDay) + ' · กลางคืน ' + core.fmtNum(m.outNight) + ' คัน', color: P.trafficCarNight, formula: 'SUM(car_out_day + car_out_night)' },
-      { label: 'ยอดสุทธิของวัน (เข้า−ออก)', value: (net >= 0 ? '+' : '') + core.fmtNum(net), delta: netDelta.text,
+      { label: 'รถจักรยานยนต์เข้า รวม', value: core.fmtNum(motoInTotal), delta: this.momDelta(motoInTotal, prevMotoInTotal), note: 'กลางวัน ' + core.fmtNum(m.inDayMoto) + ' · กลางคืน ' + core.fmtNum(m.inNightMoto) + ' คัน', color: P.trafficMotoDay, formula: 'SUM(moto_in_day + moto_in_night)' },
+      { label: 'รถยนต์เข้า รวม', value: core.fmtNum(carInTotal), delta: this.momDelta(carInTotal, prevCarInTotal), note: 'กลางวัน ' + core.fmtNum(m.inDay) + ' · กลางคืน ' + core.fmtNum(m.inNight) + ' คัน', color: P.trafficCarDay, formula: 'SUM(car_in_day + car_in_night)' },
+      { label: 'รถจักรยานยนต์ออก รวม', value: core.fmtNum(motoOutTotal), delta: this.momDelta(motoOutTotal, prevMotoOutTotal), note: 'กลางวัน ' + core.fmtNum(m.outDayMoto) + ' · กลางคืน ' + core.fmtNum(m.outNightMoto) + ' คัน', color: P.trafficMotoNight, formula: 'SUM(moto_out_day + moto_out_night)' },
+      { label: 'รถยนต์ออก รวม', value: core.fmtNum(carOutTotal), delta: this.momDelta(carOutTotal, prevCarOutTotal), note: 'กลางวัน ' + core.fmtNum(m.outDay) + ' · กลางคืน ' + core.fmtNum(m.outNight) + ' คัน', color: P.trafficCarNight, formula: 'SUM(car_out_day + car_out_night)' },
+      { label: this.state.date ? 'ยอดสุทธิของวัน (เข้า−ออก)' : 'ยอดสุทธิของเดือน (เข้า−ออก)', value: (net >= 0 ? '+' : '') + core.fmtNum(net), delta: netDelta.text || this.momDelta(net, prevM.net),
         note: netDelta.note || (net >= 0 ? 'รถเข้ามากกว่ารถออก' : 'รถออกมากกว่ารถเข้า'),
         color: net >= 0 ? 'var(--chart-positive)' : 'var(--chart-warning)', formula: 'SUM(in) − SUM(out)' },
       this.trafficBalanceKpi(moduleId, prefix)
@@ -2318,12 +2326,13 @@ class Component extends DCLogic {
     const { total, dayRounds, nightRounds, perCart, activeCount } = gm;
     const offCount = gm.offCartCount;
     const last = recs[0];
-    const prevTotal = this.golfMetrics(this.prevMonthRecs('golf')).total;
+    const prevGm = this.golfMetrics(this.prevMonthRecs('golf'));
+    const prevTotal = prevGm.total;
 
     const kpis = [
       { label: 'จำนวนรอบรวม', value: core.fmtNum(total), delta: this.momDelta(total, prevTotal), note: 'OFF ไม่ถูกนับเป็นตัวเลข', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
-      { label: 'รอบกะกลางวัน', value: core.fmtNum(dayRounds), note: 'จาก golf_shift', color: '#5fd3a6', formula: 'SUM where shift=day' },
-      { label: 'รอบกะกลางคืน', value: core.fmtNum(nightRounds), note: 'จาก golf_shift', color: '#2f8f6c', formula: 'SUM where shift=night' },
+      { label: 'รอบกะกลางวัน', value: core.fmtNum(dayRounds), delta: this.momDelta(dayRounds, prevGm.dayRounds), note: 'จาก golf_shift', color: '#5fd3a6', formula: 'SUM where shift=day' },
+      { label: 'รอบกะกลางคืน', value: core.fmtNum(nightRounds), delta: this.momDelta(nightRounds, prevGm.nightRounds), note: 'จาก golf_shift', color: '#2f8f6c', formula: 'SUM where shift=night' },
       { label: 'รถที่ให้บริการ', value: core.fmtNum(activeCount) + ' / 4', note: 'มีรอบมากกว่า 0', color: 'var(--ok)', formula: 'COUNT(cart>0)' },
       { label: 'รถสถานะ OFF', value: core.fmtNum(offCount), note: offCount ? 'ไม่ให้บริการในช่วงนี้' : 'ให้บริการครบทุกคัน', color: offCount ? 'var(--warn)' : 'var(--muted)', formula: 'COUNT(value=OFF)' },
       { label: 'เฉลี่ยรอบ/คัน', value: core.fmtNum(activeCount ? total / activeCount : 0), note: 'เฉพาะรถที่ให้บริการ', color: 'var(--muted)', formula: 'AVERAGE(active carts)' }
@@ -2399,11 +2408,12 @@ class Component extends DCLogic {
     const P = this.seriesPalette();
     const { gen, con, total, depts } = vm;
     const last = recs[0];
-    const prevTotal = this.visitorsMetrics(this.prevMonthRecs('visitors')).total;
+    const prevVm = this.visitorsMetrics(this.prevMonthRecs('visitors'));
+    const prevTotal = prevVm.total;
 
     const kpis = [
-      { label: 'Visitor ทั่วไป', value: core.fmtNum(gen), note: total ? Math.round(gen / total * 100) + '% ของทั้งหมด' : '—', color: core.COLORS.visitors, formula: 'SUM(visitor_general_count)' },
-      { label: 'Visitor ผู้รับเหมา', value: core.fmtNum(con), note: total ? Math.round(con / total * 100) + '% ของทั้งหมด' : '—', color: '#d377c4', formula: 'SUM(visitor_contractor_count)' },
+      { label: 'Visitor ทั่วไป', value: core.fmtNum(gen), delta: this.momDelta(gen, prevVm.gen), note: total ? Math.round(gen / total * 100) + '% ของทั้งหมด' : '—', color: core.COLORS.visitors, formula: 'SUM(visitor_general_count)' },
+      { label: 'Visitor ผู้รับเหมา', value: core.fmtNum(con), delta: this.momDelta(con, prevVm.con), note: total ? Math.round(con / total * 100) + '% ของทั้งหมด' : '—', color: '#d377c4', formula: 'SUM(visitor_contractor_count)' },
       { label: 'รวมผู้มาเยือน', value: core.fmtNum(total), delta: this.momDelta(total, prevTotal), note: 'ทั่วไป + ผู้รับเหมา', color: 'var(--text)', formula: 'SUM(general) + SUM(contractor)' },
       { label: 'เฉลี่ยต่อวัน', value: core.fmtNum(recs.length ? total / recs.length : 0), note: core.fmtNum(recs.length) + ' รายการบันทึก', color: 'var(--muted)', formula: 'AVERAGE(per record)' },
       { label: 'สูงสุดต่อรายการ', value: core.fmtNum(core.agg(recs, 'visitor_general_count', 'MAX')), note: 'Visitor ทั่วไป', color: 'var(--muted)', formula: 'MAX(visitor_general_count)' }
