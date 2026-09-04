@@ -1131,41 +1131,6 @@
             </section>
           </div>
 
-            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
-            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
-              <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">ยอดตั้งต้นรถ (Opening Balance)</h2>
-              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px; overflow-wrap: anywhere;">ใช้คำนวณยอดรถคงเหลือสะสมบนแดชบอร์ด รถเข้า-ออก — ถ้าไม่ตั้งค่านี้ ระบบจะแสดงเฉพาะยอดสุทธิรายวันเท่านั้น เพราะไม่มีฐานให้สะสมยอดต่อ</div>
-              <div style="display: flex; flex-direction: column; gap: 14px;">
-                <sc-for list="{{ obRows }}" as="ob" hint-placeholder-count="2">
-                  <div style="border: 1px solid var(--line); border-radius: 12px; padding: 13px; display: flex; flex-direction: column; gap: 10px; background: var(--bg-2);">
-                    <div style="font-size: 13.5px; font-weight: 500;">{{ ob.name }}</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 10px;">
-                      <label style="display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-                        <span style="font-size: 11px; color: var(--dim);">วันที่ตั้งต้น</span>
-                        <input type="date" value="{{ ob.asOfDate }}" onChange="{{ ob.setDate }}" style="min-height: 42px; width: 100%; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13px;">
-                      </label>
-                      <label style="display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-                        <span style="font-size: 11px; color: var(--dim);">รถยนต์ (คัน)</span>
-                        <input type="number" min="0" value="{{ ob.car }}" onChange="{{ ob.setCar }}" style="min-height: 42px; width: 100%; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13px;">
-                      </label>
-                      <label style="display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-                        <span style="font-size: 11px; color: var(--dim);">รถจักรยานยนต์ (คัน)</span>
-                        <input type="number" min="0" value="{{ ob.moto }}" onChange="{{ ob.setMoto }}" style="min-height: 42px; width: 100%; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13px;">
-                      </label>
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                      <button onClick="{{ ob.save }}" style="min-height: 40px; padding: 0 15px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">บันทึกยอดตั้งต้น</button>
-                      <sc-if value="{{ ob.hasSaved }}" hint-placeholder-val="{{ false }}">
-                        <button onClick="{{ ob.clear }}" style="min-height: 40px; padding: 0 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12px;" style-hover="background: var(--panel-2); color: var(--text);">ล้างค่า</button>
-                        <span style="font-size: 11.5px; color: var(--dim);">ตั้งไว้แล้ว: {{ ob.savedSummary }}</span>
-                      </sc-if>
-                    </div>
-                  </div>
-                </sc-for>
-              </div>
-            </section>
-            </sc-if>
-
             <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
               <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: space-between; margin-bottom: 4px;">
                 <div style="min-width: 0;">
@@ -1505,7 +1470,6 @@ class Component extends DCLogic {
     capturingPdf: false, pdfGenerating: false, pdfStep: '',
     theme: 'system',
     portalDraft: null, qrTick: 0, regenConfirmOpen: false, regenConfirmText: '', disablePortalConfirmOpen: false,
-    obDraft: {},
     toast: '', toastColor: 'var(--ok)',
     authTick: 0, loginEmail: '', loginPassword: '', loginError: '', loginBusy: false,
     authMode: 'login',
@@ -3589,62 +3553,22 @@ class Component extends DCLogic {
     this.setState({ portalDraft: null, qrTick: this.state.qrTick + 1 });
     this.flash('✓ บันทึกการตั้งค่า QR User Entry Portal สำเร็จ');
   };
-  /* ---------- traffic opening balance (Part 8 — cumulative balance baseline) ----------
-     Kept separate from portalDraft()/savePortal() above: this is its own small form with its
-     own Save, not entangled with the unrelated QR-portal name/slug save flow. Stored under
-     portal_settings.opening_balances (module -> {asOfDate, car, moto}) since it is a genuinely
-     new concept with nowhere existing to reuse. */
-  obValue(moduleId) {
-    const core = this.core();
-    const saved = (core.getPortal().openingBalances || {})[moduleId] || {};
-    const draft = this.state.obDraft[moduleId];
-    return draft || { asOfDate: saved.asOfDate || '', car: saved.car != null ? String(saved.car) : '', moto: saved.moto != null ? String(saved.moto) : '' };
-  }
-  setObField(moduleId, field, value) {
-    const next = Object.assign({}, this.obValue(moduleId));
-    next[field] = value;
-    this.setState({ obDraft: Object.assign({}, this.state.obDraft, { [moduleId]: next }) });
-  }
-  saveOpeningBalance(moduleId) {
-    const core = this.core();
-    const v = this.obValue(moduleId);
-    const car = Number(v.car), moto = Number(v.moto);
-    if (!v.asOfDate) { this.flash('กรุณาเลือกวันที่ตั้งต้น', 'var(--danger)'); return; }
-    if (!Number.isFinite(car) || car < 0 || !Number.isFinite(moto) || moto < 0) { this.flash('จำนวนรถต้องเป็นตัวเลขไม่ติดลบ', 'var(--danger)'); return; }
-    const next = Object.assign({}, core.getPortal().openingBalances, { [moduleId]: { asOfDate: v.asOfDate, car, moto } });
-    core.setPortal({ openingBalances: next });
-    const d = Object.assign({}, this.state.obDraft); delete d[moduleId];
-    this.setState({ obDraft: d });
-    this.flash('✓ บันทึกยอดตั้งต้นแล้ว');
-  }
-  clearOpeningBalance(moduleId) {
-    const core = this.core();
-    const next = Object.assign({}, core.getPortal().openingBalances);
-    delete next[moduleId];
-    core.setPortal({ openingBalances: next });
-    const d = Object.assign({}, this.state.obDraft); delete d[moduleId];
-    this.setState({ obDraft: d });
-    this.flash('ล้างยอดตั้งต้นแล้ว — ยอดคงเหลือสะสมจะกลับไปแสดง "ยังไม่สามารถคำนวณได้"');
-  }
-  /* Closing balance as of a specific date = opening balance + Σ(in − out) for every record
-     strictly after the opening as-of-date, up to and including `viewDate`. Never guesses a
-     balance before the as-of-date — that range genuinely has no baseline. */
+  /* ---------- traffic cumulative balance (self-baselining) ----------
+     No admin-configured starting number: the balance as of any date is just Σ(in − out) over
+     every record from the module's own first-ever entry through that date. The first date that
+     has any data is implicitly its own baseline (nothing before it to sum), which is exactly
+     the "no comparison on day one" behavior asked for — no separate opening-balance config to
+     keep in sync with reality. */
   trafficClosingBalanceAsOf(moduleId, prefix, viewDate) {
     const core = this.core();
-    const ob = (core.getPortal().openingBalances || {})[moduleId];
-    if (!ob || !ob.asOfDate) return { available: false, reason: 'no_opening' };
     if (!viewDate) return { available: false, reason: 'no_date_selected' };
-    if (viewDate < ob.asOfDate) return { available: false, reason: 'before_opening' };
-    if (viewDate === ob.asOfDate) return { available: true, car: ob.car || 0, moto: ob.moto || 0, total: (ob.car || 0) + (ob.moto || 0) };
-    const d = new Date(ob.asOfDate + 'T00:00:00');
-    d.setDate(d.getDate() + 1);
-    const from = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
-    core.ensureRange(from, viewDate);
-    const recs = core.query({ module: moduleId, from: from, to: viewDate });
+    core.ensureAll();
+    const recs = core.query({ module: moduleId, to: viewDate });
+    if (!recs.length) return { available: false, reason: 'no_data' };
     const m = this.trafficMetrics(recs, prefix);
     const carNet = (m.inDay + m.inNight) - (m.outDay + m.outNight);
     const motoNet = (m.inDayMoto + m.inNightMoto) - (m.outDayMoto + m.outNightMoto);
-    return { available: true, car: (ob.car || 0) + carNet, moto: (ob.moto || 0) + motoNet, total: (ob.car || 0) + (ob.moto || 0) + carNet + motoNet };
+    return { available: true, car: carNet, moto: motoNet, total: carNet + motoNet };
   }
   /* KPI-ready view: today's closing balance plus a safe day-over-day delta (same no-data /
      zero-base handling as trafficDayDelta()). Only meaningful in single-date view. */
@@ -3652,10 +3576,9 @@ class Component extends DCLogic {
     const core = this.core();
     const today = this.trafficClosingBalanceAsOf(moduleId, prefix, this.state.date);
     if (!today.available) {
-      const note = today.reason === 'no_opening' ? 'ยังไม่สามารถคำนวณยอดคงเหลือสะสมได้ เนื่องจากไม่มีข้อมูลยอดตั้งต้นก่อนวันแรก'
-        : today.reason === 'no_date_selected' ? 'เลือกวันที่ (Daily History) เพื่อดูยอดคงเหลือสะสม ณ วันนั้น'
-        : 'วันที่เลือกอยู่ก่อนวันเริ่มต้นยอดตั้งต้น';
-      return { label: 'ยอดคงเหลือสะสม', value: '—', note, color: 'var(--chart-neutral)', formula: 'opening balance + Σ(in − out)' };
+      const note = today.reason === 'no_date_selected' ? 'เลือกวันที่ (Daily History) เพื่อดูยอดคงเหลือสะสม ณ วันนั้น'
+        : 'ยังไม่มีข้อมูลถึงวันที่เลือก';
+      return { label: 'ยอดคงเหลือสะสม', value: '—', note, color: 'var(--chart-neutral)', formula: 'Σ(in − out) สะสมจากข้อมูลทั้งหมด' };
     }
     const d = new Date(this.state.date + 'T00:00:00'); d.setDate(d.getDate() - 1);
     const y = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
@@ -3674,17 +3597,17 @@ class Component extends DCLogic {
         delta = arrow + ' ' + (pct >= 0 ? '+' : '') + pct + '% · ' + diffText;
         note = diffText + ' เทียบกับเมื่อวาน · ' + baseNote;
       }
-    } else if (yest.reason !== 'before_opening') {
-      note = 'ไม่มีข้อมูลของวันก่อนหน้าสำหรับเปรียบเทียบ · ' + baseNote;
+    } else {
+      note = 'วันแรกที่มีข้อมูล ยังไม่มีวันก่อนหน้าให้เปรียบเทียบ · ' + baseNote;
     }
     const modColor = (core.module(moduleId) || {}).color || '#d6558a';
-    return { label: 'ยอดคงเหลือสะสม', value: core.fmtNum(today.total), delta, note, color: modColor, formula: 'opening balance + Σ(in − out)' };
+    return { label: 'ยอดคงเหลือสะสม', value: core.fmtNum(today.total), delta, note, color: modColor, formula: 'Σ(in − out) สะสมจากข้อมูลทั้งหมด' };
   }
-  /* Shift-level breakdown of the cumulative balance: opening (= previous day's closing) →
-     day-shift closing → night-shift closing (= end of day). Reuses
-     trafficClosingBalanceAsOf() for "yesterday's closing" so the two never disagree — it is
-     the same lump SUM(in−out) math, just evaluated one day earlier, which is mathematically
-     identical to carrying it forward day-by-day since SUM is associative.
+  /* Shift-level breakdown of the cumulative balance: opening (= previous day's closing, or 0 if
+     this is the first day any data exists) → day-shift closing → night-shift closing (= end of
+     day). Reuses trafficClosingBalanceAsOf() for "yesterday's closing" so the two never
+     disagree — it is the same lump SUM(in−out) math, just evaluated one day earlier, which is
+     mathematically identical to carrying it forward day-by-day since SUM is associative.
      Known model limit, reported rather than faked: this form captures both shifts' numbers
      in one submission (no separate day-entry vs night-entry, no per-shift submission flag),
      so "night shift not entered yet" is not distinguishable from "night shift entered as
@@ -3693,25 +3616,17 @@ class Component extends DCLogic {
      on top without guessing. */
   trafficShiftBalance(moduleId, prefix) {
     const core = this.core();
-    const ob = (core.getPortal().openingBalances || {})[moduleId];
     const viewDate = this.state.date;
-    if (!ob || !ob.asOfDate) return { available: false, reason: 'no_opening' };
     if (!viewDate) return { available: false, reason: 'no_date_selected' };
-    if (viewDate < ob.asOfDate) return { available: false, reason: 'before_opening' };
 
-    let opening;
-    if (viewDate === ob.asOfDate) {
-      opening = { car: ob.car || 0, moto: ob.moto || 0 };
-    } else {
-      const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() - 1);
-      const prevDate = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
-      const prev = this.trafficClosingBalanceAsOf(moduleId, prefix, prevDate);
-      if (!prev.available) return { available: false, reason: 'gap' };
-      opening = { car: prev.car, moto: prev.moto };
-    }
+    const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() - 1);
+    const prevDate = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
+    const prev = this.trafficClosingBalanceAsOf(moduleId, prefix, prevDate);
+    const opening = prev.available ? { car: prev.car, moto: prev.moto } : { car: 0, moto: 0 };
 
     core.ensureRange(viewDate, viewDate);
     const recs = core.query({ module: moduleId, date: viewDate });
+    if (!recs.length) return { available: false, reason: 'no_data' };
     const m = this.trafficMetrics(recs, prefix);
 
     const dayClosing = { car: opening.car + (m.inDay - m.outDay), moto: opening.moto + (m.inDayMoto - m.outDayMoto) };
@@ -4558,23 +4473,6 @@ class Component extends DCLogic {
       confirmLabel: s.confirmLabel,
       cancelConfirm: this.cancelConfirm,
       runConfirm: this.runConfirm,
-      /* traffic opening balance — one row per module that has a day/night in-out traffic form */
-      obRows: ['traffic', 'traffic_tt'].map(mid => {
-        const mod = core.module(mid) || {};
-        const v = this.obValue(mid);
-        const saved = (core.getPortal().openingBalances || {})[mid];
-        return {
-          id: mid, name: mod.name || mid,
-          asOfDate: v.asOfDate, car: v.car, moto: v.moto,
-          setDate: (e) => this.setObField(mid, 'asOfDate', e.target.value),
-          setCar: (e) => this.setObField(mid, 'car', e.target.value),
-          setMoto: (e) => this.setObField(mid, 'moto', e.target.value),
-          save: () => this.saveOpeningBalance(mid),
-          clear: () => this.clearOpeningBalance(mid),
-          hasSaved: !!(saved && saved.asOfDate),
-          savedSummary: saved && saved.asOfDate ? core.fmtDate(saved.asOfDate) + ' · รถยนต์ ' + core.fmtNum(saved.car || 0) + ' · มอเตอร์ไซค์ ' + core.fmtNum(saved.moto || 0) : ''
-        };
-      }),
       /* QR user entry portal */
       portalStatusLabel: this.portalDraft().enabled ? 'Portal Active' : 'Portal Disabled',
       portalStatusColor: this.portalDraft().enabled ? 'var(--ok)' : 'var(--dim)',
