@@ -4,8 +4,8 @@
     {
       "name": "soc-prototype",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "Prototype integration complete"],
-      "port": 4173
+      "runtimeArgs": ["-c", "import os,http.server; os.chdir('Prototype integration complete'); http.server.test(HandlerClass=http.server.SimpleHTTPRequestHandler, port=int(os.environ.get('PORT','4173')))"],
+      "autoPort": true
     }
   ]
 }
