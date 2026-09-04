@@ -267,10 +267,31 @@
         </div>
         <sc-if value="{{ showDateChip }}" hint-placeholder-val="{{ true }}">
           <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-            <button onClick="{{ toggleMonthView }}" title="{{ dateChipTitle }}" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 13px; border-radius: 11px; cursor: pointer; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px; color: var(--accent);" style-hover="background: rgba(70,200,216,0.24);">
-              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.6px;">DATE</span>
-              <span style="color: var(--text); font-weight: 500;">{{ dateLabel }}</span>
-            </button>
+            <div style="display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 2px;">
+              <button onClick="{{ setDayView }}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12.5px; font-weight: 600; background: {{ dayBtnBg }}; color: {{ dayBtnFg }};">📅 รายวัน</button>
+              <button onClick="{{ setMonthView }}" style="min-height: 34px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12.5px; font-weight: 600; background: {{ monthBtnBg }}; color: {{ monthBtnFg }};">🗓️ รายเดือน</button>
+            </div>
+
+            <sc-if value="{{ isDayView }}" hint-placeholder-val="{{ false }}">
+              <div title="{{ dateChipTitle }}" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 13px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px; color: var(--accent);">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.6px;">DATE</span>
+                <span style="color: var(--text); font-weight: 500;">{{ dateLabel }}</span>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ isMonthView }}" hint-placeholder-val="{{ true }}">
+              <select value="{{ dashYear }}" onChange="{{ setDashYear }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                <sc-for list="{{ dashYearOptions }}" as="yo" hint-placeholder-count="3">
+                  <option value="{{ yo.value }}">{{ yo.label }}</option>
+                </sc-for>
+              </select>
+              <select value="{{ dashMonth }}" onChange="{{ setDashMonth }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                <sc-for list="{{ dashMonthOptions }}" as="mo" hint-placeholder-count="12">
+                  <option value="{{ mo.value }}">{{ mo.label }}</option>
+                </sc-for>
+              </select>
+            </sc-if>
+
             <button onClick="{{ goPdf }}" style="min-height: 40px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2); color: var(--text);">Export PDF</button>
           </div>
         </sc-if>
@@ -3980,6 +4001,12 @@ class Component extends DCLogic {
     const historyModule = moduleId || 'traffic';
     const historyScope = pageGroup ? core.groupModules(pageGroup.id).map(m => m.id) : [historyModule];
     const months = core.monthsIndex(historyScope, 12);
+    /* header year/month picker — unlike the 12-month-window `months` list above (a quick-pick
+       sidebar), this reads every month that has ever had a record for this scope, so a module
+       with 2+ years of history stays fully reachable instead of falling off a fixed window. */
+    const availMonths = core.availableMonths(historyScope);
+    const availYears = Array.from(new Set(availMonths.map(m => m.year))).sort((a, b) => b - a);
+    const monthsInSelYear = availMonths.filter(m => m.year === s.year);
     const activeMonth = months.filter(m => m.year === s.year && m.month === s.month)[0];
     const dayRecords = historyScope.reduce(
       (acc, id) => acc.concat(core.query({ module: id, year: s.year, month: s.month })), []);
@@ -4167,6 +4194,29 @@ class Component extends DCLogic {
         else if (this._lastDate) this.setState({ date: this._lastDate });
         else this.pickLatestDate();
       },
+      /* วัน/เดือน segmented toggle — "day view" already means s.date is set, "month view" means
+         it's cleared, exactly the split toggleMonthView() already flips, so the two buttons just
+         guard-call it rather than introducing a second source of truth for which mode is active. */
+      isDayView: !!s.date,
+      isMonthView: !s.date,
+      dayBtnBg: s.date ? 'var(--panel)' : 'transparent',
+      dayBtnFg: s.date ? 'var(--text)' : 'var(--muted)',
+      monthBtnBg: !s.date ? 'var(--panel)' : 'transparent',
+      monthBtnFg: !s.date ? 'var(--text)' : 'var(--muted)',
+      setDayView: () => { if (!s.date) this.toggleMonthView(); },
+      setMonthView: () => { if (s.date) this.toggleMonthView(); },
+      dashYear: s.year,
+      dashMonth: s.month,
+      /* falls back to the current year/month when the scope genuinely has zero history yet, so
+         the selects never render with no options instead of just showing "ยังไม่มีรายการ" below */
+      dashYearOptions: (availYears.length ? availYears : [s.year]).map(y => ({ value: y, label: String(y + 543) })),
+      dashMonthOptions: (monthsInSelYear.length ? monthsInSelYear.map(m => m.month) : [s.month]).map(m => ({ value: m, label: core.thaiMonths[m] })),
+      setDashYear: (e) => {
+        const y = parseInt(e.target.value, 10);
+        const inYear = availMonths.filter(m => m.year === y);
+        this.setState({ year: y, month: inYear.length ? inYear[0].month : s.month, date: null });
+      },
+      setDashMonth: (e) => this.setState({ month: parseInt(e.target.value, 10), date: null }),
       goPdf: () => this.setState({ page: 'pdf', pdfModule: moduleId || 'traffic', pdfPeriod: s.date ? 'day' : 'month', pdfPeriodDay: s.date, pdfPeriodYear: s.year, pdfPeriodMonth: s.month }),
 
       loading: s.loading,
