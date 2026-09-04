@@ -137,6 +137,29 @@ const FORMS = {
       { id: 'visitor_contractor_time_out', type: 'text' },
       { id: 'visitor_contractor_note', type: 'text' }
     ]
+  },
+  /* Golf cart — their form is the only one of the six that opens on a welcome screen instead of
+     the questions (handled below), and the only one whose condition questions are multi-select,
+     so most of these are `checkbox`. It also asks for no date at all, which is why mi_golf_date
+     isn't in this list. soc-core.js's monthly_inspection_golf_cart form was rewritten from the
+     generic total/pass/fail template to match these 13 questions one-for-one. */
+  monthly_inspection_golf_cart: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UNTRFVTZVRzdORUhaTjNEQlIwQkZRVjVMVi4u',
+    fields: [
+      { id: 'mi_golf_name', type: 'text' },
+      { id: 'mi_golf_cart', type: 'radio' },
+      { id: 'mi_golf_body', type: 'checkbox' },
+      { id: 'mi_golf_steering', type: 'checkbox' },
+      { id: 'mi_golf_horn', type: 'checkbox' },
+      { id: 'mi_golf_seat', type: 'checkbox' },
+      { id: 'mi_golf_tire', type: 'checkbox' },
+      { id: 'mi_golf_cleanliness', type: 'checkbox' },
+      { id: 'mi_golf_battery', type: 'checkbox' },
+      { id: 'mi_golf_suspension', type: 'checkbox' },
+      { id: 'mi_golf_canvas', type: 'checkbox' },
+      { id: 'mi_golf_status', type: 'checkbox' },
+      { id: 'mi_golf_note', type: 'text' }
+    ]
   }
 };
 
@@ -146,7 +169,70 @@ function isoToThaiSlashDate(iso) {
   return `${parseInt(m[3], 10)}/${parseInt(m[2], 10)}/${m[1]}`;
 }
 
+/* textContent, not innerText: innerText is the *rendered* text and depends on layout, so a
+   choice that is present but not laid out the way headless Chromium expects can come back as
+   an empty string and silently fail to match (that is what made every CCTV radio miss while
+   the identical strings compared equal in a real browser). textContent is layout-independent.
+   Internal whitespace is collapsed on both sides so a stray newline — or the stray double
+   space their golf-cart form has inside one option — can't break an otherwise exact match. */
+const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().normalize('NFC');
+
+async function choiceLabels(item) {
+  const choices = item.locator('[data-automation-id="choiceItem"]');
+  const count = await choices.count();
+  const labels = [];
+  for (let i = 0; i < count; i++) labels.push(norm(await choices.nth(i).textContent()));
+  return { choices, count, labels };
+}
+
+/* An allowCustom value that matches none of the fixed options goes into the form's own "อื่นๆ"
+   (Other) row — which their form only offers when it means to accept free text there. Detected
+   structurally, never by aria-label: that label is localized to the *browser's* UI language, so
+   it reads "คำตอบอื่น" in a Thai browser (where this was verified by hand) but "Other answer" in
+   the headless en-US one this actually runs in, which is why matching on it found nothing in
+   production. Microsoft Forms renders Other in one of two layouts and both are identifiable by
+   shape: an extra input sitting outside any choiceItem (always last in DOM order), or an
+   ordinary last choiceItem that additionally holds the free-text box. A free-text input inside a
+   choice question only ever belongs to Other, so its presence is the tell that works for both.
+   Returns false when the question has no Other row at all. */
+async function fillOther(item, selector, choices, count, text) {
+  const otherInput = item.locator('input[data-automation-id="textInput"]').first();
+  if (await otherInput.count() === 0) return false;
+  const inputs = item.locator(selector);
+  const inputCount = await inputs.count();
+  if (inputCount > count) await inputs.nth(inputCount - 1).check();
+  else if (count > 0) await choices.last().click();
+  await otherInput.fill(text);
+  return true;
+}
+
 async function fillQuestion(item, field, rawValue) {
+  /* checkbox — their multi-select questions. Our own form stores these as an array of the
+     picked option texts, with any value that isn't one of the fixed options being the "อื่นๆ"
+     free text (see the User Entry Portal's choice renderer), so the same split applies here:
+     every value that matches a choice gets checked, everything left over goes into Other. */
+  if (field.type === 'checkbox') {
+    const values = (Array.isArray(rawValue) ? rawValue : String(rawValue == null ? '' : rawValue).split(','))
+      .map((v) => String(v).trim()).filter(Boolean);
+    if (!values.length) return;
+    const { choices, count, labels } = await choiceLabels(item);
+    const custom = [];
+    for (const v of values) {
+      const idx = labels.indexOf(norm(v));
+      /* check(), not click(): a checkbox this record already ticked must not be toggled back
+         off if the same value somehow appears twice. */
+      if (idx >= 0) await choices.nth(idx).locator('input[type="checkbox"]').check();
+      else custom.push(v);
+    }
+    if (custom.length && !(await fillOther(item, 'input[type="checkbox"]', choices, count, custom.join(', ')))) {
+      throw new Error(
+        `no matching choice for ${field.id}: sent ${custom.map((s) => `"${s}"`).join(', ')}, form offers ` +
+        (labels.length ? labels.map((s) => `"${s}"`).join(', ') : '(no choices found)')
+      );
+    }
+    return;
+  }
+
   const value = rawValue == null ? '' : String(rawValue).trim();
   if (!value) return; // optional/empty field (e.g. หมายเหตุ) — leave blank on the target form too
 
@@ -167,42 +253,11 @@ async function fillQuestion(item, field, rawValue) {
   }
 
   // radio — match the choice whose label equals our stored value.
-  // textContent, not innerText: innerText is the *rendered* text and depends on layout, so a
-  // choice that is present but not laid out the way headless Chromium expects can come back as
-  // an empty string and silently fail to match (that is what made every CCTV radio miss while
-  // the identical strings compared equal in a real browser). textContent is layout-independent.
-  // Internal whitespace is collapsed on both sides so a stray newline in their markup can't
-  // break an otherwise exact match either.
-  const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().normalize('NFC');
   const target = norm(value);
-  const choices = item.locator('[data-automation-id="choiceItem"]');
-  const count = await choices.count();
-  const seen = [];
-  for (let i = 0; i < count; i++) {
-    const c = choices.nth(i);
-    const label = norm(await c.textContent());
-    seen.push(label);
-    if (label === target) { await c.click(); return; }
-  }
-  /* An allowCustom value that matches none of the fixed options goes into the form's own
-     "อื่นๆ" (Other) row — which their form only offers when it means to accept free text there.
-     Detected structurally, never by aria-label: that label is localized to the *browser's* UI
-     language, so it reads "คำตอบอื่น" in a Thai browser (where this was verified by hand) but
-     "Other answer" in the headless en-US one this actually runs in, which is why matching on it
-     found nothing in production. Microsoft Forms renders Other in one of two layouts and both
-     are identifiable by shape: an extra radio sitting outside any choiceItem (always last in
-     DOM order), or an ordinary last choiceItem that additionally holds the free-text box.
-     A free-text input inside a radio question only ever belongs to Other, so its presence is
-     the tell that works for both. */
-  const otherInput = item.locator('input[data-automation-id="textInput"]').first();
-  if (await otherInput.count() > 0) {
-    const radios = item.locator('input[type="radio"]');
-    const radioCount = await radios.count();
-    if (radioCount > count) await radios.nth(radioCount - 1).click();
-    else if (count > 0) await choices.last().click();
-    await otherInput.fill(value);
-    return;
-  }
+  const { choices, count, labels } = await choiceLabels(item);
+  const idx = labels.indexOf(target);
+  if (idx >= 0) { await choices.nth(idx).click(); return; }
+  if (await fillOther(item, 'input[type="radio"]', choices, count, value)) return;
   /* No exact match and no "other" row to put the value in. The old code guessed here — it
      clicked whatever the last choice happened to be and tried to type into a text box next to
      it — which on a form with no "other" option (CCTV) just hung for 30s on a locator that
@@ -211,7 +266,7 @@ async function fillQuestion(item, field, rawValue) {
      choices means our form and theirs have drifted, and that needs a human, not a guess. */
   throw new Error(
     `no matching choice for ${field.id}: sent "${value}", form offers ` +
-    (seen.length ? seen.map(s => `"${s}"`).join(', ') : '(no choices found)')
+    (labels.length ? labels.map((s) => `"${s}"`).join(', ') : '(no choices found)')
   );
 }
 
@@ -265,6 +320,22 @@ module.exports = async (req, res) => {
     await page.goto(form.url, { waitUntil: 'networkidle', timeout: 20000 });
 
     const items = page.locator('[data-automation-id="questionItem"]');
+    /* Some of these forms (the golf-cart one) are configured with a welcome screen, so the
+       response page loads with zero questions on it until a "start" button is pressed. The
+       button carries no data-automation-id and its label is localized, so it's identified by
+       elimination: the only visible button on that screen other than the Microsoft Forms brand
+       link in the footer (a product name, not localized text). */
+    if (await items.count() === 0) {
+      const buttons = page.locator('button:visible');
+      const total = await buttons.count();
+      for (let i = 0; i < total; i++) {
+        const text = norm(await buttons.nth(i).textContent());
+        if (!text || text.includes('Microsoft Forms')) continue;
+        await buttons.nth(i).click();
+        break;
+      }
+      await items.first().waitFor({ timeout: 10000 });
+    }
     const count = await items.count();
     if (count !== form.fields.length) {
       throw new Error(`question count mismatch for ${moduleId}: expected ${form.fields.length}, form now has ${count} — it was likely edited, mapping needs updating`);
