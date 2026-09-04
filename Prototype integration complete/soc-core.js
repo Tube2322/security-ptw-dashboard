@@ -25,10 +25,9 @@
   var AUTH_EVT = 'soc:auth';
   var PROFILE_EVT = 'soc:profile';
 
-  /* traffic's hue matches seriesPalette().trafficCarDay in the Admin Console — a flat green,
-     not the app's cyan-leaning --accent token, since "no blue" was later tightened to
-     "no blue or light-blue/cyan" specifically for this module. */
-  var PALETTE = { traffic: '#2f9e6e', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
+  /* traffic's hue matches seriesPalette().trafficCarDay in the Admin Console — pink, per the
+     traffic-flow color update (not the app's cyan-leaning --accent token, and not blue). */
+  var PALETTE = { traffic: '#d6558a', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
 
   /* A group is a *folder* of modules, not a module itself — it owns no fields and no records.
      Its only job is that both the Admin nav and the Entry Portal require one tap into the
