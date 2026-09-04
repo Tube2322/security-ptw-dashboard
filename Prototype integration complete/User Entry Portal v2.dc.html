@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js"></script>
+<script src="./soc-core.js?v=20260904"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -31,6 +31,16 @@
   @keyframes epPulse { 0%,100% { opacity: 0.3 } 50% { opacity: 0.75 } }
   @keyframes epPop { 0% { transform: scale(0.7); opacity: 0 } 60% { transform: scale(1.06) } 100% { transform: scale(1); opacity: 1 } }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  /* choice list (radio/checkbox options): mobile stays a plain wrapped row (already reads
+     top-to-bottom since it's one per line); PC gets CSS multi-column so a long list like floor
+     numbers reads top-to-bottom within a column, then continues in the next column, instead of
+     left-to-right across the row. */
+  .soc-choice-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .soc-choice-grid > label { display: flex; flex: 1 1 min(210px, 100%); }
+  @media (min-width: 720px) {
+    .soc-choice-grid { display: block; column-width: 210px; column-gap: 8px; }
+    .soc-choice-grid > label { display: flex; width: 100%; break-inside: avoid; margin-bottom: 8px; }
+  }
 </style>
 </helmet>
 
@@ -179,9 +189,9 @@
                         </div>
                       </sc-if>
                       <sc-if value="{{ f.isChoice }}" hint-placeholder-val="{{ false }}">
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        <div class="soc-choice-grid">
                           <sc-for list="{{ f.choices }}" as="c" hint-placeholder-count="2">
-                            <label style="flex: 1 1 min(210px, 100%); display: flex; align-items: center; gap: 11px; min-height: 52px; padding: 0 15px; border-radius: 12px; cursor: pointer; font-size: 15.5px; border: 1px solid {{ c.border }}; background: {{ c.bg }}; min-width: 0;">
+                            <label style="align-items: center; gap: 11px; min-height: 52px; padding: 0 15px; border-radius: 12px; cursor: pointer; font-size: 15.5px; border: 1px solid {{ c.border }}; background: {{ c.bg }}; min-width: 0;">
                               <input type="{{ c.inputType }}" name="{{ f.domId }}" checked="{{ c.checked }}" onChange="{{ c.pick }}" style="width: 20px; height: 20px; flex: none; accent-color: var(--accent);">
                               <span style="min-width: 0; overflow-wrap: anywhere;">{{ c.label }}</span>
                             </label>
