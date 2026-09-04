@@ -4337,7 +4337,7 @@ class Component extends DCLogic {
     if (issues.length) { this.flash(issues[0], 'var(--warn)'); return; }
     const { recs } = this.pdfRecords();
 
-    this.setState({ pdfGenerating: true, capturingPdf: true, pdfStep: 'preparing' });
+    this.setState({ pdfGenerating: true, capturingPdf: true, pdfStep: 'preparing', pdfFormat: 'pdf' });
     this.flash('กำลังเตรียมข้อมูลรายงาน…');
     await new Promise(r => setTimeout(r, 60));
     try {
@@ -4464,7 +4464,7 @@ class Component extends DCLogic {
     const s = this.state;
     const { recs } = this.pdfRecords();
 
-    this.setState({ pdfGenerating: true, capturingPdf: true, pdfStep: 'preparing' });
+    this.setState({ pdfGenerating: true, capturingPdf: true, pdfStep: 'preparing', pdfFormat: 'xlsx' });
     this.flash('กำลังเตรียมข้อมูลรายงาน…');
     await new Promise(r => setTimeout(r, 60));
     try {
@@ -4679,7 +4679,9 @@ class Component extends DCLogic {
     const pdfOrientation = this.pdfOrientation();
     const inc = s.pdfInclude;
     const pdfSafety = this.pdfSafetyIssues();
-    const pdfStepLabels = { preparing: 'กำลังเตรียมข้อมูล…', charts: 'กำลังสร้างกราฟ…', layout: 'กำลังจัดวางรายงาน…', generating: 'กำลังสร้างไฟล์ PDF…' };
+    /* Both buttons share pdfGenerating (one export at a time), so the last step has to name the
+       format actually being written — it said "PDF" during an Excel export before pdfFormat. */
+    const pdfStepLabels = { preparing: 'กำลังเตรียมข้อมูล…', charts: 'กำลังสร้างกราฟ…', layout: 'กำลังจัดวางรายงาน…', generating: 'กำลังสร้างไฟล์ ' + (s.pdfFormat === 'xlsx' ? 'Excel' : 'PDF') + '…' };
 
     /* the Records browser shows a module's (or everyone's) full history with no date bound —
        core.ensureAll() for this is triggered once near the top of renderVals(). */
