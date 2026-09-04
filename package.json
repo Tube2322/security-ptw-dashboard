@@ -1,0 +1,9 @@
+{
+  "name": "security-ptw-api",
+  "private": true,
+  "engines": { "node": "20.x" },
+  "dependencies": {
+    "playwright-core": "1.47.2",
+    "@sparticuz/chromium": "123.0.1"
+  }
+}

@@ -1131,6 +1131,26 @@
             </section>
           </div>
 
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+              <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">ส่งต่อเข้า Microsoft Forms</h2>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px; overflow-wrap: anywhere;">เมื่อมีคนส่งแบบตรวจประจำเดือนจากหน้ากรอกข้อมูล ระบบจะกรอกฟอร์ม Microsoft Forms ของอีกแผนกให้อัตโนมัติ (ใช้ headless browser กรอกแทนคน) — เปิดเฉพาะหัวข้อที่ยืนยันโครงสร้างฟอร์มตรงกันแล้ว ปิดไว้เป็นค่าเริ่มต้นจนกว่าจะเปิดเอง</div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <sc-for list="{{ msFormsRows }}" as="mf" hint-placeholder-count="2">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--bg-2);">
+                    <div style="min-width: 0;">
+                      <div style="font-size: 13.5px; font-weight: 500;">{{ mf.name }}</div>
+                      <div style="font-size: 11.5px; color: var(--dim);">{{ mf.status }}</div>
+                    </div>
+                    <button onClick="{{ mf.toggle }}" aria-label="toggle ms forms forwarding" style="flex: none; width: 50px; height: 30px; border-radius: 99px; border: 1px solid {{ mf.toggleBorder }}; background: {{ mf.toggleBg }}; cursor: pointer; position: relative;">
+                      <span style="position: absolute; top: 2px; left: {{ mf.toggleKnobLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 160ms ease;"></span>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+            </sc-if>
+
             <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
               <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: space-between; margin-bottom: 4px;">
                 <div style="min-width: 0;">
@@ -3641,6 +3661,16 @@ class Component extends DCLogic {
       endOfDay: withTotal(nightClosing)
     };
   }
+  /* On/off switch per module for the auto-forward-to-Microsoft-Forms feature (api/forward-msforms.js).
+     Stored in portal_settings.ms_forms_forwarding the same way hidden_modules/opening_balances
+     are — a small keyed object, off by default so a fresh deploy never fires at a live external
+     form until an admin explicitly turns it on for that module. */
+  toggleMsFormsForwarding(moduleId) {
+    const core = this.core();
+    const current = core.getPortal().msFormsForwarding || {};
+    const next = Object.assign({}, current, { [moduleId]: !current[moduleId] });
+    core.setPortal({ msFormsForwarding: next });
+  }
   togglePortalEnabled = () => {
     if (this.portalDraft().enabled) { this.setState({ disablePortalConfirmOpen: true }); return; }
     this.patchPortal({ enabled: true });
@@ -4473,6 +4503,21 @@ class Component extends DCLogic {
       confirmLabel: s.confirmLabel,
       cancelConfirm: this.cancelConfirm,
       runConfirm: this.runConfirm,
+      /* ส่งต่อเข้า Microsoft Forms — one row per module with a live target form */
+      msFormsRows: [
+        { id: 'monthly_inspection_fire_extinguisher', name: 'ตรวจประจำเดือน — ถังดับเพลิง' },
+        { id: 'monthly_inspection_fire_exit', name: 'ตรวจประจำเดือน — ประตูหนีไฟ' }
+      ].map(row => {
+        const on = !!(core.getPortal().msFormsForwarding || {})[row.id];
+        return {
+          id: row.id, name: row.name,
+          status: on ? 'เปิดอยู่ — ส่งต่ออัตโนมัติทุกครั้งที่มีการกรอก' : 'ปิดอยู่ — ไม่ส่งต่อ',
+          toggle: () => this.toggleMsFormsForwarding(row.id),
+          toggleBorder: on ? 'var(--accent-line)' : 'var(--line)',
+          toggleBg: on ? 'var(--accent-soft)' : 'var(--panel-2)',
+          toggleKnobLeft: on ? '23px' : '2px'
+        };
+      }),
       /* QR user entry portal */
       portalStatusLabel: this.portalDraft().enabled ? 'Portal Active' : 'Portal Disabled',
       portalStatusColor: this.portalDraft().enabled ? 'var(--ok)' : 'var(--dim)',

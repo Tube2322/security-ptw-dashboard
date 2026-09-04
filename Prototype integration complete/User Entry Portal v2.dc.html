@@ -232,6 +232,17 @@
         <h1 style="margin: 20px 0 8px; font-size: clamp(21px, 5.6vw, 26px); font-weight: 600;">บันทึกข้อมูลสำเร็จ</h1>
         <p style="margin: 0 auto; max-width: 400px; font-size: 15px; color: var(--muted);">{{ doneSummary }}</p>
         <div style="margin: 18px auto 0; display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 9px 14px; border-radius: 99px; border: 1px solid var(--line); background: rgba(15,70,40,0.045); font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted);">{{ doneDate }}<span style="color: var(--dim);">·</span>ส่งเมื่อ {{ doneTime }}</div>
+
+        <sc-if value="{{ msForwardBlock }}" hint-placeholder-val="{{ false }}">
+          <div style="margin: 16px auto 0; max-width: 400px; text-align: left; padding: 13px 15px; border-radius: 12px; border: 1px solid {{ msForwardBlock.border }}; background: {{ msForwardBlock.bg }}; font-size: 13px; color: {{ msForwardBlock.color }};">
+            {{ msForwardBlock.text }}
+            <sc-if value="{{ msForwardBlock.showCopy }}" hint-placeholder-val="{{ false }}">
+              <textarea readOnly="{{ true }}" value="{{ msForwardBlock.copyText }}" rows="{{ 4 }}" style="width: 100%; margin-top: 9px; padding: 9px 10px; font-size: 12.5px; font-family: 'IBM Plex Mono', monospace; border-radius: 9px; border: 1px dashed var(--line-2); background: #ffffff; color: var(--text); resize: vertical;"></textarea>
+              <div style="margin-top: 4px; font-size: 11.5px; color: var(--dim);">คัดลอกข้อความนี้ไปกรอกใน Microsoft Forms ของอีกแผนกด้วยตัวเอง</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
         <div style="margin: 26px auto 0; max-width: 380px; display: flex; flex-direction: column; gap: 10px;">
           <button onClick="{{ again }}" style="min-height: 54px; border-radius: 13px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: #0d5c2c; cursor: pointer; font-size: 16px; font-weight: 500;" style-hover="background: rgba(22,155,70,0.2);">บันทึกรายการนี้อีกครั้ง</button>
           <button onClick="{{ goSelect }}" style="min-height: 54px; border-radius: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 16px;" style-hover="background: var(--panel-2); color: var(--text);">กลับหน้าแรก</button>
@@ -265,7 +276,10 @@ class Component extends DCLogic {
     openGroup: null,
     values: {}, errors: {}, banner: '', submitting: false,
     confirm: false, done: null, rev: 0,
-    comboOpenField: null
+    comboOpenField: null,
+    /* status of the auto-forward-to-Microsoft-Forms call for the record just submitted:
+       null (not applicable — module not eligible or forwarding off), 'sending', 'ok', 'failed' */
+    msForwardStatus: null, msForwardPayload: null
   };
   _els = {};
 
@@ -391,9 +405,55 @@ class Component extends DCLogic {
          still filling out the rest of the form — this is the actual moment of submission */
       if (core.field(this.state.module, 'checkpoint_time')) payload.checkpoint_time = this.nowHHMM();
       const rec = core.addRecord(this.state.module, payload);
-      this.setState({ submitting: false, view: 'done', values: {}, errors: {}, banner: '', done: rec });
+      this.setState({ submitting: false, view: 'done', values: {}, errors: {}, banner: '', done: rec, msForwardStatus: null, msForwardPayload: null });
+      this.forwardToMsForms(this.state.module, payload);
     }, 550);
   };
+  /* Auto-forwards a just-submitted monthly-inspection record into the matching Microsoft Forms
+     survey (api/forward-msforms.js — a headless-browser fill, since Forms has no write API).
+     Only fires for the two modules that have a mapped target form, and only when the admin has
+     switched it on for that module in Settings (portal_settings.ms_forms_forwarding) — off by
+     default so this never fires against a live external form unannounced. Fire-and-forget from
+     the record's own perspective (it's already saved in our own database either way); the done
+     screen just reflects whether the forward itself worked so a failure isn't silent. */
+  forwardToMsForms(moduleId, payload) {
+    const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit'];
+    if (FORWARDABLE.indexOf(moduleId) === -1) return;
+    const core = this.core();
+    const on = !!(core.getPortal().msFormsForwarding || {})[moduleId];
+    if (!on) return;
+    this.setState({ msForwardStatus: 'sending', msForwardPayload: payload });
+    fetch('/api/forward-msforms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ module: moduleId, data: payload })
+    })
+      .then(r => r.json().catch(() => ({ ok: false })))
+      .then(j => this.setState({ msForwardStatus: j && j.ok ? 'ok' : 'failed' }))
+      .catch(() => this.setState({ msForwardStatus: 'failed' }));
+  }
+  msForwardBlock() {
+    const status = this.state.msForwardStatus;
+    if (!status) return null;
+    if (status === 'sending') {
+      return { text: 'กำลังส่งต่อข้อมูลไปยัง Microsoft Forms ของอีกแผนก…', border: 'var(--line)', bg: 'var(--panel)', color: 'var(--muted)', showCopy: false };
+    }
+    if (status === 'ok') {
+      return { text: '✓ ส่งต่อเข้า Microsoft Forms สำเร็จ', border: 'rgba(22,155,70,0.4)', bg: 'rgba(22,155,70,0.1)', color: '#0d5c2c', showCopy: false };
+    }
+    // failed — data is already safe in our own system either way; give a copy-paste fallback
+    // so the forward doesn't just silently fail to reach the other department.
+    const core = this.core();
+    const payload = this.state.msForwardPayload || {};
+    const lines = core.activeFields(this.state.module).map(f => {
+      const v = payload[f.fieldId];
+      return v == null || v === '' ? null : f.label + ': ' + v;
+    }).filter(Boolean);
+    return {
+      text: '⚠ ส่งต่อเข้า Microsoft Forms ไม่สำเร็จ — ข้อมูลของคุณบันทึกในระบบเรียบร้อยแล้ว แต่ต้องกรอกฟอร์มของอีกแผนกเองในรอบนี้',
+      border: 'rgba(209,72,58,0.42)', bg: 'rgba(209,72,58,0.08)', color: '#a3291d',
+      showCopy: true, copyText: lines.join('\n')
+    };
+  }
 
   summarize(rec) {
     const core = this.core();
@@ -611,6 +671,7 @@ class Component extends DCLogic {
       doneSummary: done ? this.summarize(done) : '',
       doneDate: done ? 'วันที่ข้อมูล ' + core.fmtDate(done.reportDate) : '',
       doneTime: done ? core.fmtDate(done.submittedAt) + ' ' + core.fmtTime(done.submittedAt) : '',
+      msForwardBlock: this.msForwardBlock(),
       again: () => this.open(done ? done.module : mods[0].id),
 
       goSelect: this.goSelect,
