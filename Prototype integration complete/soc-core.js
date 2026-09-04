@@ -458,10 +458,18 @@
     }
     return out;
   }
-  function fetchMonth(key) {
+  /* Keyed by month, holding the promise of a fetch that hasn't come back yet. loadedMonths only
+     becomes true once a response lands, so without this every render between the first call and
+     that response re-issues the same query — measured at 123 identical /records requests in one
+     admin session, several of them queued behind each other for 20s. */
+  var monthsInFlight = {};
+  function fetchMonth(key, force) {
+    /* force is for the realtime refresh: reusing a request that was already in flight when the
+       change arrived could return rows fetched just before it landed */
+    if (!force && monthsInFlight[key]) return monthsInFlight[key];
     var parts = key.split('-');
     var b = monthBounds(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1);
-    return sb.from('records').select('*').gte('report_date', b.start).lte('report_date', b.end).then(function (res) {
+    var p = sb.from('records').select('*').gte('report_date', b.start).lte('report_date', b.end).then(function (res) {
       if (res.error) { notifyError('โหลดข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
       var byId = {};
       state.records.forEach(function (r) { byId[r.id] = r; });
@@ -469,6 +477,10 @@
       state.records = Object.keys(byId).map(function (id) { return byId[id]; });
       state.loadedMonths[key] = true;
     });
+    monthsInFlight[key] = p;
+    /* cleared either way: a failed fetch must be retryable, not permanently "in flight" */
+    p.then(function () { delete monthsInFlight[key]; }, function () { delete monthsInFlight[key]; });
+    return p;
   }
   /* Tier 1 — pulls in full row detail (the `data` jsonb) for only the calendar months a date
      or date range touches, and only the months not already cached this session. A no-op
@@ -484,21 +496,25 @@
      genuine full history with no date bound. Real volume here is small (a few MB/year), so a
      single deliberate full fetch is fine — it just must not be the thing that runs on every
      page load and every realtime tick, which is what made this expensive before. */
+  var allInFlight = null;
   function ensureAll() {
     if (state.allLoaded) return Promise.resolve();
-    return sb.from('records').select('*').then(function (res) {
+    if (allInFlight) return allInFlight; /* same in-flight guard as fetchMonth, same reason */
+    allInFlight = sb.from('records').select('*').then(function (res) {
       if (res.error) { notifyError('โหลดข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
       state.records = (res.data || []).map(recordFromRow);
       state.allLoaded = true;
       bump();
     });
+    allInFlight.then(function () { allInFlight = null; }, function () { allInFlight = null; });
+    return allInFlight;
   }
   /* Re-pulls only what's actually cached right now — the Tier-0 index (cheap), every month
      Tier-1 already loaded, and the Tier-2 full set if that was ever loaded — instead of the
      whole table, so realtime sync cost scales with what's on screen, not with total history. */
   function refreshLoaded() {
     var work = [loadDateIndex()];
-    Object.keys(state.loadedMonths).forEach(function (k) { work.push(fetchMonth(k)); });
+    Object.keys(state.loadedMonths).forEach(function (k) { work.push(fetchMonth(k, true)); });
     if (state.allLoaded) { state.allLoaded = false; work.push(ensureAll()); }
     return Promise.all(work).then(bump);
   }
