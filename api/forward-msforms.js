@@ -184,18 +184,22 @@ async function fillQuestion(item, field, rawValue) {
     seen.push(label);
     if (label === target) { await c.click(); return; }
   }
-  // allowCustom field whose value isn't one of the fixed options falls back to the form's own
-  // "อื่นๆ" (other) choice + its free-text box. Microsoft Forms tags that specific radio with
-  // aria-label="คำตอบอื่น" (Thai for "other answer") regardless of whether it's wrapped in the
-  // same choiceItem markup the fixed choices use — some forms render it as an ordinary last
-  // choiceItem (choices.last() alone used to work), others render it as a separate row with no
-  // choiceItem wrapper at all (found on the Visitors form: 2 real choiceItems + a bare radio/
-  // textInput pair for "other", so choices.last() silently clicked the wrong fixed choice
-  // instead). Matching on the aria-label directly works for both layouts.
-  const otherRadio = item.locator('[aria-label="คำตอบอื่น"][role="radio"], input[aria-label="คำตอบอื่น"]').first();
-  if (await otherRadio.count() > 0) {
-    await otherRadio.click();
-    const otherInput = item.locator('input[aria-label="คำตอบอื่น"], input[placeholder="อื่นๆ"]').first();
+  /* An allowCustom value that matches none of the fixed options goes into the form's own
+     "อื่นๆ" (Other) row — which their form only offers when it means to accept free text there.
+     Detected structurally, never by aria-label: that label is localized to the *browser's* UI
+     language, so it reads "คำตอบอื่น" in a Thai browser (where this was verified by hand) but
+     "Other answer" in the headless en-US one this actually runs in, which is why matching on it
+     found nothing in production. Microsoft Forms renders Other in one of two layouts and both
+     are identifiable by shape: an extra radio sitting outside any choiceItem (always last in
+     DOM order), or an ordinary last choiceItem that additionally holds the free-text box.
+     A free-text input inside a radio question only ever belongs to Other, so its presence is
+     the tell that works for both. */
+  const otherInput = item.locator('input[data-automation-id="textInput"]').first();
+  if (await otherInput.count() > 0) {
+    const radios = item.locator('input[type="radio"]');
+    const radioCount = await radios.count();
+    if (radioCount > count) await radios.nth(radioCount - 1).click();
+    else if (count > 0) await choices.last().click();
     await otherInput.fill(value);
     return;
   }
