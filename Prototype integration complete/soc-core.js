@@ -360,10 +360,10 @@
     };
   }
   function portalFromRow(r) {
-    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version, hiddenModules: r.hidden_modules || [] };
+    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version, hiddenModules: r.hidden_modules || [], openingBalances: r.opening_balances || {} };
   }
   function portalToRow(p) {
-    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion, hidden_modules: p.hiddenModules || [] };
+    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion, hidden_modules: p.hiddenModules || [], opening_balances: p.openingBalances || {} };
   }
 
   /* ---------- in-memory state — every read method below is synchronous over this ---------- */
@@ -890,7 +890,7 @@
 
     /* ---------- QR User Entry Portal settings (separate table — never mixed with records) ---------- */
     portalDefaults: function () {
-      return { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: 'กรุณาเลือกแบบฟอร์มที่ต้องการบันทึกข้อมูล', slug: 'security-daily', enabled: true, qrVersion: 'v1', hiddenModules: [] };
+      return { portalName: 'ระบบบันทึกข้อมูลประจำวัน', welcomeText: 'กรุณาเลือกแบบฟอร์มที่ต้องการบันทึกข้อมูล', slug: 'security-daily', enabled: true, qrVersion: 'v1', hiddenModules: [], openingBalances: {} };
     },
     newQrVersion: function () { return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); },
     getPortal: function () { return portalState ? Object.assign(this.portalDefaults(), portalState) : this.portalDefaults(); },
