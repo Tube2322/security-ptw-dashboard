@@ -299,7 +299,10 @@
 
         <!-- day/week/month/year dropdown — module dashboards only, see showGranularityPicker -->
         <sc-if value="{{ showGranularityPicker }}" hint-placeholder-val="{{ false }}">
-          <div style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+          <!-- flex: none here kept this row at its max-content width (~615px measured), so on a
+               phone the period controls ran off the right edge instead of wrapping; it has to be
+               allowed to shrink, with min-width: 0 so its own children can wrap inside it -->
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
             <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
             <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
               <option value="day">📅 รายวัน</option>
