@@ -852,6 +852,23 @@
       }
       return out;
     },
+    /* Distinct calendar months that actually have at least one record for the given module(s),
+       newest first — unlike monthsIndex() this isn't a fixed-size window counted backward from
+       "today" (which can never reach a month older than `count`), it's read straight off
+       dateIndex (already full history), so a year-old or multi-year-old month is just as
+       reachable as last month. Used by the dashboard's own year/month picker. */
+    availableMonths: function (module) {
+      var ids = Array.isArray(module) ? module : [module];
+      var seen = {};
+      ids.forEach(function (id) {
+        var src = state.dateIndex[id] || {};
+        Object.keys(src).forEach(function (rd) { seen[rd.slice(0, 7)] = true; });
+      });
+      return Object.keys(seen).sort().reverse().map(function (pre) {
+        var parts = pre.split('-');
+        return { year: parseInt(parts[0], 10), month: parseInt(parts[1], 10) - 1, prefix: pre };
+      });
+    },
 
     /* ---------- formatting ---------- */
     pad: pad, isoDay: isoDay,
