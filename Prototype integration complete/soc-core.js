@@ -171,15 +171,30 @@
         f('golf_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', system: true }),
         f('golf_note', 'หมายเหตุ', 'textarea', { group: 'ผู้ตรวจสอบ', placeholder: 'เช่น รถคันที่ 3 เข้าซ่อม' })
       ],
+      /* Extended to mirror the other department's real Microsoft Forms question set 1:1 (per
+         type: count, org, contact/dept, card no., time in, time out, note) so the auto-forward
+         feature has real data to send instead of leaving 6 of their 16 questions blank every
+         time. visitor_org/visitor_department keep their original fieldIds (contractor-only,
+         same as before this change) so no historical data gets orphaned; everything else here
+         is new and additive. */
       visitors: [
         f('visitor_date', 'วันที่', 'date', { required: true, system: true }),
         f('visitor_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
         f('visitor_general_count', 'จำนวน Visitor ทั่วไป', 'number', { required: true, group: 'Visitor ทั่วไป', placeholder: '0', unit: 'คน', system: true }),
+        f('visitor_general_org', 'จากหน่วยงาน (ทั่วไป)', 'text', { group: 'Visitor ทั่วไป', placeholder: 'ชื่อบริษัท / หน่วยงาน' }),
+        f('visitor_general_contact', 'ติดต่อ/แผนก (ทั่วไป)', 'text', { group: 'Visitor ทั่วไป', placeholder: 'แผนก/บุคคลที่ติดต่อ' }),
+        f('visitor_general_card_no', 'เลขบัตร (ทั่วไป)', 'text', { group: 'Visitor ทั่วไป', placeholder: 'เลขบัตร visitor' }),
+        f('visitor_general_time_in', 'เวลาเข้า (ทั่วไป)', 'time', { group: 'Visitor ทั่วไป' }),
+        f('visitor_general_time_out', 'เวลาคืนบัตร (ทั่วไป)', 'time', { group: 'Visitor ทั่วไป' }),
         f('visitor_general_note', 'หมายเหตุ Visitor ทั่วไป', 'textarea', { group: 'Visitor ทั่วไป', placeholder: 'เช่น ส่งเอกสาร / ติดต่อสำนักงาน' }),
         f('visitor_contractor_count', 'จำนวน Visitor ผู้รับเหมา', 'number', { required: true, group: 'Visitor ผู้รับเหมา', placeholder: '0', unit: 'คน', system: true }),
+        f('visitor_org', 'จากหน่วยงาน (ผู้รับเหมา)', 'text', { group: 'Visitor ผู้รับเหมา', placeholder: 'ชื่อบริษัท / หน่วยงาน' }),
+        f('visitor_contractor_contact', 'ติดต่อ/แผนก (ผู้รับเหมา)', 'text', { group: 'Visitor ผู้รับเหมา', placeholder: 'แผนก/บุคคลที่ติดต่อ' }),
+        f('visitor_contractor_card_no', 'เลขบัตร (ผู้รับเหมา)', 'text', { group: 'Visitor ผู้รับเหมา', placeholder: 'เลขบัตร visitor' }),
+        f('visitor_contractor_time_in', 'เวลาเข้า (ผู้รับเหมา)', 'time', { group: 'Visitor ผู้รับเหมา' }),
+        f('visitor_contractor_time_out', 'เวลาคืนบัตร (ผู้รับเหมา)', 'time', { group: 'Visitor ผู้รับเหมา' }),
         f('visitor_contractor_note', 'หมายเหตุ Visitor ผู้รับเหมา', 'textarea', { group: 'Visitor ผู้รับเหมา', placeholder: 'เช่น งานซ่อมบำรุงระบบไฟฟ้า' }),
-        f('visitor_org', 'หน่วยงาน', 'text', { group: 'Visitor ผู้รับเหมา', placeholder: 'ชื่อบริษัท / หน่วยงาน' }),
-        f('visitor_department', 'แผนกที่ติดต่อ', 'checkbox', { group: 'Visitor ผู้รับเหมา', options: ['วิศวกรรม', 'ความปลอดภัย', 'ธุรการ', 'จัดซื้อ'], helper: 'เลือกได้มากกว่า 1 แผนก หรือพิมพ์แผนกอื่นเองด้านล่าง', allowCustom: true }),
+        f('visitor_department', 'แผนกที่ติดต่อ (เลือกได้หลายแผนก)', 'checkbox', { group: 'Visitor ผู้รับเหมา', options: ['วิศวกรรม', 'ความปลอดภัย', 'ธุรการ', 'จัดซื้อ'], helper: 'เลือกได้มากกว่า 1 แผนก หรือพิมพ์แผนกอื่นเองด้านล่าง', allowCustom: true }),
         f('visitor_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', system: true })
       ],
       elevator: [

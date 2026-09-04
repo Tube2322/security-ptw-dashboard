@@ -109,6 +109,34 @@ const FORMS = {
       { id: 'mi_cctv_status', type: 'radio' },
       { id: 'mi_cctv_note', type: 'text' }
     ]
+  },
+  /* Visitors — the one module here that isn't part of the ตรวจประจำเดือน group (it's the daily
+     visitor-log form). Their form asks the same 7 questions twice (once per visitor type):
+     count, org, contact/dept, card no., time in, time out, note — soc-core.js's visitors form
+     was extended field-by-field to match (see defaultForms() there) specifically so this
+     mapping wouldn't have to leave most of their form blank. visitor_department/
+     visitor_inspector are internal-only fields with no counterpart on their form, so they're
+     simply absent from this list — nothing to forward for them. */
+  visitors: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UOFlBRlRES1hEVjY1UzYyR05HSEtNQzNJTy4u&origin=QRCode',
+    fields: [
+      { id: 'visitor_date', type: 'date' },
+      { id: 'visitor_name', type: 'radio' },
+      { id: 'visitor_general_count', type: 'text' },
+      { id: 'visitor_general_org', type: 'text' },
+      { id: 'visitor_general_contact', type: 'text' },
+      { id: 'visitor_general_card_no', type: 'text' },
+      { id: 'visitor_general_time_in', type: 'text' },
+      { id: 'visitor_general_time_out', type: 'text' },
+      { id: 'visitor_general_note', type: 'text' },
+      { id: 'visitor_contractor_count', type: 'text' },
+      { id: 'visitor_org', type: 'text' },
+      { id: 'visitor_contractor_contact', type: 'text' },
+      { id: 'visitor_contractor_card_no', type: 'text' },
+      { id: 'visitor_contractor_time_in', type: 'text' },
+      { id: 'visitor_contractor_time_out', type: 'text' },
+      { id: 'visitor_contractor_note', type: 'text' }
+    ]
   }
 };
 
@@ -181,6 +209,23 @@ module.exports = async (req, res) => {
   const dryRun = !!(body && body.dryRun);
   const form = FORMS[moduleId];
   if (!form) { res.status(400).json({ ok: false, error: 'unsupported module: ' + moduleId }); return; }
+
+  /* Playwright doesn't clean up its per-launch --user-data-dir on a warm/reused Lambda
+     container (a documented @sparticuz/chromium caveat) — every invocation leaves a fresh
+     /tmp/playwright_chromiumdev_profile-XXXXXX behind, and /tmp is a small fixed-size tmpfs
+     shared across warm invocations, not reset per-request. Enough of these accumulate (we hit
+     this function dozens of times today testing) and Chromium's own launch starts failing with
+     net::ERR_INSUFFICIENT_RESOURCES before it even reaches the form. Sweep them at the start of
+     every invocation — best-effort, never fatal — instead of letting them pile up. */
+  try {
+    const fs = require('fs'), path = require('path');
+    const tmpDir = '/tmp';
+    const keep = new Set(['chromium', 'chromium-pack', 'al2023', 'fonts', 'swiftshader']);
+    for (const name of fs.readdirSync(tmpDir)) {
+      if (keep.has(name) || !name.startsWith('playwright_')) continue;
+      try { fs.rmSync(path.join(tmpDir, name), { recursive: true, force: true }); } catch (e) {}
+    }
+  } catch (e) { /* /tmp may not exist yet on a cold start, or not be listable — fine either way */ }
 
   let browser;
   try {
