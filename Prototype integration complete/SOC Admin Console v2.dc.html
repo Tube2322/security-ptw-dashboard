@@ -2260,6 +2260,21 @@ class Component extends DCLogic {
         trace: 'trace: month records → group by reportDate → SUM' })
     ];
 
+    const shiftBal = this.trafficShiftBalance(moduleId, prefix);
+    const shiftBalBlock = shiftBal.available ? {
+      block: 'Block 08', title: 'ยอดคงเหลือสะสม — แยกตามกะ',
+      rows: [
+        { label: 'ยอดยกมา', value: core.fmtNum(shiftBal.opening.total) + ' คัน', color: 'var(--text)' },
+        { label: '☀️ กะกลางวัน 08:00–20:00 — รถเข้า', value: core.fmtNum(shiftBal.day.in) + ' คัน', color: 'var(--muted)' },
+        { label: '☀️ กะกลางวัน — รถออก', value: core.fmtNum(shiftBal.day.out) + ' คัน', color: 'var(--muted)' },
+        { label: 'คงเหลือหลังกะกลางวัน', value: core.fmtNum(shiftBal.day.closing.total) + ' คัน', color: '#d6558a' },
+        { label: '🌙 กะกลางคืน 20:00–08:00 — รถเข้า', value: core.fmtNum(shiftBal.night.in) + ' คัน', color: 'var(--muted)' },
+        { label: '🌙 กะกลางคืน — รถออก', value: core.fmtNum(shiftBal.night.out) + ' คัน', color: 'var(--muted)' },
+        { label: 'คงเหลือหลังกะกลางคืน (ยอดสิ้นวัน)', value: core.fmtNum(shiftBal.endOfDay.total) + ' คัน', color: '#a83d68' },
+        { label: 'แยกตามประเภทรถ (ยอดสิ้นวัน)', value: 'รถยนต์ ' + core.fmtNum(shiftBal.endOfDay.car) + ' · มอเตอร์ไซค์ ' + core.fmtNum(shiftBal.endOfDay.moto), color: 'var(--muted)' }
+      ]
+    } : null;
+
     return {
       kpis, charts,
       infoBlocks: [{
@@ -2272,7 +2287,7 @@ class Component extends DCLogic {
           { label: 'หมายเหตุ', value: core.fmtValue((last.data || {})[prefix + '_note']), color: 'var(--muted)' },
           { label: 'Record ID', value: last.id, color: 'var(--dim)' }
         ] : [{ label: 'สถานะ', value: 'ไม่มีรายการในช่วงที่เลือก', color: 'var(--muted)' }]
-      }],
+      }].concat(shiftBalBlock ? [shiftBalBlock] : []),
       tableTitle: (mod.name || 'Traffic') + ' — รายการบันทึกในช่วงที่เลือก',
       tableNote: core.fmtNum(recs.length) + ' รายการ',
       tableColumns: ['วันที่ข้อมูล', 'ผู้กรอก', 'เข้า', 'ออก', 'สุทธิ', 'เวลาส่ง'],
@@ -3661,6 +3676,52 @@ class Component extends DCLogic {
       note = 'ไม่มีข้อมูลของวันก่อนหน้าสำหรับเปรียบเทียบ · ' + baseNote;
     }
     return { label: 'ยอดคงเหลือสะสม', value: core.fmtNum(today.total), delta, note, color: '#d6558a', formula: 'opening balance + Σ(in − out)' };
+  }
+  /* Shift-level breakdown of the cumulative balance: opening (= previous day's closing) →
+     day-shift closing → night-shift closing (= end of day). Reuses
+     trafficClosingBalanceAsOf() for "yesterday's closing" so the two never disagree — it is
+     the same lump SUM(in−out) math, just evaluated one day earlier, which is mathematically
+     identical to carrying it forward day-by-day since SUM is associative.
+     Known model limit, reported rather than faked: this form captures both shifts' numbers
+     in one submission (no separate day-entry vs night-entry, no per-shift submission flag),
+     so "night shift not entered yet" is not distinguishable from "night shift entered as
+     genuinely 0" — both read as 0 in the night fields. The closing figures below are exact
+     given whatever is in the record; there is no reliable "รอข้อมูลกะกลางคืน" signal to add
+     on top without guessing. */
+  trafficShiftBalance(moduleId, prefix) {
+    const core = this.core();
+    const ob = (core.getPortal().openingBalances || {})[moduleId];
+    const viewDate = this.state.date;
+    if (!ob || !ob.asOfDate) return { available: false, reason: 'no_opening' };
+    if (!viewDate) return { available: false, reason: 'no_date_selected' };
+    if (viewDate < ob.asOfDate) return { available: false, reason: 'before_opening' };
+
+    let opening;
+    if (viewDate === ob.asOfDate) {
+      opening = { car: ob.car || 0, moto: ob.moto || 0 };
+    } else {
+      const d = new Date(viewDate + 'T00:00:00'); d.setDate(d.getDate() - 1);
+      const prevDate = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
+      const prev = this.trafficClosingBalanceAsOf(moduleId, prefix, prevDate);
+      if (!prev.available) return { available: false, reason: 'gap' };
+      opening = { car: prev.car, moto: prev.moto };
+    }
+
+    core.ensureRange(viewDate, viewDate);
+    const recs = core.query({ module: moduleId, date: viewDate });
+    const m = this.trafficMetrics(recs, prefix);
+
+    const dayClosing = { car: opening.car + (m.inDay - m.outDay), moto: opening.moto + (m.inDayMoto - m.outDayMoto) };
+    const nightClosing = { car: dayClosing.car + (m.inNight - m.outNight), moto: dayClosing.moto + (m.inNightMoto - m.outNightMoto) };
+    const withTotal = (o) => Object.assign({}, o, { total: o.car + o.moto });
+
+    return {
+      available: true, recordCount: recs.length,
+      opening: withTotal(opening),
+      day: { carIn: m.inDay, motoIn: m.inDayMoto, carOut: m.outDay, motoOut: m.outDayMoto, in: m.inDay + m.inDayMoto, out: m.outDay + m.outDayMoto, closing: withTotal(dayClosing) },
+      night: { carIn: m.inNight, motoIn: m.inNightMoto, carOut: m.outNight, motoOut: m.outNightMoto, in: m.inNight + m.inNightMoto, out: m.outNight + m.outNightMoto, closing: withTotal(nightClosing) },
+      endOfDay: withTotal(nightClosing)
+    };
   }
   togglePortalEnabled = () => {
     if (this.portalDraft().enabled) { this.setState({ disablePortalConfirmOpen: true }); return; }
