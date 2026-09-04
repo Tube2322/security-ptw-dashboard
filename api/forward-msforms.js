@@ -160,6 +160,35 @@ const FORMS = {
       { id: 'mi_golf_status', type: 'checkbox' },
       { id: 'mi_golf_note', type: 'text' }
     ]
+  },
+  /* The other department's main daily form ("จำนวนรถเข้าออกประจำวัน") covers TWO of our modules at
+     once: the traffic counts (questions 1-10, 15) and the golf-cart rounds (questions 11-14).
+     Nothing about our own forms changes for this — the guards still fill traffic and golf
+     separately and each dashboard is unchanged; the two days' worth of answers are assembled into
+     one submission by ms_forms_traffic_golf() (an RPC, because the unauthenticated entry portal
+     can't read the counterpart module's rows itself) and arrive here as one flat data object.
+     Their questions 11-14 label carts with a fixed shift ("กะกลางคืน" on cart 1, "กะกลางวัน" on
+     2-4); ours are per-cart totals for the whole day, so the mapping stays positional per cart
+     and the shift wording in their labels is theirs to interpret. */
+  traffic_golf_daily: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UMUtZMzdSUTYwUERIR1REMUZCR0dOMEFJNC4u&origin=QRCode',
+    fields: [
+      { id: 'traffic_date', type: 'date' },
+      { id: 'traffic_name', type: 'radio' },
+      { id: 'traffic_car_in_day', type: 'text' },
+      { id: 'traffic_moto_in_day', type: 'text' },
+      { id: 'traffic_car_out_day', type: 'text' },
+      { id: 'traffic_moto_out_day', type: 'text' },
+      { id: 'traffic_car_in_night', type: 'text' },
+      { id: 'traffic_moto_in_night', type: 'text' },
+      { id: 'traffic_car_out_night', type: 'text' },
+      { id: 'traffic_moto_out_night', type: 'text' },
+      { id: 'golf_cart_1', type: 'text' },
+      { id: 'golf_cart_2', type: 'text' },
+      { id: 'golf_cart_3', type: 'text' },
+      { id: 'golf_cart_4', type: 'text' },
+      { id: 'traffic_inspector', type: 'text' }
+    ]
   }
 };
 
