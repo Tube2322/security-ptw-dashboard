@@ -701,6 +701,33 @@
         return res.data;
       });
     },
+    /* ---------- Microsoft Forms outbox ----------
+       Outgoing submissions are parked in ms_forms_outbox, one row per (target form, day), and
+       every write goes through a SECURITY DEFINER function — a guest browser never gets to put a
+       payload of its own into the queue, and "sent once" is a unique row plus a claim rather than
+       a count that happens to be right. enqueue() re-assembles the traffic+golf pair each time it
+       is called and answers with what to do next: 'waiting' (the day's other form hasn't been
+       filled in yet), 'in_progress' (another device is mid-send), 'already_sent', or 'send' with
+       the payload to post. */
+    msFormsEnqueueTrafficGolf: function (date) {
+      return sb.rpc('ms_forms_enqueue_traffic_golf', { p_date: date }).then(function (res) {
+        if (res.error) throw new Error(res.error.message);
+        return res.data;
+      });
+    },
+    msFormsMark: function (id, ok, error) {
+      return sb.rpc('ms_forms_mark', { p_id: id, p_ok: !!ok, p_error: error || null });
+    },
+    /* the single-record forms have nothing to hold and re-assemble — they only record the
+       outcome so the Settings page can show a real status per topic */
+    msFormsLog: function (target, date, ok, error) {
+      return sb.rpc('ms_forms_log', { p_target: target, p_date: date, p_ok: !!ok, p_error: error || null });
+    },
+    /* admin-only (RLS allows select to authenticated): newest row per target form */
+    msFormsOutbox: function () {
+      return sb.from('ms_forms_outbox').select('*').order('report_date', { ascending: false }).limit(200)
+        .then(function (res) { return res.error ? [] : (res.data || []); });
+    },
     addRecord: function (module, data, meta) {
       meta = meta || {};
       var mod = this.module(module) || {};
