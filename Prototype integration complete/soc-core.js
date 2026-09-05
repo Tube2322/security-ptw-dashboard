@@ -398,6 +398,8 @@
   }
 
   var errorHandlers = [];
+  var insertHandlers = [];
+  function notifyInsert(rec) { insertHandlers.forEach(function (fn) { try { fn(rec); } catch (e) {} }); }
   /* A background write (see addRecord/updateRecord/... below) already applied itself to the
      local cache and returned before the network call resolves, so a failure can't be reported
      through a normal return value or thrown exception — the caller has moved on. This is the
@@ -555,7 +557,10 @@
      only a re-pull of whatever month(s) that tab is actually looking at. */
   try {
     sb.channel('soc-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, function () { refreshLoaded(); loadCounts(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, function (payload) {
+        refreshLoaded(); loadCounts();
+        if (payload && payload.eventType === 'INSERT' && payload.new) notifyInsert(recordFromRow(payload.new));
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'form_fields' }, function () { loadFormFields(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_settings' }, function () { loadPortal(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'module_labels' }, function () { loadModuleLabels(); })
@@ -965,6 +970,13 @@
     onError: function (fn) {
       errorHandlers.push(fn);
       return function () { errorHandlers = errorHandlers.filter(function (h) { return h !== fn; }); };
+    },
+    /* fires once per new row INSERTed into records — cross-tab and cross-device, same realtime
+       channel onError rides on. Never fires for the initial fetch (Supabase realtime only
+       delivers changes that happen after .subscribe() runs), so no "first load" guard needed. */
+    onInsert: function (fn) {
+      insertHandlers.push(fn);
+      return function () { insertHandlers = insertHandlers.filter(function (h) { return h !== fn; }); };
     },
     ready: ready,
 
