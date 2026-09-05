@@ -306,6 +306,7 @@
                phone the period controls ran off the right edge instead of wrapping; it has to be
                allowed to shrink, with min-width: 0 so its own children can wrap inside it -->
           <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--dim);">เทียบ:</span>
             <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
             <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
               <option value="day">📅 รายวัน</option>
@@ -349,7 +350,7 @@
 
             <button onClick="{{ nextPeriod }}" aria-label="ช่วงถัดไป" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">▶</button>
 
-            <span style="font-size: 12px; color: var(--dim);">{{ comparisonBaselineLabel }}</span>
+            <span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);">{{ comparisonBaselineLabel }}</span>
 
             <button onClick="{{ goPdf }}" style="min-height: 40px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2); color: var(--text);">Export PDF</button>
           </div>
@@ -760,7 +761,7 @@
               <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; min-width: 0; flex: 1 1 100%; width: 100%;">
                 <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 15px; min-width: 0; flex: 1 1 240px; max-width: {{ historyMonthMaxWidth }}; display: flex; flex-direction: column;">
                   <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 1.2px; color: var(--dim); text-transform: uppercase;">Monthly History</div>
-                  <h2 style="margin: 2px 0 3px; font-size: 15.5px; font-weight: 600;">เลือกเดือน</h2>
+                  <h2 style="margin: 2px 0 3px; font-size: 15.5px; font-weight: 600;">ย้อนดูเดือนที่ผ่านมา</h2>
                   <div style="font-size: 11.5px; color: var(--dim); margin-bottom: 10px;">ย้อนหลัง 12 เดือน</div>
                   <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 13px;">
                     <sc-for list="{{ historyModules }}" as="hm" hint-placeholder-count="3">
@@ -779,7 +780,7 @@
                 <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 15px; min-width: 0; flex: 2 1 340px; display: flex; flex-direction: column;">
                   <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 1.2px; color: var(--dim); text-transform: uppercase;">Daily History</div>
                   <h2 style="margin: 2px 0 3px; font-size: 15.5px; font-weight: 600;">{{ dayListTitle }}</h2>
-                  <div style="font-size: 11.5px; color: var(--dim); margin-bottom: 12px;">กดวันที่เพื่อเปลี่ยนข้อมูลของแดชบอร์ด</div>
+                  <div style="font-size: 11.5px; color: var(--dim); margin-bottom: 12px;">กดเพื่อย้อนดู/แก้ไขข้อมูลวันนั้น</div>
                   <sc-if value="{{ dayListEmpty }}" hint-placeholder-val="{{ false }}">
                     <div style="padding: 22px 12px; border-radius: 12px; border: 1px dashed var(--line); text-align: center; font-size: 13px; color: var(--dim);">ไม่มีประวัติในเดือนนี้</div>
                   </sc-if>
@@ -5062,8 +5063,10 @@ class Component extends DCLogic {
       tableColumns: data.tableColumns,
       tableRows: data.tableRows,
 
-      /* history */
-      showHistory: isDash && !!moduleId,
+      /* history — a browse/backfill tool for a specific day or month, so it only makes sense
+         while dashGranularity is 'day' or 'month'; hidden in week/year mode instead of showing
+         a day/month picker next to data scoped to a whole week or year. */
+      showHistory: isDash && !!moduleId && (s.dashGranularity === 'day' || s.dashGranularity === 'month' || !s.dashGranularity),
       /* the 300px cap keeps the month list from stretching too wide next to Daily History on
          desktop, but on mobile the two sections stack instead of sitting side by side — the cap
          then left Monthly History narrower than the full-width Daily History below it */
