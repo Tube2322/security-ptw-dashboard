@@ -80,6 +80,28 @@
   a { color: var(--accent); text-decoration: none; }
   a:hover { color: var(--text); }
   input, select, textarea, button { font-family: inherit; }
+  /* KPI cards carried three stacked lines under the number (note + a SQL-ish formula line that
+     only matters to whoever is auditing the maths). Collapsing the formula until the card is
+     hovered gets the scan-the-numbers case down to one line of supporting text, without
+     removing the audit trail — the card also carries the same string as a native title
+     tooltip, which is what keeps it reachable where there is no hover at all (touch). */
+  .soc-kpi-formula {
+    display: grid; grid-template-rows: 0fr;
+    opacity: 0; margin-top: 0; padding-top: 0; border-top: 1px solid transparent;
+    transition: grid-template-rows 180ms ease, opacity 140ms ease, padding-top 180ms ease, border-top-color 180ms ease;
+  }
+  .soc-kpi-formula > span { overflow: hidden; }
+  .soc-kpi-drill { opacity: 0; transition: opacity 140ms ease; }
+  .soc-kpi-card:hover .soc-kpi-drill { opacity: 1; }
+  @media (hover: none) { .soc-kpi-drill { opacity: 1; } }
+  .soc-kpi-card:hover .soc-kpi-formula, .soc-kpi-card:focus-within .soc-kpi-formula {
+    grid-template-rows: 1fr; opacity: 1; margin-top: 2px; padding-top: 9px; border-top-color: var(--line);
+  }
+  @media (hover: none) {
+    /* no hover to reveal it with — keep the old always-visible behaviour rather than hiding
+       the formula behind an interaction that device cannot perform */
+    .soc-kpi-formula { grid-template-rows: 1fr; opacity: 1; margin-top: 2px; padding-top: 9px; border-top-color: var(--line); }
+  }
   @keyframes socUp { from { opacity: 0; transform: translateY(9px) } to { opacity: 1; transform: none } }
   @keyframes socFade { from { opacity: 0 } to { opacity: 1 } }
   @keyframes socPulse { 0%,100% { opacity: 0.3 } 50% { opacity: 0.72 } }
@@ -249,7 +271,14 @@
     <!-- ============ MAIN ============ -->
     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
 
-      <main style="flex: 1; min-width: 0; padding: clamp(14px, 2.6vw, 22px) clamp(12px, 2.6vw, 20px) 60px;">
+      <!-- max-width, not full bleed: on a 1920px+ monitor the KPI grid stretched every card to
+           ~400px and pushed chart captions and table rows into single lines several hundred
+           pixels long, which is past the width text stays comfortable to read. Capping and
+           centring keeps the same layout on laptops (where the cap never binds) while turning
+           the surplus on a wide monitor into margin instead of over-long rows. The sticky
+           header lives inside this element, so it is capped and centred with the content and
+           the two stay aligned. -->
+      <main style="flex: 1; min-width: 0; width: 100%; max-width: 1500px; margin: 0 auto; padding: clamp(14px, 2.6vw, 22px) clamp(12px, 2.6vw, 20px) 60px;">
 
         <!-- Page header — rendered on EVERY page, not just dashboards, so the ☰ drawer trigger
              stays reachable in narrow mode (below 1080px the sidebar is hidden and ☰ is the only
@@ -262,9 +291,16 @@
             <span class="soc-burger-bar"></span>
           </button>
         </sc-if>
-        <div style="min-width: 0; flex: 1 1 220px;">
-          <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 1.2px; color: var(--dim); text-transform: uppercase;">{{ pageKicker }}</div>
-          <h1 style="margin: 1px 0 0; font-size: clamp(17px, 3.6vw, 22px); font-weight: 600; letter-spacing: -0.2px; overflow-wrap: anywhere;">{{ pageTitle }}</h1>
+        <!-- every module already owns a colour (core.COLORS, used by its charts and KPI dots) but
+             the page frame itself was the same teal everywhere, so telling two module pages
+             apart meant reading the title. The rule + kicker now carry that module's colour,
+             which is a faster signal than text when hopping between modules. -->
+        <div style="min-width: 0; flex: 1 1 220px; display: flex; align-items: center; gap: 11px;">
+          <span aria-hidden="true" style="flex: none; width: 3px; align-self: stretch; min-height: 34px; border-radius: 2px; background: {{ pageColor }};"></span>
+          <div style="min-width: 0;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 1.2px; color: {{ pageColor }}; text-transform: uppercase;">{{ pageKicker }}</div>
+            <h1 style="margin: 1px 0 0; font-size: clamp(17px, 3.6vw, 22px); font-weight: 600; letter-spacing: -0.2px; overflow-wrap: anywhere;">{{ pageTitle }}</h1>
+          </div>
         </div>
         <sc-if value="{{ showDateChip }}" hint-placeholder-val="{{ true }}">
           <!-- same flex: none overflow as the granularity row below: at 375px this kept its
@@ -394,10 +430,18 @@
                   <!-- KPI ROW -->
                   <div class="soc-kpi-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(185px, 100%), 1fr)); gap: 12px;">
                     <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
-                      <div style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 17px 18px 15px; min-width: 0; display: flex; flex-direction: column; gap: 9px; animation: socUp 260ms ease both; transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;" style-hover="border-color: var(--line-2); transform: translateY(-2px); background: var(--panel-2);">
+                      <!-- the whole card is the click target when it maps to a module (see
+                           kpis in renderVals): reading a number and then wanting the rows behind
+                           it was a 3-step trip through the menu and the module filter. Cards
+                           with no single module behind them (e.g. the ตรวจประจำเดือน group
+                           roll-up) get drill: null and stay non-interactive. -->
+                      <div class="soc-kpi-card" onClick="{{ k.drill }}" title="{{ k.cardTitle }}" style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 17px 18px 15px; min-width: 0; display: flex; flex-direction: column; gap: 9px; animation: socUp 260ms ease both; cursor: {{ k.cursor }}; transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;" style-hover="border-color: var(--line-2); transform: translateY(-2px); background: var(--panel-2);">
                         <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
                           <span style="width: 7px; height: 7px; flex: none; border-radius: 50%; background: {{ k.color }};"></span>
                           <span style="font-size: 12.5px; font-weight: 500; color: var(--text); opacity: 0.82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.label }}</span>
+                          <sc-if value="{{ k.drillable }}" hint-placeholder-val="{{ false }}">
+                            <span class="soc-kpi-drill" aria-hidden="true" style="flex: none; margin-left: auto; font-size: 12px; color: var(--dim);">↗</span>
+                          </sc-if>
                         </div>
                         <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
                           <div style="font-family: 'IBM Plex Mono', monospace; font-size: clamp(24px, 4.6vw, 31px); font-weight: 600; line-height: 1; letter-spacing: -1px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;">{{ k.value }}</div>
@@ -406,7 +450,7 @@
                           </sc-if>
                         </div>
                         <div style="font-size: 12px; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere;">{{ k.note }}</div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 9px; border-top: 1px solid var(--line);">
+                        <div class="soc-kpi-formula">
                           <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.5px; color: var(--dim); text-transform: uppercase; overflow-wrap: anywhere;">{{ k.formula }}</span>
                         </div>
                       </div>
@@ -785,7 +829,18 @@
                   <h2 style="margin: 2px 0 3px; font-size: 15.5px; font-weight: 600;">{{ dayListTitle }}</h2>
                   <div style="font-size: 11.5px; color: var(--dim); margin-bottom: 12px;">กดเพื่อย้อนดู/แก้ไขข้อมูลวันนั้น</div>
                   <sc-if value="{{ dayListEmpty }}" hint-placeholder-val="{{ false }}">
-                    <div style="padding: 22px 12px; border-radius: 12px; border: 1px dashed var(--line); text-align: center; font-size: 13px; color: var(--dim);">ไม่มีประวัติในเดือนนี้</div>
+                    <!-- a dead-end "nothing here" message left the only way forward (go fill the
+                         form / look at a month that has data) as something the reader had to
+                         find on their own — both are one click from here now -->
+                    <div style="padding: 22px 12px; border-radius: 12px; border: 1px dashed var(--line); text-align: center; font-size: 13px; color: var(--dim); display: flex; flex-direction: column; align-items: center; gap: 11px;">
+                      <span>ไม่มีประวัติในเดือนนี้</span>
+                      <span style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                        <a href="./User%20Entry%20Portal%20v2.dc.html" style="min-height: 38px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px;">ไปหน้ากรอกข้อมูล ↗</a>
+                        <sc-if value="{{ hasAnyHistoryMonth }}" hint-placeholder-val="{{ false }}">
+                          <button onClick="{{ jumpLatestHistory }}" style="min-height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2);">ไปเดือนล่าสุดที่มีข้อมูล</button>
+                        </sc-if>
+                      </span>
+                    </div>
                   </sc-if>
                   <div style="display: flex; flex-direction: column; gap: 5px; max-height: 320px; overflow-y: auto;">
                     <sc-for list="{{ dayList }}" as="d" hint-placeholder-count="5">
@@ -949,7 +1004,7 @@
                  find one record, and the list had no ordering control at all -->
             <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
               <div style="position: relative; flex: 1 1 240px; min-width: 0;">
-                <input type="search" value="{{ recordSearch }}" onInput="{{ setRecordSearch }}" placeholder="ค้นหา ชื่อผู้กรอก · วันที่ · คำตอบ · หัวข้อคำถาม" aria-label="ค้นหาในรายการบันทึก" style="width: 100%; min-width: 0; min-height: 44px; padding: 0 40px 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13.5px;">
+                <input data-record-search="1" type="search" value="{{ recordSearch }}" onInput="{{ setRecordSearch }}" placeholder="ค้นหา ชื่อผู้กรอก · วันที่ · คำตอบ · หัวข้อคำถาม  ( / )" aria-label="ค้นหาในรายการบันทึก" style="width: 100%; min-width: 0; min-height: 44px; padding: 0 40px 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13.5px;">
                 <sc-if value="{{ recordSearchActive }}" hint-placeholder-val="{{ false }}">
                   <button onClick="{{ clearRecordSearch }}" aria-label="ล้างคำค้นหา" style="position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 13px;">✕</button>
                 </sc-if>
@@ -965,7 +1020,15 @@
             </div>
 
             <sc-if value="{{ recordsEmpty }}" hint-placeholder-val="{{ false }}">
-              <div style="padding: 44px 20px; border-radius: 16px; border: 1px dashed var(--line-2); text-align: center; color: var(--muted);">ยังไม่มีข้อมูล</div>
+              <div style="padding: 44px 20px; border-radius: 16px; border: 1px dashed var(--line-2); text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 14px;">
+                <span>{{ recordsEmptyText }}</span>
+                <span style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+                  <a href="./User%20Entry%20Portal%20v2.dc.html" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 13px;">ไปหน้ากรอกข้อมูล ↗</a>
+                  <sc-if value="{{ recordFilterActive }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ showAllRecords }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px;" style-hover="background: var(--panel-2);">ดูทุกหัวข้อ</button>
+                  </sc-if>
+                </span>
+              </div>
             </sc-if>
             <sc-if value="{{ recordsNoMatch }}" hint-placeholder-val="{{ false }}">
               <div style="padding: 36px 20px; border-radius: 16px; border: 1px dashed var(--line-2); text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 12px;">
@@ -1940,6 +2003,8 @@ class Component extends DCLogic {
     };
     this._resize();
     window.addEventListener('resize', this._resize);
+    this._onKey = (e) => this.handleShortcut(e);
+    window.addEventListener('keydown', this._onKey);
     let saved = null;
     try { saved = localStorage.getItem('soc.theme.last') || localStorage.getItem('soc.theme'); } catch (e) {}
     this.applyTheme(saved || 'system');
@@ -1957,6 +2022,7 @@ class Component extends DCLogic {
     if (this._unsubInsert) this._unsubInsert();
     if (this._unsubProfile) this._unsubProfile();
     window.removeEventListener('resize', this._resize);
+    if (this._onKey) window.removeEventListener('keydown', this._onKey);
     if (this._mq && this._mq.removeEventListener) this._mq.removeEventListener('change', this._mqh);
     if (this._toastT) clearTimeout(this._toastT);
     (this._reportToastTimers || []).forEach((t) => clearTimeout(t));
@@ -2008,6 +2074,43 @@ class Component extends DCLogic {
     try { cached = localStorage.getItem('soc.theme.' + user.id); } catch (e) {}
     if (cached) this.applyTheme(cached);
   };
+
+  /* Keyboard shortcuts. Deliberately only two, both of which mirror what the mouse can already
+     do — this is a shortcut layer, not a second way to reach things that have no button.
+       Esc  closes whatever is stacked on top, innermost first (confirm dialogs sit above the
+            record editor, which sits above the drawer), so one press never dismisses more than
+            the thing the user is looking at.
+       /    jumps to the Records search box, the one field on the busiest page.
+     Both bail out while the caret is in a field, so typing "/" into a search or a note stays
+     typing, and Esc keeps its native meaning (clear/close) inside form controls. */
+  handleShortcut(e) {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = e.target;
+    const tag = el && el.tagName ? el.tagName.toLowerCase() : '';
+    const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || (el && el.isContentEditable);
+    const s = this.state;
+
+    if (e.key === 'Escape') {
+      if (typing && tag !== 'select') el.blur();
+      if (s.confirmOpen) { this.cancelConfirm(); return; }
+      if (s.regenConfirmOpen) { this.cancelRegenQr(); return; }
+      if (s.disablePortalConfirmOpen) { this.cancelDisablePortal(); return; }
+      if (s.editRecord) { this.cancelEdit(); return; }
+      if (s.openRecord) { this.setState({ openRecord: null }); return; }
+      if (s.drawerOpen) { this.setState({ drawerOpen: false }); return; }
+      return;
+    }
+
+    if (e.key === '/' && !typing && s.page === 'records') {
+      /* found by attribute rather than held as a ref: the input mounts and unmounts with the
+         page, and a stale ref pointing at a detached node would silently focus nothing */
+      const box = document.querySelector('input[data-record-search]');
+      if (!box) return;
+      e.preventDefault();   /* otherwise the "/" lands in the box we just focused */
+      box.focus();
+      box.select();
+    }
+  }
 
   flash(msg, color) {
     this.setState({ toast: msg, toastColor: color || 'var(--ok)' });
@@ -2078,6 +2181,13 @@ class Component extends DCLogic {
     if (this._loadT) clearTimeout(this._loadT);
     this._loadT = setTimeout(() => this.setState({ loading: false }), 260);
     if (page === 'settings' && this.core().auth.isAdmin()) this.loadUserList();
+  };
+  /* Records, already filtered to one module — the drill-through target for KPI cards. Clears
+     the search box on the way in so the destination isn't silently narrowed by a query typed
+     during some earlier visit to that page. */
+  goRecordsFor = (moduleId) => {
+    this.setState({ recordFilter: moduleId, recordSearch: '', recordPage: 0, openRecord: null, editRecord: null });
+    this.go('records');
   };
   loadUserList = () => {
     this.setState({ usersBusy: true });
@@ -2614,11 +2724,14 @@ class Component extends DCLogic {
 
     const kpis = [
       { label: 'รายการบันทึกทั้งหมด', value: core.fmtNum(all.length), delta: volDelta(all.length, prevAll.length), note: 'จากทุกโมดูล' + (latest ? ' · อัปเดตล่าสุด ' + core.fmtDate(latest.submittedAt) + ' ' + core.fmtTime(latest.submittedAt) : ''), color: 'var(--accent)', formula: 'COUNT(records)' },
+      /* module: which module's rows this card is counting — renderVals turns it into the
+         drill-through to Records. The vehicles card sums two modules (main + Talay Thong) and
+         so has no single answer; it stays inert rather than silently picking one of them. */
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
-      { label: 'รอบรถกอล์ฟ', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
-      { label: 'ผู้มาเยือน', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
-      { label: 'รอบตรวจจุด', value: core.fmtNum(cm.total), note: cm.total ? 'จุดที่ตรวจบ่อยสุด: ' + cm.mostVisited.label : 'ยังไม่มีรายงาน', color: core.COLORS.checkpoint, formula: 'COUNT(checkpoint records)' },
-      { label: 'รายงานลิฟต์', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
+      { label: 'รอบรถกอล์ฟ', module: 'golf', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
+      { label: 'ผู้มาเยือน', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
+      { label: 'รอบตรวจจุด', module: 'checkpoint', value: core.fmtNum(cm.total), note: cm.total ? 'จุดที่ตรวจบ่อยสุด: ' + cm.mostVisited.label : 'ยังไม่มีรายงาน', color: core.COLORS.checkpoint, formula: 'COUNT(checkpoint records)' },
+      { label: 'รายงานลิฟต์', module: 'elevator', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
     ].concat(monthlyGroup ? [
       { label: monthlyGroup.name, value: monthlyDone + '/' + monthlyMembers.length + ' หัวข้อ', note: 'หัวข้อที่มีรายงานในช่วงที่เลือก', color: monthlyGroup.color, formula: 'COUNT(DISTINCT module) ในกลุ่ม ' + monthlyGroup.id }
     ] : []);
@@ -4834,8 +4947,14 @@ class Component extends DCLogic {
 
     const navItem = (id, label, code, accent, badge) => ({
       label, code, accent, badge: badge || '',
-      border: page === id ? 'var(--accent-line)' : 'transparent',
-      bg: page === id ? 'var(--accent-soft)' : 'transparent',
+      /* the selected row is tinted with that entry's own accent (each module already passes its
+         core.COLORS value in as `accent`, which the code badge has always used) instead of one
+         shared teal, so the sidebar and the page header agree on the module's colour.
+         color-mix keeps the tint derived from the single colour rather than needing a second
+         hand-picked value per module; non-module rows pass var(--muted) and land on the app
+         accent, matching how they looked before. */
+      border: page === id ? (accent && accent !== 'var(--muted)' ? 'color-mix(in srgb, ' + accent + ' 45%, transparent)' : 'var(--accent-line)') : 'transparent',
+      bg: page === id ? (accent && accent !== 'var(--muted)' ? 'color-mix(in srgb, ' + accent + ' 14%, transparent)' : 'var(--accent-soft)') : 'transparent',
       fg: page === id ? 'var(--text)' : 'var(--muted)',
       go: () => this.go(id)
     });
@@ -4976,6 +5095,10 @@ class Component extends DCLogic {
 
       pageKicker: t.kicker,
       pageTitle: t.title,
+      /* a group landing page takes the group's colour, a module page its own, everything else
+         (Records, Builder, Export, Settings) stays on the app accent — those aren't scoped to
+         one module, so borrowing a module colour there would be a false signal */
+      pageColor: (pageGroup && pageGroup.color) || (moduleId && (core.module(moduleId) || {}).color) || 'var(--accent)',
       isDashboard: isDash,
       isBuilder: page === 'builder',
       isRecords: page === 'records',
@@ -5100,7 +5223,19 @@ class Component extends DCLogic {
         ? 'ไม่มีรายการที่บันทึกในวันที่ ' + core.fmtDate(s.date) + ' — เลือกวันที่อื่น หรือดูข้อมูลทั้งเดือน'
         : 'ยังไม่มีรายการที่บันทึกในเดือนนี้',
 
-      kpis: (data.kpis || []).map(k => this.decorateKpi(k)),
+      /* a KPI drills into Records filtered to whichever module produced it: the module it names
+         itself (Overview, where every card is a different module), otherwise the module whose
+         dashboard we are already on. Cards that roll several modules together resolve to
+         neither and stay inert. */
+      kpis: (data.kpis || []).map(k => {
+        const drillModule = k.module || (moduleId && (core.module(moduleId) ? moduleId : null)) || null;
+        return Object.assign(this.decorateKpi(k), {
+          drillable: !!drillModule,
+          cursor: drillModule ? 'pointer' : 'default',
+          cardTitle: drillModule ? k.formula + ' · กดเพื่อดูรายการบันทึกของหัวข้อนี้' : k.formula,
+          drill: drillModule ? (() => this.goRecordsFor(drillModule)) : (() => {})
+        });
+      }),
       charts: data.charts,
       infoBlocks: data.infoBlocks,
       hasTable: (data.tableRows || []).length > 0,
@@ -5146,6 +5281,13 @@ class Component extends DCLogic {
       }),
       dayListTitle: activeMonth ? core.thaiMonths[activeMonth.month] + ' ' + (activeMonth.year + 543) : '—',
       dayListEmpty: dayKeys.length === 0,
+      /* only offer "jump to the latest month that has data" when such a month actually exists,
+         so the empty state never hands out a button that would land on another empty month */
+      hasAnyHistoryMonth: months.some(m => m.count > 0),
+      jumpLatestHistory: () => {
+        const withData = months.filter(m => m.count > 0)[0];
+        if (withData) this.pickMonth(withData);
+      },
       dayList: dayKeys.map(k => {
         const list = dayGroups[k];
         const on = s.date === k;
@@ -5263,6 +5405,12 @@ class Component extends DCLogic {
       /* "nothing here yet" and "nothing matched what you typed" are different situations and
          need different wording — the second one also needs a way back out */
       recordsEmpty: recordsAll.length === 0 && !recordQuery,
+      /* an empty list under a module chip means "this module has nothing", not "the system has
+         nothing" — saying which, and offering the way back to all modules, keeps it from
+         reading as though the whole database were empty */
+      recordsEmptyText: s.recordFilter === 'all' ? 'ยังไม่มีข้อมูล' : 'ยังไม่มีข้อมูลในหัวข้อนี้',
+      recordFilterActive: s.recordFilter !== 'all',
+      showAllRecords: () => this.setState({ recordFilter: 'all', recordPage: 0, openRecord: null, editRecord: null }),
       recordsNoMatch: recordsAll.length === 0 && !!recordQuery,
       recordNoMatchText: 'ไม่พบรายการที่ตรงกับ "' + (s.recordSearch || '').trim() + '"' + (s.recordFilter === 'all' ? '' : ' ในหัวข้อนี้'),
       recordSearch: s.recordSearch,
