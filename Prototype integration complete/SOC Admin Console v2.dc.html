@@ -302,10 +302,13 @@
 
         <!-- day/week/month/year dropdown — module dashboards only, see showGranularityPicker -->
         <sc-if value="{{ showGranularityPicker }}" hint-placeholder-val="{{ false }}">
-          <!-- flex: none here kept this row at its max-content width (~615px measured), so on a
-               phone the period controls ran off the right edge instead of wrapping; it has to be
-               allowed to shrink, with min-width: 0 so its own children can wrap inside it -->
-          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+          <!-- flex-basis 100% (not auto) is deliberate: week/year content (date input, range
+               text) is wider than day mode's single DATE chip, so with "auto" this row shared
+               the header's first line with the title only when content was short enough to fit
+               — switching granularity made the title jump between inline and its own line.
+               Pinning this row to always start its own full-width line makes every granularity
+               look the same, so switching modes never reflows the header. -->
+          <div style="flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
             <span style="font-size: 12px; font-weight: 600; color: var(--dim);">เทียบ:</span>
             <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
             <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
