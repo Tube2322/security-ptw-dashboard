@@ -941,8 +941,33 @@
               </sc-for>
             </div>
 
+            <!-- search + sort: with a year of real data the module chips alone are not enough to
+                 find one record, and the list had no ordering control at all -->
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <div style="position: relative; flex: 1 1 240px; min-width: 0;">
+                <input type="search" value="{{ recordSearch }}" onInput="{{ setRecordSearch }}" placeholder="ค้นหา ชื่อผู้กรอก · วันที่ · คำตอบ · หัวข้อคำถาม" aria-label="ค้นหาในรายการบันทึก" style="width: 100%; min-width: 0; min-height: 44px; padding: 0 40px 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13.5px;">
+                <sc-if value="{{ recordSearchActive }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ clearRecordSearch }}" aria-label="ล้างคำค้นหา" style="position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); cursor: pointer; font-size: 13px;">✕</button>
+                </sc-if>
+              </div>
+              <select value="{{ recordSort }}" onChange="{{ setRecordSort }}" aria-label="เรียงลำดับรายการ" style="flex: 0 1 auto; min-width: 0; min-height: 44px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13px;">
+                <option value="date_desc">วันที่ข้อมูล ใหม่ → เก่า</option>
+                <option value="date_asc">วันที่ข้อมูล เก่า → ใหม่</option>
+                <option value="submitted_desc">เวลาที่ส่ง ล่าสุดก่อน</option>
+                <option value="by_name">ผู้กรอก ก → ฮ</option>
+                <option value="module">หัวข้อ ก → ฮ</option>
+              </select>
+              <span style="flex: none; font-size: 12.5px; color: var(--muted);">{{ recordCountLabel }}</span>
+            </div>
+
             <sc-if value="{{ recordsEmpty }}" hint-placeholder-val="{{ false }}">
               <div style="padding: 44px 20px; border-radius: 16px; border: 1px dashed var(--line-2); text-align: center; color: var(--muted);">ยังไม่มีข้อมูล</div>
+            </sc-if>
+            <sc-if value="{{ recordsNoMatch }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 36px 20px; border-radius: 16px; border: 1px dashed var(--line-2); text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                <span style="overflow-wrap: anywhere;">{{ recordNoMatchText }}</span>
+                <button onClick="{{ clearRecordSearch }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px;">ล้างคำค้นหา</button>
+              </div>
             </sc-if>
 
             <div style="display: flex; flex-direction: column; gap: 11px;">
@@ -1672,6 +1697,7 @@ class Component extends DCLogic {
     loading: true,
     builderModule: 'traffic', builderDraft: null, moduleNameDraft: null,
     recordFilter: 'all', recordPage: 0, openRecord: null,
+    recordSearch: '', recordSort: 'date_desc',
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
@@ -3967,6 +3993,47 @@ class Component extends DCLogic {
       return [core.fmtDateShort(r.reportDate)].concat(cells).concat([r.submittedBy, core.fmtTime(r.submittedAt)]);
     });
   }
+  /* ---------- Records browser: search + sort ----------
+     Everything one record shows on screen, lowercased into one string to match against: the
+     module's name and code, both spellings of the date (ISO as stored and Thai as displayed, so
+     "2026-08" and "ส.ค." both find it), who filled it in, and every answer — including each
+     question's label, so searching "ประตูหนีไฟ" finds records by what was asked, not only by what
+     was typed. Cached per record version: this runs for every record on every render, and the
+     admin's own edits change updatedAt, which retires the entry by itself. */
+  recordHaystack(rec) {
+    const key = rec.id + '|' + (rec.updatedAt || '');
+    this._hayCache = this._hayCache || {};
+    if (this._hayCache[key]) return this._hayCache[key];
+    const core = this.core();
+    const mod = core.module(rec.module) || {};
+    const parts = [mod.name, mod.en, mod.code, rec.reportDate, core.fmtDate(rec.reportDate),
+      core.fmtDateShort(rec.reportDate), rec.submittedBy, rec.inspector, rec.submittedAt];
+    const d = rec.data || {};
+    Object.keys(d).forEach(fieldId => {
+      const f = core.field(rec.module, fieldId);
+      if (f && f.label) parts.push(f.label);
+      const v = d[fieldId];
+      parts.push(Array.isArray(v) ? v.join(' ') : v);
+    });
+    /* one cache generation at a time: without this, a long session browsing thousands of records
+       would keep every version of every record it ever rendered */
+    if (Object.keys(this._hayCache).length > 4000) this._hayCache = {};
+    const hay = parts.filter(x => x != null && x !== '').join(' ').toLowerCase();
+    this._hayCache[key] = hay;
+    return hay;
+  }
+  sortRecords(list, sort) {
+    const core = this.core();
+    const by = (a, b) => String(a || '').localeCompare(String(b || ''), 'th');
+    const arr = list.slice();
+    if (sort === 'date_asc') return arr.sort((a, b) => by(a.reportDate, b.reportDate) || by(a.submittedAt, b.submittedAt));
+    if (sort === 'submitted_desc') return arr.sort((a, b) => by(b.submittedAt, a.submittedAt));
+    if (sort === 'by_name') return arr.sort((a, b) => by(a.submittedBy, b.submittedBy) || by(b.reportDate, a.reportDate));
+    if (sort === 'module') return arr.sort((a, b) => by((core.module(a.module) || {}).name, (core.module(b.module) || {}).name) || by(b.reportDate, a.reportDate));
+    /* default — newest data first, which is what the page showed before this control existed
+       (records arrive in insertion order and were never explicitly sorted) */
+    return arr.sort((a, b) => by(b.reportDate, a.reportDate) || by(b.submittedAt, a.submittedAt));
+  }
   /* The newest ms_forms_outbox row for one target form — what actually happened last time this
      topic was forwarded, as opposed to whether the toggle is on. */
   msFormsLast(target) {
@@ -4746,7 +4813,10 @@ class Component extends DCLogic {
 
     /* the Records browser shows a module's (or everyone's) full history with no date bound —
        core.ensureAll() for this is triggered once near the top of renderVals(). */
-    const recordsAll = s.recordFilter === 'all' ? core.allRecords() : core.query({ module: s.recordFilter });
+    const recordScope = s.recordFilter === 'all' ? core.allRecords() : core.query({ module: s.recordFilter });
+    const recordQuery = (s.recordSearch || '').trim().toLowerCase();
+    const recordsFound = recordQuery ? recordScope.filter(r => this.recordHaystack(r).indexOf(recordQuery) !== -1) : recordScope;
+    const recordsAll = this.sortRecords(recordsFound, s.recordSort);
     const REC_PER_PAGE = 25;
     const recordPages = Math.max(1, Math.ceil(recordsAll.length / REC_PER_PAGE));
     const recordPage = Math.min(s.recordPage, recordPages - 1);
@@ -5141,7 +5211,20 @@ class Component extends DCLogic {
           fg: s.recordFilter === o.id ? 'var(--accent)' : 'var(--muted)',
           pick: () => this.setState({ recordFilter: o.id, recordPage: 0, openRecord: null, editRecord: null })
         })),
-      recordsEmpty: recordsAll.length === 0,
+      /* "nothing here yet" and "nothing matched what you typed" are different situations and
+         need different wording — the second one also needs a way back out */
+      recordsEmpty: recordsAll.length === 0 && !recordQuery,
+      recordsNoMatch: recordsAll.length === 0 && !!recordQuery,
+      recordNoMatchText: 'ไม่พบรายการที่ตรงกับ "' + (s.recordSearch || '').trim() + '"' + (s.recordFilter === 'all' ? '' : ' ในหัวข้อนี้'),
+      recordSearch: s.recordSearch,
+      setRecordSearch: (e) => this.setState({ recordSearch: e.target.value, recordPage: 0, openRecord: null, editRecord: null }),
+      clearRecordSearch: () => this.setState({ recordSearch: '', recordPage: 0, openRecord: null, editRecord: null }),
+      recordSearchActive: !!recordQuery,
+      recordSort: s.recordSort,
+      setRecordSort: (e) => this.setState({ recordSort: e.target.value, recordPage: 0, openRecord: null, editRecord: null }),
+      recordCountLabel: recordQuery
+        ? 'พบ ' + core.fmtNum(recordsAll.length) + ' จาก ' + core.fmtNum(recordScope.length) + ' รายการ'
+        : core.fmtNum(recordScope.length) + ' รายการ',
       recordPagerOn: recordPages > 1,
       recordPagerLabel: 'รายการที่ ' + core.fmtNum(recordPage * REC_PER_PAGE + 1) + '–' + core.fmtNum(recordPage * REC_PER_PAGE + recordSlice.length) + ' จาก ' + core.fmtNum(recordsAll.length) + ' · หน้า ' + (recordPage + 1) + '/' + recordPages,
       recordPrevDisabled: recordPage <= 0,
