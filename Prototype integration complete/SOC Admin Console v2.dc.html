@@ -1646,6 +1646,27 @@
       </div>
     </div>
   </sc-if>
+
+  <!-- ===== NEW REPORT POPUPS ===== -->
+  <!-- top-right, not top-left: top-left is where the mobile burger button lives, so a stack
+       there would sit on top of it. Fixed offset (not sticky) so it floats free of the header
+       regardless of scroll position; each entry expires on its own 5s timer (see
+       pushReportToast), so this only ever shows what actually just changed on this admin's
+       screen — matches the ask for "admin side only", since only the Admin Console listens.
+       One fixed outer shell + a normal-flow flex column inside, so stacked entries lay out
+       below each other instead of all sitting at the same fixed offset on top of one another. -->
+  <sc-if value="{{ hasReportToasts }}" hint-placeholder-val="{{ false }}">
+    <div data-print-hide="1" style="position: fixed; z-index: 80; top: 72px; right: 12px; left: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none;">
+      <sc-for list="{{ reportToasts }}" as="rt" hint-placeholder-count="0">
+        <div style="max-width: min(340px, 100%); animation: socToast 240ms ease both; pointer-events: auto;">
+          <div style="display: flex; align-items: center; gap: 11px; padding: 12px 15px; border-radius: 13px; border: 1px solid var(--line-2); background: var(--bg-2); box-shadow: 0 24px 60px -24px rgba(0,0,0,0.7); font-size: 13px; min-width: 0;">
+            <span style="width: 8px; height: 8px; flex: none; border-radius: 50%; background: {{ rt.color }};"></span>
+            <span style="min-width: 0; overflow-wrap: anywhere;"><strong>รายงานใหม่:</strong> {{ rt.text }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{}">
@@ -1712,7 +1733,7 @@ class Component extends DCLogic {
     capturingPdf: false, pdfGenerating: false, pdfStep: '',
     theme: 'system',
     portalDraft: null, qrTick: 0, regenConfirmOpen: false, regenConfirmText: '', disablePortalConfirmOpen: false,
-    toast: '', toastColor: 'var(--ok)',
+    toast: '', toastColor: 'var(--ok)', reportToasts: [],
     authTick: 0, loginEmail: '', loginPassword: '', loginError: '', loginBusy: false,
     authMode: 'login',
     signupEmail: '', signupPassword: '', signupConfirm: '', signupError: '', signupBusy: false, signupNotice: '',
@@ -1910,6 +1931,7 @@ class Component extends DCLogic {
         else this._syncedFor = null;
       });
       this._unsubError = core.onError((msg) => this.flash(msg, 'var(--danger)'));
+      this._unsubInsert = core.onInsert((rec) => this.pushReportToast(rec));
       this._unsubProfile = core.auth.subscribeProfile(() => this.setState(s => ({ rev: s.rev + 1 })));
     }
     this._resize = () => {
@@ -1932,10 +1954,12 @@ class Component extends DCLogic {
     if (this._unsubPortal) this._unsubPortal();
     if (this._unsubAuth) this._unsubAuth();
     if (this._unsubError) this._unsubError();
+    if (this._unsubInsert) this._unsubInsert();
     if (this._unsubProfile) this._unsubProfile();
     window.removeEventListener('resize', this._resize);
     if (this._mq && this._mq.removeEventListener) this._mq.removeEventListener('change', this._mqh);
     if (this._toastT) clearTimeout(this._toastT);
+    (this._reportToastTimers || []).forEach((t) => clearTimeout(t));
     if (this._loadT) clearTimeout(this._loadT);
     if (this._comboBlurT) clearTimeout(this._comboBlurT);
   }
@@ -1989,6 +2013,25 @@ class Component extends DCLogic {
     this.setState({ toast: msg, toastColor: color || 'var(--ok)' });
     if (this._toastT) clearTimeout(this._toastT);
     this._toastT = setTimeout(() => this.setState({ toast: '' }), 2600);
+  }
+
+  /* "new report came in" popups — separate from flash() above (which is a single slot other
+     confirmations already use heavily) so a report arriving mid-task never stomps or gets
+     stomped by an unrelated save/error message. Stacks up to 3; each expires on its own timer
+     so a burst of near-simultaneous submissions (e.g. traffic + golf the same minute) doesn't
+     freeze the group's countdown. */
+  pushReportToast(rec) {
+    const core = this.core();
+    if (!core) return;
+    const mod = core.module(rec.module) || {};
+    const id = rec.id + '_' + Date.now();
+    const text = (mod.name || rec.module) + (rec.submittedBy ? ' — ' + rec.submittedBy : '');
+    this._reportToastTimers = this._reportToastTimers || [];
+    this.setState((s) => ({ reportToasts: s.reportToasts.concat([{ id, text, color: mod.color || 'var(--accent)' }]).slice(-3) }));
+    const t = setTimeout(() => {
+      this.setState((s) => ({ reportToasts: s.reportToasts.filter((x) => x.id !== id) }));
+    }, 5000);
+    this._reportToastTimers.push(t);
   }
 
   /* ---------- auth ---------- */
@@ -5528,7 +5571,9 @@ class Component extends DCLogic {
       ],
 
       toast: s.toast,
-      toastColor: s.toastColor
+      toastColor: s.toastColor,
+      reportToasts: s.reportToasts,
+      hasReportToasts: s.reportToasts.length > 0
     };
   }
 }
