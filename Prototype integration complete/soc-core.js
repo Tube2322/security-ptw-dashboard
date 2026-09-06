@@ -103,7 +103,14 @@
     { id: 'time', label: 'Time' }
   ];
 
-  var OPERATORS = ['สมชาย ปานทอง', 'วิชัย สุขใจ', 'ณัฐพล กิตติ', 'อนันต์ ทองดี'];
+  /* "หัวหน้าวันชัย" added as the reset-time default because it is the exact choice text on the
+     other department's traffic_golf_daily Microsoft Form (forward-msforms.js
+     FORMS.traffic_golf_daily) — typing "วันชัย" there instead sends the answer into that form's
+     free-text "อื่นๆ" box rather than checking the intended radio. This constant only seeds a
+     fresh install or a full reset, though: the live traffic_name/golf_name fields' actual
+     options are whatever an admin has since edited into form_fields.options via Form Builder
+     (already corrected there directly — see the ms_forms name-mismatch fix). */
+  var OPERATORS = ['หัวหน้าวันชัย', 'สมชาย ปานทอง', 'วิชัย สุขใจ', 'ณัฐพล กิตติ', 'อนันต์ ทองดี'];
 
   function emptyForms() { var o = {}; MODULES.forEach(function (m) { o[m.id] = []; }); return o; }
   function emptyCounts() { var o = {}; MODULES.forEach(function (m) { o[m.id] = 0; }); return o; }
