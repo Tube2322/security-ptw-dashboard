@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260906b"></script>
+<script src="./soc-core.js?v=20260906c"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -1419,15 +1419,35 @@
               <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px; overflow-wrap: anywhere;">เมื่อมีคนส่งแบบตรวจประจำเดือนจากหน้ากรอกข้อมูล ระบบจะกรอกฟอร์ม Microsoft Forms ของอีกแผนกให้อัตโนมัติ (ใช้ headless browser กรอกแทนคน) — เปิดเฉพาะหัวข้อที่ยืนยันโครงสร้างฟอร์มตรงกันแล้ว ปิดไว้เป็นค่าเริ่มต้นจนกว่าจะเปิดเอง</div>
               <div style="display: flex; flex-direction: column; gap: 10px;">
                 <sc-for list="{{ msFormsRows }}" as="mf" hint-placeholder-count="2">
-                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--bg-2);">
-                    <div style="min-width: 0;">
-                      <div style="font-size: 13.5px; font-weight: 500;">{{ mf.name }}</div>
-                      <div style="font-size: 11.5px; color: var(--dim);">{{ mf.status }}</div>
-                      <div style="font-size: 11.5px; color: {{ mf.lastColor }}; margin-top: 3px; overflow-wrap: anywhere;">{{ mf.lastText }}</div>
+                  <div style="border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--bg-2);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                      <div style="min-width: 0;">
+                        <div style="font-size: 13.5px; font-weight: 500;">{{ mf.name }}</div>
+                        <div style="font-size: 11.5px; color: var(--dim);">{{ mf.status }}</div>
+                        <div style="font-size: 11.5px; color: {{ mf.lastColor }}; margin-top: 3px; overflow-wrap: anywhere;">{{ mf.lastText }}</div>
+                      </div>
+                      <button onClick="{{ mf.toggle }}" aria-label="toggle ms forms forwarding" style="flex: none; width: 50px; height: 30px; border-radius: 99px; border: 1px solid {{ mf.toggleBorder }}; background: {{ mf.toggleBg }}; cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: 2px; left: {{ mf.toggleKnobLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 160ms ease;"></span>
+                      </button>
                     </div>
-                    <button onClick="{{ mf.toggle }}" aria-label="toggle ms forms forwarding" style="flex: none; width: 50px; height: 30px; border-radius: 99px; border: 1px solid {{ mf.toggleBorder }}; background: {{ mf.toggleBg }}; cursor: pointer; position: relative;">
-                      <span style="position: absolute; top: 2px; left: {{ mf.toggleKnobLeft }}; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left 160ms ease;"></span>
-                    </button>
+                    <!-- every attempt, not just the latest — the whole reason ms_forms_send_log
+                         exists is that "latest" can hide an earlier failure on a module that
+                         gets submitted more than once a day (see msFormsHiddenFailures) -->
+                    <button onClick="{{ mf.toggleLog }}" style="margin-top: 8px; padding: 0; border: none; background: none; color: var(--accent); cursor: pointer; font-size: 11.5px;">{{ mf.logToggleLabel }}</button>
+                    <sc-if value="{{ mf.logOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+                        <sc-if value="{{ mf.logEmpty }}" hint-placeholder-val="{{ false }}">
+                          <div style="font-size: 11.5px; color: var(--dim);">ยังไม่มีประวัติการส่ง</div>
+                        </sc-if>
+                        <sc-for list="{{ mf.logEntries }}" as="le" hint-placeholder-count="3">
+                          <div style="display: flex; gap: 8px; font-size: 11px; align-items: baseline;">
+                            <span style="flex: none; color: {{ le.color }};">{{ le.icon }}</span>
+                            <span style="flex: none; color: var(--dim); font-family: 'IBM Plex Mono', monospace;">{{ le.when }}</span>
+                            <span style="min-width: 0; overflow-wrap: anywhere; color: var(--muted);">{{ le.text }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
                   </div>
                 </sc-for>
               </div>
@@ -1788,6 +1808,8 @@ class Component extends DCLogic {
     recordSearch: '', recordSort: 'date_desc',
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
+    msSendLog: [], /* ms_forms_send_log rows — every attempt, never overwritten (see msFormsOutbox) */
+    msLogOpen: null, /* target_form id of the one forwarding row with its log expanded, or null */
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
     pdfModule: 'traffic', pdfFrom: '', pdfTo: '',
     pdfPeriod: 'day', pdfPeriodYear: 2026, pdfPeriodMonth: 7, pdfPeriodDay: null,
@@ -4211,21 +4233,48 @@ class Component extends DCLogic {
     const core = this.core();
     return core.fmtDate(ts) + ' ' + core.fmtTime(ts) + ' น.';
   }
+  /* ms_forms_outbox holds one row per (module, date) — a module submitted several times the
+     same day (five fire extinguisher tanks, say) shares that single row, so its "latest status"
+     can legitimately be 'sent' even though an earlier attempt that same day failed and was
+     overwritten. ms_forms_send_log is the append-only record that failure survives in — this
+     counts it back in so it isn't silently lost behind a later success. */
+  msFormsHiddenFailures(target, reportDate) {
+    return (this.state.msSendLog || []).filter(r =>
+      r.target_form === target && r.report_date === reportDate && !r.ok
+    ).length;
+  }
   msFormsLastText(target) {
     const row = this.msFormsLast(target);
     if (!row) return 'ยังไม่เคยส่ง';
     const core = this.core();
     const when = core.fmtDate(row.report_date);
-    if (row.status === 'sent') return '✓ ส่งสำเร็จ ' + this.msFormsStamp(row.sent_at) + ' · ข้อมูลวันที่ ' + when;
+    const hidden = this.msFormsHiddenFailures(target, row.report_date);
+    const hiddenNote = (row.status === 'sent' && hidden > 0)
+      ? ' · ⚠ มี ' + hidden + ' ครั้งที่ล้มเหลวในวันเดียวกัน (ดู log ด้านล่าง)' : '';
+    if (row.status === 'sent') return '✓ ส่งสำเร็จ ' + this.msFormsStamp(row.sent_at) + ' · ข้อมูลวันที่ ' + when + hiddenNote;
     if (row.status === 'failed') return '⚠ ส่งไม่สำเร็จ ' + row.attempts + ' ครั้ง · ลองล่าสุด ' + this.msFormsStamp(row.updated_at) + ' · ข้อมูลวันที่ ' + when + (row.last_error ? ' — ' + row.last_error : '');
     if (row.status === 'sending') return 'กำลังส่ง · เริ่มเมื่อ ' + this.msFormsStamp(row.claimed_at || row.updated_at) + ' · ข้อมูลวันที่ ' + when;
     /* pending only ever happens for the combined form, where it means exactly one thing */
     return 'รอข้อมูลอีกฟอร์มของวันที่ ' + when + ' · อัปเดตล่าสุด ' + this.msFormsStamp(row.updated_at);
   }
+  /* Newest-first, capped at 10 — this is a quick "what actually happened" glance for one topic,
+     not a full report; anyone needing the complete history can query ms_forms_send_log directly. */
+  msFormsLogEntries(target) {
+    const core = this.core();
+    return (this.state.msSendLog || [])
+      .filter(r => r.target_form === target)
+      .slice(0, 10)
+      .map(r => ({
+        icon: r.ok ? '✓' : '⚠',
+        color: r.ok ? 'var(--ok)' : 'var(--danger)',
+        when: this.msFormsStamp(r.created_at),
+        text: 'ข้อมูลวันที่ ' + core.fmtDate(r.report_date) + (r.ok ? '' : (r.error ? ' — ' + r.error : ' — ล้มเหลว'))
+      }));
+  }
   msFormsLastColor(target) {
     const row = this.msFormsLast(target);
     if (!row) return 'var(--dim)';
-    if (row.status === 'sent') return 'var(--ok)';
+    if (row.status === 'sent') return this.msFormsHiddenFailures(target, row.report_date) > 0 ? 'var(--warn)' : 'var(--ok)';
     if (row.status === 'failed') return 'var(--danger)';
     return 'var(--muted)';
   }
@@ -4882,6 +4931,7 @@ class Component extends DCLogic {
     if (page === 'settings' && !this._outboxLoaded) {
       this._outboxLoaded = true;
       core.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
+      core.msFormsSendLog().then(rows => this.setState({ msSendLog: rows }));
     }
 
     let data = { kpis: [], charts: [], infoBlocks: [], tableRows: [], tableColumns: [], empty: true, tableTitle: '', tableNote: '' };
@@ -5653,6 +5703,8 @@ class Component extends DCLogic {
         { id: 'traffic_golf_daily', name: 'รถเข้า-ออก-Traffic Flow + รถกอล์ฟ-Golf Fleet (ฟอร์มรวมของอีกแผนก)' }
       ].map(row => {
         const on = !!(core.getPortal().msFormsForwarding || {})[row.id];
+        const logOpen = s.msLogOpen === row.id;
+        const logEntries = logOpen ? this.msFormsLogEntries(row.id) : [];
         return {
           id: row.id, name: row.name,
           status: on ? 'เปิดอยู่ — ส่งต่ออัตโนมัติทุกครั้งที่มีการกรอก' : 'ปิดอยู่ — ไม่ส่งต่อ',
@@ -5661,7 +5713,12 @@ class Component extends DCLogic {
           toggle: () => this.toggleMsFormsForwarding(row.id),
           toggleBorder: on ? 'var(--accent-line)' : 'var(--line)',
           toggleBg: on ? 'var(--accent-soft)' : 'var(--panel-2)',
-          toggleKnobLeft: on ? '23px' : '2px'
+          toggleKnobLeft: on ? '23px' : '2px',
+          logOpen,
+          logToggleLabel: logOpen ? 'ซ่อน log' : 'ดู log ทุกครั้งที่ส่ง',
+          toggleLog: () => this.setState({ msLogOpen: logOpen ? null : row.id }),
+          logEmpty: logOpen && logEntries.length === 0,
+          logEntries
         };
       }),
       /* QR user entry portal */
