@@ -760,6 +760,14 @@
       return sb.from('ms_forms_outbox').select('*').order('report_date', { ascending: false }).limit(200)
         .then(function (res) { return res.error ? [] : (res.data || []); });
     },
+    /* append-only audit trail behind ms_forms_outbox's single "latest status" row per
+       (module, date) — a module submitted several times the same day (e.g. five fire
+       extinguisher tanks) shares one outbox row, so a failed attempt can otherwise be silently
+       overwritten by a later success. This is what lets the Settings page say so anyway. */
+    msFormsSendLog: function () {
+      return sb.from('ms_forms_send_log').select('*').order('created_at', { ascending: false }).limit(500)
+        .then(function (res) { return res.error ? [] : (res.data || []); });
+    },
     addRecord: function (module, data, meta) {
       meta = meta || {};
       var mod = this.module(module) || {};
