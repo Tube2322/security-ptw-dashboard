@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260904"></script>
+<script src="./soc-core.js?v=20260906"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -2621,10 +2621,15 @@ class Component extends DCLogic {
   }
   golfMetrics(recs) {
     const core = this.core();
-    const isNight = (r) => /กลางคืน/.test(String((r.data || {}).golf_shift || ''));
+    /* which shift a round belongs to is a property of the cart, not the record: cart 1 runs
+       nights, carts 2-4 run days, fixed in practice — so this reads straight off the field the
+       cart's number already picks (GOLF_CARTS[0]), rather than a separate shift the guard used
+       to have to pick every submission (removed — see soc-core.js's golf form). Works the same
+       for historical records that still carry an old golf_shift answer, since that value is
+       simply never read here any more. */
     const total = core.sumFields(recs, GOLF_CARTS);
-    const dayRounds = core.sumFields(recs.filter(r => !isNight(r)), GOLF_CARTS);
-    const nightRounds = total - dayRounds;
+    const nightRounds = core.sumFields(recs, [GOLF_CARTS[0]]);
+    const dayRounds = total - nightRounds;
     const perCart = GOLF_CARTS.map((id, i) => ({
       id, label: 'รถกอล์ฟ ' + (i + 1),
       value: core.agg(recs, id, 'SUM'),
@@ -2963,8 +2968,8 @@ class Component extends DCLogic {
 
     const kpis = [
       { label: 'จำนวนรอบรวม', value: core.fmtNum(total), delta: volDelta(total, prevTotal), note: 'OFF ไม่ถูกนับเป็นตัวเลข', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
-      { label: 'รอบกะกลางวัน', value: core.fmtNum(dayRounds), delta: volDelta(dayRounds, prevGm.dayRounds), note: 'จาก golf_shift', color: '#5fd3a6', formula: 'SUM where shift=day' },
-      { label: 'รอบกะกลางคืน', value: core.fmtNum(nightRounds), delta: volDelta(nightRounds, prevGm.nightRounds), note: 'จาก golf_shift', color: '#2f8f6c', formula: 'SUM where shift=night' },
+      { label: 'รอบกะกลางวัน', value: core.fmtNum(dayRounds), delta: volDelta(dayRounds, prevGm.dayRounds), note: 'รถ 2, 3, 4', color: '#5fd3a6', formula: 'SUM(golf_cart_2..4)' },
+      { label: 'รอบกะกลางคืน', value: core.fmtNum(nightRounds), delta: volDelta(nightRounds, prevGm.nightRounds), note: 'รถ 1', color: '#2f8f6c', formula: 'SUM(golf_cart_1)' },
       { label: 'รถที่ให้บริการ', value: core.fmtNum(activeCount) + ' / 4', note: 'มีรอบมากกว่า 0', color: 'var(--ok)', formula: 'COUNT(cart>0)' },
       { label: 'รถสถานะ OFF', value: core.fmtNum(offCount), note: offCount ? 'ไม่ให้บริการในช่วงนี้' : 'ให้บริการครบทุกคัน', color: offCount ? 'var(--warn)' : 'var(--muted)', formula: 'COUNT(value=OFF)' },
       { label: 'เฉลี่ยรอบ/คัน', value: core.fmtNum(activeCount ? total / activeCount : 0), note: 'เฉพาะรถที่ให้บริการ', color: 'var(--muted)', formula: 'AVERAGE(active carts)' }
@@ -2978,7 +2983,7 @@ class Component extends DCLogic {
           { label: 'กะกลางวัน', value: dayRounds, color: P.golfDay },
           { label: 'กะกลางคืน', value: nightRounds, color: P.golfNight }
         ],
-        trace: 'trace: golf_cart_* + golf_shift → SUM → part-to-whole' }),
+        trace: 'trace: golf_cart_1 vs golf_cart_2..4 → SUM → part-to-whole' }),
       this.buildChart({ id: 'gf_cart', block: 'Block 02', title: 'จำนวนรอบรายคัน',
         subtitle: 'รถที่ไม่ให้บริการจะแสดงเป็น OFF และไม่ถูกนับรวม · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
         family: 'category', fallback: 'rank', recordCount: recs.length,
@@ -3008,7 +3013,6 @@ class Component extends DCLogic {
         })) },
         { block: 'Block 05', title: 'ข้อมูลการบันทึก', rows: last ? [
           { label: 'ชื่อผู้กรอก', value: last.submittedBy, color: 'var(--text)' },
-          { label: 'กะ', value: core.fmtValue((last.data || {}).golf_shift), color: 'var(--text)' },
           { label: 'วันที่ของข้อมูล', value: core.fmtDate(last.reportDate), color: 'var(--text)' },
           { label: 'เวลาที่ส่ง', value: core.fmtDate(last.submittedAt) + ' ' + core.fmtTime(last.submittedAt), color: 'var(--text)' },
           { label: 'หมายเหตุ', value: core.fmtValue((last.data || {}).golf_note), color: 'var(--muted)' },
@@ -3017,7 +3021,7 @@ class Component extends DCLogic {
       ],
       tableTitle: 'Golf Fleet — รายการบันทึกในช่วงที่เลือก',
       tableNote: core.fmtNum(recs.length) + ' รายการ',
-      tableColumns: ['วันที่ข้อมูล', 'ผู้กรอก', 'กะ', 'รถ 1', 'รถ 2', 'รถ 3', 'รถ 4', 'รวม'],
+      tableColumns: ['วันที่ข้อมูล', 'ผู้กรอก', 'รถ 1 (คืน)', 'รถ 2 (วัน)', 'รถ 3 (วัน)', 'รถ 4 (วัน)', 'รวม'],
       tableRows: recs.map(r => {
         const cell = (id) => {
           const raw = (r.data || {})[id];
@@ -3027,7 +3031,6 @@ class Component extends DCLogic {
         return { cells: [
           { text: core.fmtDateShort(r.reportDate), color: 'var(--text)', wrap: 'nowrap' },
           { text: r.submittedBy, color: 'var(--muted)', wrap: 'nowrap' },
-          { text: core.fmtValue((r.data || {}).golf_shift), color: 'var(--muted)', wrap: 'nowrap' },
           cell('golf_cart_1'), cell('golf_cart_2'), cell('golf_cart_3'), cell('golf_cart_4'),
           { text: core.fmtNum(core.sumFields([r], GOLF_CARTS)), color: 'var(--text)', wrap: 'nowrap' }
         ] };
@@ -4079,7 +4082,7 @@ class Component extends DCLogic {
   pdfColumnsFor(m) {
     const mod = this.core().module(m) || {};
     if (mod.kind === 'traffic') return ['วันที่ข้อมูล', 'ผู้กรอก', 'เข้า', 'ออก', 'สุทธิ', 'เวลาส่ง'];
-    if (m === 'golf') return ['วันที่ข้อมูล', 'ผู้กรอก', 'กะ', 'รถ1', 'รถ2', 'รถ3', 'รถ4', 'รวม'];
+    if (m === 'golf') return ['วันที่ข้อมูล', 'ผู้กรอก', 'รถ1(คืน)', 'รถ2(วัน)', 'รถ3(วัน)', 'รถ4(วัน)', 'รวม'];
     if (mod.kind === 'elevator') return ['วันที่ข้อมูล', 'ลิฟต์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'];
     if (mod.kind === 'checkpoint') return ['วันที่ข้อมูล', 'ชื่อ', 'กะ', 'จุดที่ตรวจ', 'เวลาที่ลงตรวจ', 'ผู้ตรวจสอบ', 'เวลาส่ง'];
     /* explicit branch for the same reason as pdfSummaryFor — the fallback below is the
@@ -4101,7 +4104,7 @@ class Component extends DCLogic {
       }
       if (m === 'golf') {
         const cv = (id) => core.isOff(d[id]) ? 'OFF' : core.fmtValue(d[id]);
-        return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtValue(d.golf_shift), cv('golf_cart_1'), cv('golf_cart_2'), cv('golf_cart_3'), cv('golf_cart_4'), core.fmtNum(core.sumFields([r], GOLF_CARTS))];
+        return [core.fmtDateShort(r.reportDate), r.submittedBy, cv('golf_cart_1'), cv('golf_cart_2'), cv('golf_cart_3'), cv('golf_cart_4'), core.fmtNum(core.sumFields([r], GOLF_CARTS))];
       }
       if (mod.kind === 'elevator') {
         return [core.fmtDateShort(r.reportDate), liftCode(d.elevator_lift), core.fmtValue(d.elevator_remark), core.fmtValue(d.elevator_user_type), core.fmtTime(r.submittedAt)];
