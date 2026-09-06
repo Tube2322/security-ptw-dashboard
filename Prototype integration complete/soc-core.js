@@ -154,8 +154,12 @@
       golf: [
         f('golf_date', 'วันที่', 'date', { required: true, system: true }),
         f('golf_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
-        f('golf_shift', 'กะ', 'radio', { required: true, options: ['กะกลางวัน', 'กะกลางคืน'], system: true }),
-        f('golf_cart_1', 'รถกอล์ฟ 1 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', helper: 'กรอก OFF หากรถไม่ได้ให้บริการ', system: true }),
+        /* no shift picker: which cart runs which shift is fixed in practice (cart 1 = night,
+           carts 2-4 = day, confirmed operationally, not something a guard chooses per
+           submission), so golfMetrics() below classifies rounds by cart number instead of
+           asking for it here. The old golf_shift field is deactivated in the database rather
+           than deleted, so historical records keep whatever value they were saved with. */
+        f('golf_cart_1', 'รถกอล์ฟ 1 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', helper: 'กรอก OFF หากรถไม่ได้ให้บริการ · คันนี้นับเป็นกะกลางคืนเสมอ', system: true }),
         f('golf_cart_2', 'รถกอล์ฟ 2 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', system: true }),
         f('golf_cart_3', 'รถกอล์ฟ 3 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', system: true }),
         f('golf_cart_4', 'รถกอล์ฟ 4 — จำนวนรอบ', 'number', { required: true, group: 'จำนวนรอบรายคัน', placeholder: '0 หรือ OFF', allowOff: true, unit: 'รอบ', system: true }),
@@ -767,13 +771,18 @@
       state.records.push(rec);
       state.counts[module] = (state.counts[module] || 0) + 1;
       bump();
-      sb.from('records').insert(recordToRow(rec)).then(function (res) {
+      /* stashed on the returned object (not just fired-and-forgotten) so a caller that needs the
+         row to actually exist in Postgres before doing anything else — the traffic/golf forward
+         path re-queries this table server-side via RPC — has something to wait on. Everyone else
+         can keep ignoring it exactly like before. */
+      rec._saved = sb.from('records').insert(recordToRow(rec)).then(function (res) {
         if (res.error) {
           state.records = state.records.filter(function (r) { return r.id !== rec.id; });
           state.counts[module] = Math.max(0, (state.counts[module] || 0) - 1);
           bump();
           notifyError('บันทึกข้อมูลไม่สำเร็จ: ' + res.error.message);
         }
+        return res;
       });
       return rec;
     },

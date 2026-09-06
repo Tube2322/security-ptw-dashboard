@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260904"></script>
+<script src="./soc-core.js?v=20260906"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -406,7 +406,7 @@ class Component extends DCLogic {
       if (core.field(this.state.module, 'checkpoint_time')) payload.checkpoint_time = this.nowHHMM();
       const rec = core.addRecord(this.state.module, payload);
       this.setState({ submitting: false, view: 'done', values: {}, errors: {}, banner: '', done: rec, msForwardStatus: null, msForwardPayload: null });
-      this.forwardToMsForms(this.state.module, payload);
+      this.forwardToMsForms(this.state.module, payload, rec._saved);
     }, 550);
   };
   /* Auto-forwards a just-submitted record into the matching Microsoft Forms survey
@@ -417,8 +417,8 @@ class Component extends DCLogic {
      default so this never fires against a live external form unannounced. Fire-and-forget from
      the record's own perspective (it's already saved in our own database either way); the done
      screen just reflects whether the forward itself worked so a failure isn't silent. */
-  forwardToMsForms(moduleId, payload) {
-    if (moduleId === 'traffic' || moduleId === 'golf') { this.forwardTrafficGolf(moduleId, payload); return; }
+  forwardToMsForms(moduleId, payload, saved) {
+    if (moduleId === 'traffic' || moduleId === 'golf') { this.forwardTrafficGolf(moduleId, payload, saved); return; }
     const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit', 'monthly_inspection_acc_door', 'monthly_inspection_cctv', 'monthly_inspection_golf_cart', 'visitors'];
     if (FORWARDABLE.indexOf(moduleId) === -1) return;
     const core = this.core();
@@ -454,13 +454,21 @@ class Component extends DCLogic {
      'waiting' while the day's other form is still missing (the parked payload keeps being
      refreshed, so a golf shift filled in later still counts), 'in_progress' when another device
      is mid-send, 'already_sent' once it has gone, and 'send' exactly once, for whoever claims it. */
-  forwardTrafficGolf(moduleId, payload) {
+  forwardTrafficGolf(moduleId, payload, saved) {
     const core = this.core();
     if (!(core.getPortal().msFormsForwarding || {}).traffic_golf_daily) return;
     const date = payload[moduleId === 'traffic' ? 'traffic_date' : 'golf_date'];
     if (!date) return;
     this.setState({ msForwardStatus: 'sending', msForwardPayload: payload });
-    core.msFormsEnqueueTrafficGolf(date).then(res => {
+    /* the RPC below re-reads this record from Postgres by date+module (it has to — the portal
+       is an unauthenticated guest and can't read the counterpart module's rows any other way),
+       so it must not run until our own insert has actually landed there. addRecord's insert is
+       fire-and-forget from the caller's point of view (the record is already live in this tab's
+       own state either way), which used to mean this RPC could fire, and read the table, before
+       that insert committed — the merge would then go out with this exact submission's own
+       numbers replaced by whatever placeholder an empty read produces (0, or a stale value from
+       the last time the row was enqueued). Waiting on `saved` closes that window. */
+    Promise.resolve(saved).then(() => core.msFormsEnqueueTrafficGolf(date)).then(res => {
       if (!res || res.action === 'waiting') { this.setState({ msForwardStatus: 'waiting' }); return; }
       if (res.action === 'already_sent') { this.setState({ msForwardStatus: 'alreadySent' }); return; }
       if (res.action === 'in_progress') { this.setState({ msForwardStatus: 'inProgress' }); return; }
