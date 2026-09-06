@@ -39,6 +39,173 @@ async function loadChromium() {
 }
 const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
 
+/* Same project, same anon key as soc-config.js ships to every browser tab — not a secret (see
+   that file's own comment on why). Used here only to log outcomes via the SECURITY DEFINER
+   ms_forms_log() RPC and to read/write ms_forms_retry_queue, both already reachable from an
+   unauthenticated client today, so this adds no new exposure. */
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  'https://mxlrxivnwtxtiloifksr.supabase.co',
+  'sb_publishable_9_W9xONvn3Gw89F4V_QPZw_mOmoGIF2'
+);
+
+/* Chromium failing to launch (or the page never settling) under load is transient — the same
+   submission tried again a little later routinely just works, which is what happened every time
+   this was reproduced today. A question-count mismatch or an unmatched choice is not: the form
+   itself has drifted from our mapping, and trying again changes nothing. Only the former is
+   worth retrying or queueing; the latter should fail once, loudly, and stay failed. */
+function isTransient(err) {
+  const msg = String((err && err.message) || err || '');
+  return /INSUFFICIENT_RESOURCES|Failed to launch|Target closed|browserType\.launch|Timeout.*exceeded|net::ERR_/i.test(msg);
+}
+
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+/* One real attempt: launch, navigate, fill, and (unless dryRun) submit. Pulled out of the request
+   handler so both the current request and the background retry-queue sweep can call the exact
+   same fill logic — the sweep must run the real thing, not a slightly different copy of it. */
+async function attemptFill(form, moduleId, data, dryRun) {
+  /* Playwright doesn't clean up its per-launch --user-data-dir on a warm/reused Lambda
+     container (a documented @sparticuz/chromium caveat) — every invocation leaves a fresh
+     /tmp/playwright_chromiumdev_profile-XXXXXX behind, and /tmp is a small fixed-size tmpfs
+     shared across warm invocations, not reset per-request. Enough of these accumulate (we hit
+     this function dozens of times today testing) and Chromium's own launch starts failing with
+     net::ERR_INSUFFICIENT_RESOURCES before it even reaches the form. Sweep them at the start of
+     every attempt — best-effort, never fatal — instead of letting them pile up. */
+  try {
+    const fs = require('fs'), path = require('path');
+    const tmpDir = '/tmp';
+    const keep = new Set(['chromium', 'chromium-pack', 'al2023', 'fonts', 'swiftshader']);
+    for (const name of fs.readdirSync(tmpDir)) {
+      if (keep.has(name) || !name.startsWith('playwright_')) continue;
+      try { fs.rmSync(path.join(tmpDir, name), { recursive: true, force: true }); } catch (e) {}
+    }
+  } catch (e) { /* /tmp may not exist yet on a cold start, or not be listable — fine either way */ }
+
+  let browser;
+  try {
+    const { playwright, chromium } = await loadChromium();
+    if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
+    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+    /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
+       chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
+       lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
+       by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
+       alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
+    var pathMod = require('path');
+    var execDir = pathMod.dirname(executablePath);
+    process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
+    browser = await playwright.launch({
+      args: chromium.args,
+      executablePath: executablePath,
+      headless: true
+    });
+    const page = await browser.newPage();
+    await page.goto(form.url, { waitUntil: 'networkidle', timeout: 20000 });
+
+    const items = page.locator('[data-automation-id="questionItem"]');
+    /* Some of these forms (the golf-cart one) are configured with a welcome screen, so the
+       response page loads with zero questions on it until a "start" button is pressed. The
+       button carries no data-automation-id and its label is localized, so it's identified by
+       elimination: the only visible button on that screen other than the Microsoft Forms brand
+       link in the footer (a product name, not localized text). */
+    if (await items.count() === 0) {
+      const buttons = page.locator('button:visible');
+      const total = await buttons.count();
+      for (let i = 0; i < total; i++) {
+        const text = norm(await buttons.nth(i).textContent());
+        if (!text || text.includes('Microsoft Forms')) continue;
+        await buttons.nth(i).click();
+        break;
+      }
+      await items.first().waitFor({ timeout: 10000 });
+    }
+    const count = await items.count();
+    if (count !== form.fields.length) {
+      throw new Error(`question count mismatch for ${moduleId}: expected ${form.fields.length}, form now has ${count} — it was likely edited, mapping needs updating`);
+    }
+
+    for (let i = 0; i < form.fields.length; i++) {
+      await fillQuestion(items.nth(i), form.fields[i], data[form.fields[i].id]);
+    }
+
+    /* dryRun proves the whole pipeline (chromium launch, navigation, question-count match,
+       every field fill) works without the one irreversible step — clicking submit on a form
+       that belongs to another department and can't be un-submitted from our side. */
+    if (dryRun) {
+      await browser.close();
+      return { questionsFilled: form.fields.length };
+    }
+
+    await page.locator('[data-automation-id="submitButton"]').click();
+    await page.waitForTimeout(1500);
+    await browser.close();
+    return {};
+  } catch (err) {
+    if (browser) { try { await browser.close(); } catch (e) {} }
+    throw err;
+  }
+}
+
+/* Retries only transient failures, only for a real (non-dryRun) send — a dry run is a one-shot
+   diagnostic, not a submission worth queueing. Backoff (5s, 10s) is short on purpose: every
+   reproduction of the resource error today cleared within seconds, and the 60s function budget
+   (vercel.json) has to cover all three attempts plus whatever the queue sweep below spends. */
+async function attemptWithRetry(form, moduleId, data, dryRun) {
+  const delays = dryRun ? [] : [5000, 10000];
+  let lastErr;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await attemptFill(form, moduleId, data, dryRun);
+    } catch (err) {
+      lastErr = err;
+      if (attempt >= delays.length || !isTransient(err)) throw err;
+      await sleep(delays[attempt]);
+    }
+  }
+}
+
+/* One row at a time, and only once it's had a real minute to breathe since it was last touched —
+   this runs at the start of every invocation this endpoint gets for any module, so whatever
+   submission happens next anywhere in the app is what nudges a stuck row forward. No cron job:
+   there is nothing else in this serverless app that runs on a clock. Never allowed to throw —
+   a stuck retry row is a problem for its own next sweep, not for the request that happened to
+   trigger this one. */
+async function sweepRetryQueue() {
+  try {
+    const cutoff = new Date(Date.now() - 90 * 1000).toISOString();
+    const { data: rows, error } = await supabase
+      .from('ms_forms_retry_queue')
+      .select('*')
+      .or(`last_attempt_at.is.null,last_attempt_at.lt.${cutoff}`)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    if (error || !rows || !rows.length) return;
+    const row = rows[0];
+    const form = FORMS[row.target_form];
+    if (!form) { await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id); return; }
+
+    try {
+      await attemptFill(form, row.target_form, row.payload, false);
+      await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id);
+      await supabase.rpc('ms_forms_log', { p_target: row.target_form, p_date: row.report_date, p_ok: true });
+    } catch (err) {
+      const attempts = (row.attempts || 0) + 1;
+      if (attempts >= 5 || !isTransient(err)) {
+        await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id);
+        await supabase.rpc('ms_forms_log', {
+          p_target: row.target_form, p_date: row.report_date, p_ok: false,
+          p_error: 'retry queue gave up after ' + attempts + ' attempts: ' + String(err && err.message || err)
+        });
+      } else {
+        await supabase.from('ms_forms_retry_queue')
+          .update({ attempts, last_attempt_at: new Date().toISOString() })
+          .eq('id', row.id);
+      }
+    }
+  } catch (e) { /* best-effort — never let a sweep failure affect the request that triggered it */ }
+}
+
 const FORMS = {
   monthly_inspection_fire_extinguisher: {
     url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UN01CWUZPMUtFTUUyWUdWWFRPRlFZNUpXUi4u&origin=QRCode',
@@ -310,86 +477,33 @@ module.exports = async (req, res) => {
   const form = FORMS[moduleId];
   if (!form) { res.status(400).json({ ok: false, error: 'unsupported module: ' + moduleId }); return; }
 
-  /* Playwright doesn't clean up its per-launch --user-data-dir on a warm/reused Lambda
-     container (a documented @sparticuz/chromium caveat) — every invocation leaves a fresh
-     /tmp/playwright_chromiumdev_profile-XXXXXX behind, and /tmp is a small fixed-size tmpfs
-     shared across warm invocations, not reset per-request. Enough of these accumulate (we hit
-     this function dozens of times today testing) and Chromium's own launch starts failing with
-     net::ERR_INSUFFICIENT_RESOURCES before it even reaches the form. Sweep them at the start of
-     every invocation — best-effort, never fatal — instead of letting them pile up. */
+  /* Whatever submission triggered this call also nudges one stuck retry-queue row forward first
+     — see sweepRetryQueue()'s own comment for why this, and not a cron job, is what "wait and
+     resend automatically" means in a serverless app with nothing running on a clock. */
+  await sweepRetryQueue();
+
   try {
-    const fs = require('fs'), path = require('path');
-    const tmpDir = '/tmp';
-    const keep = new Set(['chromium', 'chromium-pack', 'al2023', 'fonts', 'swiftshader']);
-    for (const name of fs.readdirSync(tmpDir)) {
-      if (keep.has(name) || !name.startsWith('playwright_')) continue;
-      try { fs.rmSync(path.join(tmpDir, name), { recursive: true, force: true }); } catch (e) {}
-    }
-  } catch (e) { /* /tmp may not exist yet on a cold start, or not be listable — fine either way */ }
-
-  let browser;
-  try {
-    const { playwright, chromium } = await loadChromium();
-    if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
-    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
-    /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
-       chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
-       lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
-       by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
-       alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
-    var pathMod = require('path');
-    var execDir = pathMod.dirname(executablePath);
-    process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
-    browser = await playwright.launch({
-      args: chromium.args,
-      executablePath: executablePath,
-      headless: true
-    });
-    const page = await browser.newPage();
-    await page.goto(form.url, { waitUntil: 'networkidle', timeout: 20000 });
-
-    const items = page.locator('[data-automation-id="questionItem"]');
-    /* Some of these forms (the golf-cart one) are configured with a welcome screen, so the
-       response page loads with zero questions on it until a "start" button is pressed. The
-       button carries no data-automation-id and its label is localized, so it's identified by
-       elimination: the only visible button on that screen other than the Microsoft Forms brand
-       link in the footer (a product name, not localized text). */
-    if (await items.count() === 0) {
-      const buttons = page.locator('button:visible');
-      const total = await buttons.count();
-      for (let i = 0; i < total; i++) {
-        const text = norm(await buttons.nth(i).textContent());
-        if (!text || text.includes('Microsoft Forms')) continue;
-        await buttons.nth(i).click();
-        break;
-      }
-      await items.first().waitFor({ timeout: 10000 });
-    }
-    const count = await items.count();
-    if (count !== form.fields.length) {
-      throw new Error(`question count mismatch for ${moduleId}: expected ${form.fields.length}, form now has ${count} — it was likely edited, mapping needs updating`);
-    }
-
-    for (let i = 0; i < form.fields.length; i++) {
-      await fillQuestion(items.nth(i), form.fields[i], data[form.fields[i].id]);
-    }
-
-    /* dryRun proves the whole pipeline (chromium launch, navigation, question-count match,
-       every field fill) works without the one irreversible step — clicking submit on a form
-       that belongs to another department and can't be un-submitted from our side. */
-    if (dryRun) {
-      await browser.close();
-      res.status(200).json({ ok: true, dryRun: true, questionsFilled: form.fields.length });
-      return;
-    }
-
-    await page.locator('[data-automation-id="submitButton"]').click();
-    await page.waitForTimeout(1500);
-
-    await browser.close();
+    const result = await attemptWithRetry(form, moduleId, data, dryRun);
+    if (dryRun) { res.status(200).json({ ok: true, dryRun: true, questionsFilled: result.questionsFilled }); return; }
     res.status(200).json({ ok: true });
   } catch (err) {
-    if (browser) { try { await browser.close(); } catch (e) {} }
-    res.status(502).json({ ok: false, error: String(err && err.message || err) });
+    const transient = !dryRun && isTransient(err);
+    if (transient) {
+      /* Queued so the next call to this endpoint — for any module, not just this one — retries
+         it once 90s have passed (see sweepRetryQueue). The date comes from the form's own date
+         question rather than a separate parameter the caller would have to remember to send. */
+      try {
+        /* our own data always stores this as an ISO date string (e.g. "2026-09-05") — it's the
+           Thai d/M/yyyy conversion in fillQuestion() that only happens on the way into their
+           form, never in what we store. monthly_inspection_golf_cart has no date question on
+           their form at all (see its FORMS entry) — today's date stands in for it there, same
+           as it would for any status line about "when this failed", since there is no
+           per-record date to key on. */
+        const dateField = form.fields.find((f) => f.type === 'date');
+        const isoDate = (dateField && data[dateField.id]) || new Date().toISOString().slice(0, 10);
+        await supabase.from('ms_forms_retry_queue').insert({ target_form: moduleId, report_date: isoDate, payload: data });
+      } catch (e) { /* queueing is a best-effort safety net, not allowed to mask the real error below */ }
+    }
+    res.status(502).json({ ok: false, error: String(err && err.message || err), transient });
   }
 };
