@@ -4,6 +4,7 @@
   "engines": { "node": "24.x" },
   "dependencies": {
     "playwright-core": "1.62.1",
-    "@sparticuz/chromium-min": "149.0.0"
+    "@sparticuz/chromium-min": "149.0.0",
+    "@supabase/supabase-js": "2.45.4"
   }
 }
