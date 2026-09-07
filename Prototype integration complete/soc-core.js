@@ -750,6 +750,13 @@
     msFormsMark: function (id, ok, error) {
       return sb.rpc('ms_forms_mark', { p_id: id, p_ok: !!ok, p_error: error || null });
     },
+    /* fetch() rejecting outright (Vercel killed the function past its 60s budget, or the
+       device's own connection dropped) means the server never got to run its own
+       retry-queue insert — this is the client-side fallback for exactly that case, so a
+       genuine network-level failure still gets auto-resent instead of sitting stuck. */
+    msFormsEnqueueRetry: function (target, date, payload) {
+      return sb.from('ms_forms_retry_queue').insert({ target_form: target, report_date: date, payload: payload });
+    },
     /* the single-record forms have nothing to hold and re-assemble — they only record the
        outcome so the Settings page can show a real status per topic */
     msFormsLog: function (target, date, ok, error) {
