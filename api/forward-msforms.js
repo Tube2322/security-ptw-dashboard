@@ -148,11 +148,14 @@ async function attemptFill(form, moduleId, data, dryRun) {
 }
 
 /* Retries only transient failures, only for a real (non-dryRun) send — a dry run is a one-shot
-   diagnostic, not a submission worth queueing. Backoff (5s, 10s) is short on purpose: every
-   reproduction of the resource error today cleared within seconds, and the 60s function budget
-   (vercel.json) has to cover all three attempts plus whatever the queue sweep below spends. */
+   diagnostic, not a submission worth queueing. One short retry only: a launch (browser +
+   navigate) can itself take 10-20s under load, and this has to leave enough of the 60s function
+   budget (vercel.json) for the queue sweep above plus a real chance to return before Vercel
+   kills the invocation outright — a kill produces no response at all, which means the client
+   sees a raw network error and the retry-queue insert below never runs either. Anything beyond
+   one quick retry is what the queue+sweep is for, not this in-request loop. */
 async function attemptWithRetry(form, moduleId, data, dryRun) {
-  const delays = dryRun ? [] : [5000, 10000];
+  const delays = dryRun ? [] : [3000];
   let lastErr;
   for (let attempt = 0; ; attempt++) {
     try {
