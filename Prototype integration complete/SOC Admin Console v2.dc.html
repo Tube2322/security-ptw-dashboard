@@ -349,8 +349,8 @@
               <input type="checkbox" checked="{{ compareOn }}" onChange="{{ setCompareToggle }}" style="width: 15px; height: 15px; cursor: pointer;">
               <span style="font-size: 12px; font-weight: 600; color: var(--dim);">เทียบ{{ compareOn ? ':' : ' (ปิดอยู่)' }}</span>
             </label>
-            <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
             <sc-if value="{{ compareOn }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
               <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
                 <option value="day">📅 รายวัน</option>
                 <option value="week">🗓️ รายสัปดาห์</option>
@@ -359,11 +359,25 @@
               </select>
             </sc-if>
 
-            <sc-if value="{{ granIsDay }}" hint-placeholder-val="{{ true }}">
-              <div title="{{ dateChipTitle }}" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 13px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px; color: var(--accent);">
+            <!-- compare off: no dropdown, no prev/next browsing — just a single chip that flips
+                 between "latest day with data" and "that day's whole month" on click, per the
+                 "แสดงข้อมูลแบบวันต่อวันไม่เทียบ" ask. Reuses the same s.date null/non-null split
+                 the ตรวจประจำเดือน pages' day/month toggle already uses, just as one clickable
+                 chip instead of two segmented buttons. -->
+            <sc-if value="{{ compareOff }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ togglePlainDate }}" title="{{ plainDateTitle }}" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 13px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px; color: var(--accent); cursor: pointer;" style-hover="background: var(--accent-line);">
                 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.6px;">DATE</span>
-                <span style="color: var(--text); font-weight: 500;">{{ dateLabel }}</span>
-              </div>
+                <span style="color: var(--text); font-weight: 500;">{{ plainDateLabel }}</span>
+              </button>
+            </sc-if>
+
+            <sc-if value="{{ compareOn }}" hint-placeholder-val="{{ true }}">
+              <sc-if value="{{ granIsDay }}" hint-placeholder-val="{{ true }}">
+                <div title="{{ dateChipTitle }}" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 13px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px; color: var(--accent);">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.6px;">DATE</span>
+                  <span style="color: var(--text); font-weight: 500;">{{ dateLabel }}</span>
+                </div>
+              </sc-if>
             </sc-if>
 
             <sc-if value="{{ granIsWeek }}" hint-placeholder-val="{{ false }}">
@@ -392,9 +406,8 @@
               </select>
             </sc-if>
 
-            <button onClick="{{ nextPeriod }}" aria-label="ช่วงถัดไป" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">▶</button>
-
             <sc-if value="{{ compareOn }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ nextPeriod }}" aria-label="ช่วงถัดไป" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">▶</button>
               <span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);">{{ comparisonBaselineLabel }}</span>
             </sc-if>
 
@@ -2004,14 +2017,20 @@ class Component extends DCLogic {
       }))
     };
   }
-  pickLatestDate() {
+  /* latest month with any records, and the latest single date inside it — factored out of
+     pickLatestDate() so the compare-off DATE chip can ask the same question for whatever
+     module it's actually looking at, instead of always getting traffic's answer. */
+  latestDateFor(moduleId) {
     const core = this.core();
     const now = new Date();
-    const months = core.monthsIndex('traffic', 12);
+    const months = core.monthsIndex(moduleId, 12);
     const first = months.filter(m => m.count > 0)[0] || months[0];
     const latest = first && first.dates.length ? first.dates[first.dates.length - 1] : null;
-    const iy = first ? first.year : now.getFullYear(), im = first ? first.month : now.getMonth();
-    this.setState({ year: iy, month: im, date: latest, pdfPeriodYear: iy, pdfPeriodMonth: im, pdfPeriodDay: latest });
+    return { date: latest, year: first ? first.year : now.getFullYear(), month: first ? first.month : now.getMonth() };
+  }
+  pickLatestDate() {
+    const l = this.latestDateFor('traffic');
+    this.setState({ year: l.year, month: l.month, date: l.date, pdfPeriodYear: l.year, pdfPeriodMonth: l.month, pdfPeriodDay: l.date });
   }
   componentDidMount() {
     const core = window.SOCCore;
@@ -5212,13 +5231,32 @@ class Component extends DCLogic {
 
       /* ---- day/week/month/year dropdown (module dashboards only) ---- */
       compareOn: s.compareOn !== false,
+      compareOff: s.compareOn === false,
       setCompareToggle: (e) => {
         const on = !!e.target.checked;
+        if (on) { this.setState({ compareOn: true }); return; }
         /* forcing day granularity the moment this flips off is what makes "off" mean a plain
            single-day view everywhere: every volDelta() closure already returns '' at
            g === 'day', so this one flag alone silences every delta pill without touching
-           each dashboard's own math. */
-        this.setState(on ? { compareOn: true } : { compareOn: false, dashGranularity: 'day' });
+           each dashboard's own math. Landing on the latest date THIS module actually has data
+           for (not whatever day/month happened to be selected in compare mode) matches the
+           "วันนี้ข้อมูลล่าสุดที่เข้ามามีเท่าไหร่" ask. */
+        const l = this.latestDateFor(moduleId || 'traffic');
+        this.setState({ compareOn: false, dashGranularity: 'day', date: l.date, year: l.year, month: l.month });
+      },
+      /* single click-to-toggle chip used only while compareOn is off — day state shows the
+         latest date with data (tagged so it reads as "latest", not "today" or a frozen pick),
+         month state shows that date's whole month; clicking flips between the two, remembering
+         the day it left so a month->day->month round trip lands back where it started. */
+      plainDateLabel: s.date
+        ? core.fmtDate(s.date) + ' (วันล่าสุดที่รับข้อมูล)'
+        : core.thaiMonths[s.month] + ' ' + (s.year + 543) + ' (ทั้งเดือน)',
+      plainDateTitle: s.date ? 'กดเพื่อดูทั้งเดือน' : 'กดเพื่อกลับไปดูวันล่าสุดที่มีข้อมูล',
+      togglePlainDate: () => {
+        if (s.date) { this._lastDate = s.date; this.setState({ date: null }); return; }
+        if (this._lastDate) { this.setState({ date: this._lastDate }); return; }
+        const l = this.latestDateFor(moduleId || 'traffic');
+        this.setState({ date: l.date, year: l.year, month: l.month });
       },
       dashGranularity: s.dashGranularity,
       granIsDay: s.dashGranularity === 'day',
