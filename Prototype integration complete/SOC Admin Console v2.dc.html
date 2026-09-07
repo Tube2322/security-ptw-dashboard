@@ -345,14 +345,19 @@
                Pinning this row to always start its own full-width line makes every granularity
                look the same, so switching modes never reflows the header. -->
           <div style="flex: 1 1 100%; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-            <span style="font-size: 12px; font-weight: 600; color: var(--dim);">เทียบ:</span>
+            <label title="{{ compareOn ? 'ปิดเพื่อดูข้อมูลรายวันตรงๆ ไม่เทียบกับช่วงก่อนหน้า' : 'เปิดเพื่อเทียบกับช่วงก่อนหน้าอีกครั้ง' }}" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+              <input type="checkbox" checked="{{ compareOn }}" onChange="{{ setCompareToggle }}" style="width: 15px; height: 15px; cursor: pointer;">
+              <span style="font-size: 12px; font-weight: 600; color: var(--dim);">เทียบ{{ compareOn ? ':' : ' (ปิดอยู่)' }}</span>
+            </label>
             <button onClick="{{ prevPeriod }}" aria-label="ช่วงก่อนหน้า" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">◀</button>
-            <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
-              <option value="day">📅 รายวัน</option>
-              <option value="week">🗓️ รายสัปดาห์</option>
-              <option value="month">🗓️ รายเดือน</option>
-              <option value="year">🗓️ รายปี</option>
-            </select>
+            <sc-if value="{{ compareOn }}" hint-placeholder-val="{{ true }}">
+              <select value="{{ dashGranularity }}" onChange="{{ setDashGranularity }}" style="min-height: 40px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600;">
+                <option value="day">📅 รายวัน</option>
+                <option value="week">🗓️ รายสัปดาห์</option>
+                <option value="month">🗓️ รายเดือน</option>
+                <option value="year">🗓️ รายปี</option>
+              </select>
+            </sc-if>
 
             <sc-if value="{{ granIsDay }}" hint-placeholder-val="{{ true }}">
               <div title="{{ dateChipTitle }}" style="min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 13px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px; color: var(--accent);">
@@ -389,7 +394,9 @@
 
             <button onClick="{{ nextPeriod }}" aria-label="ช่วงถัดไป" style="min-width: 32px; min-height: 32px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--text);">▶</button>
 
-            <span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);">{{ comparisonBaselineLabel }}</span>
+            <sc-if value="{{ compareOn }}" hint-placeholder-val="{{ true }}">
+              <span style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);">{{ comparisonBaselineLabel }}</span>
+            </sc-if>
 
             <button onClick="{{ goPdf }}" style="min-height: 40px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--panel-2); color: var(--text);">Export PDF</button>
           </div>
@@ -1833,6 +1840,12 @@ class Component extends DCLogic {
        its separate day/month toggle). state.date/year/month stay the same fields they always
        were; week just reads state.date as its anchor, year just reads state.year. */
     dashGranularity: 'day',
+    /* master on/off for every "เทียบกับ..." delta pill and the day/week/month/year picker —
+       off collapses every page that has this feature to a plain single-day view with no
+       comparison, per the user's explicit ask; forcing dashGranularity to 'day' whenever this
+       flips off (see setCompareToggle) means every branch below only has to check g === 'day'
+       and compareOn together, never a fourth state. */
+    compareOn: true,
     rev: 0
   };
 
@@ -2556,6 +2569,7 @@ class Component extends DCLogic {
      card — the baseline period is the same for all of them, so six copies of the same text
      would just be clutter. */
   comparisonBaselineLabel() {
+    if (this.state.compareOn === false) return '';
     const core = this.core();
     const s = this.state;
     const g = s.dashGranularity;
@@ -2851,7 +2865,7 @@ class Component extends DCLogic {
        of the four granularities' "previous period" records to diff against, and pairDelta()
        (no date-based gating) covers the two new ones. */
     const g = this.state.dashGranularity;
-    const netDelta = g === 'day' ? this.trafficDayDelta(moduleId, prefix, net) : { text: '', note: '' };
+    const netDelta = (g === 'day' && this.state.compareOn !== false) ? this.trafficDayDelta(moduleId, prefix, net) : { text: '', note: '' };
     const prevRecs = g === 'week' ? this.prevWeekRecs(moduleId) : g === 'year' ? this.prevYearRecs(moduleId) : this.prevMonthRecs(moduleId);
     const prevM = this.trafficMetrics(prevRecs, prefix);
     const prevCarInTotal = prevM.inDay + prevM.inNight, prevMotoInTotal = prevM.inDayMoto + prevM.inNightMoto;
@@ -5197,6 +5211,15 @@ class Component extends DCLogic {
       setDashMonth: (e) => this.setState({ month: parseInt(e.target.value, 10), date: null }),
 
       /* ---- day/week/month/year dropdown (module dashboards only) ---- */
+      compareOn: s.compareOn !== false,
+      setCompareToggle: (e) => {
+        const on = !!e.target.checked;
+        /* forcing day granularity the moment this flips off is what makes "off" mean a plain
+           single-day view everywhere: every volDelta() closure already returns '' at
+           g === 'day', so this one flag alone silences every delta pill without touching
+           each dashboard's own math. */
+        this.setState(on ? { compareOn: true } : { compareOn: false, dashGranularity: 'day' });
+      },
       dashGranularity: s.dashGranularity,
       granIsDay: s.dashGranularity === 'day',
       granIsWeek: s.dashGranularity === 'week',
