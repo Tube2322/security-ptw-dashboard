@@ -184,15 +184,10 @@ function reportDateFor(form, data) {
    can keep a single invocation from launching more browsers than its time budget allows. */
 async function reapStuckSending() {
   try {
-    const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: rows, error } = await supabase
-      .from('ms_forms_outbox')
-      .select('*')
-      .eq('status', 'sending')
-      .lt('claimed_at', cutoff)
-      .lt('attempts', 5)
-      .order('claimed_at', { ascending: true })
-      .limit(1);
+    /* the claim (and its 10-minute cutoff) happens in SQL, not here: these columns hold Bangkok
+       local time, so a cutoff built from JS's UTC clock would be seven hours off, and claiming
+       in the same statement stops two concurrent invocations from both submitting this row. */
+    const { data: rows, error } = await supabase.rpc('ms_forms_claim_stuck', { p_minutes: 10 });
     if (error || !rows || !rows.length) return false;
     const row = rows[0];
     const form = FORMS[row.target_form];
@@ -218,13 +213,11 @@ async function reapStuckSending() {
    trigger this one. */
 async function sweepRetryQueue() {
   try {
-    const cutoff = new Date(Date.now() - 90 * 1000).toISOString();
-    const { data: rows, error } = await supabase
-      .from('ms_forms_retry_queue')
-      .select('*')
-      .or(`last_attempt_at.is.null,last_attempt_at.lt.${cutoff}`)
-      .order('created_at', { ascending: true })
-      .limit(1);
+    /* claimed in SQL for the same two reasons as the reaper above: the cooldown has to be
+       measured against the Bangkok-local clock these columns are written with (comparing them to
+       a UTC cutoff from here meant the 90s never actually held), and claiming atomically keeps
+       two invocations from retrying the same row at once. The claim itself counts the attempt. */
+    const { data: rows, error } = await supabase.rpc('ms_forms_claim_retry', { p_seconds: 90 });
     if (error || !rows || !rows.length) return false;
     const row = rows[0];
     const form = FORMS[row.target_form];
@@ -235,17 +228,15 @@ async function sweepRetryQueue() {
       await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id);
       await supabase.rpc('ms_forms_log', { p_target: row.target_form, p_date: row.report_date, p_ok: true });
     } catch (err) {
-      const attempts = (row.attempts || 0) + 1;
+      /* the claim above already counted this attempt and stamped last_attempt_at, so a row that
+         is staying in the queue needs no further write — only one that is giving up does */
+      const attempts = row.attempts || 1;
       if (attempts >= 5 || !isTransient(err)) {
         await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id);
         await supabase.rpc('ms_forms_log', {
           p_target: row.target_form, p_date: row.report_date, p_ok: false,
           p_error: 'retry queue gave up after ' + attempts + ' attempts: ' + String(err && err.message || err)
         });
-      } else {
-        await supabase.from('ms_forms_retry_queue')
-          .update({ attempts, last_attempt_at: new Date().toISOString() })
-          .eq('id', row.id);
       }
     }
     return true;
