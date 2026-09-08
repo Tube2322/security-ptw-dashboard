@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260907"></script>
+<script src="./soc-core.js?v=20260908"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -425,8 +425,10 @@ class Component extends DCLogic {
     const on = !!(core.getPortal().msFormsForwarding || {})[moduleId];
     if (!on) return;
     this.setState({ msForwardStatus: 'sending', msForwardPayload: payload });
-    const mod = core.module(moduleId) || {};
-    const reportDate = payload[mod.dateField] || core.isoDay(new Date());
+    /* Nothing below records the outcome any more — the API does that itself, before it starts and
+       again when it finishes (ms_forms_begin/ms_forms_mark). It used to be recorded here, which
+       meant a guard who closed the tab during the 20-60s the headless fill takes left no trace of
+       the submission anywhere. Everything here is now purely this screen's own status text. */
     fetch('/api/forward-msforms', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ module: moduleId, data: payload })
@@ -442,18 +444,15 @@ class Component extends DCLogic {
            ก็ไม่ต้องบอก" ask this was built for: only the transient case gets new copy. */
         const transient = !ok && !!(j && j.transient);
         this.setState({ msForwardStatus: ok ? 'ok' : (transient ? 'retryLater' : 'failed') });
-        /* recorded so the admin Settings page can show one honest status line per topic —
-           best-effort, never allowed to turn a successful forward into a visible failure */
-        core.msFormsLog(moduleId, reportDate, ok, ok ? null : ((j && j.error) || 'forward failed')).catch(() => {});
       })
       .catch(() => {
-        /* fetch() itself threw — no response reached us at all (the function was killed past
-           its own time budget, or this device's connection dropped mid-request), so the
-           server's own retry-queue insert never ran either. Queue it from here instead: same
-           table, same sweep, so it still gets resent automatically rather than sitting stuck. */
+        /* fetch() itself threw — no response reached us at all (this device's connection dropped,
+           or the function was killed). Nothing to do from here: the row was already staked as
+           'sending' server-side before the attempt began, so reapStuckSending() picks it up and
+           finishes it regardless of what happens to this tab. Queueing a retry from here instead
+           would risk a second submission whenever the send actually succeeded and only the reply
+           was lost. */
         this.setState({ msForwardStatus: 'retryLater' });
-        core.msFormsLog(moduleId, reportDate, false, 'network error').catch(() => {});
-        core.msFormsEnqueueRetry(moduleId, reportDate, payload).catch(() => {});
       });
   }
   /* รถเข้า-ออก + รถกอล์ฟ — the other department keeps both in ONE form, so a submission can only
@@ -489,21 +488,15 @@ class Component extends DCLogic {
         body: JSON.stringify({ module: 'traffic_golf_daily', data: res.data })
       })
         .then(r => r.json().catch(() => ({ ok: false })))
+        /* marking the row (and releasing its claim) is the API's job now, same as for every other
+           module — a claim released only by this tab is a claim nobody releases when the tab is
+           gone, which is exactly how a row ended up stuck on 'กำลังส่ง' indefinitely */
         .then(j => {
           const ok = !!(j && j.ok);
           const transient = !ok && !!(j && j.transient);
           this.setState({ msForwardStatus: ok ? 'ok' : (transient ? 'retryLater' : 'failed'), msForwardPayload: res.data });
-          /* releasing the claim matters as much as recording success: a row left in 'sending'
-             blocks the next attempt until its claim goes stale */
-          return core.msFormsMark(res.id, ok, ok ? null : ((j && j.error) || 'forward failed'));
         })
-        .catch(() => {
-          /* same reasoning as the single-module path's own catch: fetch() rejecting outright
-             means the server-side retry-queue insert never ran, so queue it from here too. */
-          this.setState({ msForwardStatus: 'retryLater' });
-          core.msFormsEnqueueRetry('traffic_golf_daily', date, res.data).catch(() => {});
-          return core.msFormsMark(res.id, false, 'network error');
-        });
+        .catch(() => this.setState({ msForwardStatus: 'retryLater' }));
     }).catch(() => this.setState({ msForwardStatus: 'failed' }));
   }
   msForwardBlock() {
