@@ -39,14 +39,28 @@ async function loadChromium() {
 }
 const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
 
-/* Same project, same anon key as soc-config.js ships to every browser tab — not a secret (see
-   that file's own comment on why). Used here only to log outcomes via the SECURITY DEFINER
-   ms_forms_log() RPC and to read/write ms_forms_retry_queue, both already reachable from an
-   unauthenticated client today, so this adds no new exposure. */
+/* Everything this file touches in Postgres goes through SECURITY DEFINER RPCs (ms_forms_log /
+   ms_forms_begin / ms_forms_mark, and the claim/enqueue/drop trio for the retry queue); the
+   underlying tables grant the anon role no direct access at all.
+
+   That is not sufficient on its own: EXECUTE on those functions is granted to anon by default,
+   so anyone holding the publishable key — which every browser tab is handed — can call them.
+   Whatever lands in the retry queue is submitted to another department's live Microsoft Form by
+   the next sweep, so being able to write to it is being able to write to their form. The fix is
+   for this function, and only this function, to talk to Postgres as the service role: set
+   SUPABASE_SERVICE_ROLE_KEY in the Vercel project (Settings → Environment Variables, Production)
+   and EXECUTE on the server-only RPCs can then be revoked from anon, which closes the hole.
+
+   Until that variable exists this falls back to the publishable key, because forwarding silently
+   breaking is worse than the exposure it already had — but the fallback is the insecure path, and
+   `usingServiceRole` below is what says which one is live. */
 const { createClient } = require('@supabase/supabase-js');
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const usingServiceRole = !!SERVICE_KEY;
 const supabase = createClient(
   'https://mxlrxivnwtxtiloifksr.supabase.co',
-  'sb_publishable_9_W9xONvn3Gw89F4V_QPZw_mOmoGIF2'
+  SERVICE_KEY || 'sb_publishable_9_W9xONvn3Gw89F4V_QPZw_mOmoGIF2',
+  usingServiceRole ? { auth: { persistSession: false, autoRefreshToken: false } } : undefined
 );
 
 /* Chromium failing to launch (or the page never settling) under load is transient — the same
@@ -221,18 +235,18 @@ async function sweepRetryQueue() {
     if (error || !rows || !rows.length) return false;
     const row = rows[0];
     const form = FORMS[row.target_form];
-    if (!form) { await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id); return true; }
+    if (!form) { await supabase.rpc('ms_forms_drop_retry', { p_id: row.id }); return true; }
 
     try {
       await attemptFill(form, row.target_form, row.payload, false);
-      await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id);
+      await supabase.rpc('ms_forms_drop_retry', { p_id: row.id });
       await supabase.rpc('ms_forms_log', { p_target: row.target_form, p_date: row.report_date, p_ok: true });
     } catch (err) {
       /* the claim above already counted this attempt and stamped last_attempt_at, so a row that
          is staying in the queue needs no further write — only one that is giving up does */
       const attempts = row.attempts || 1;
       if (attempts >= 5 || !isTransient(err)) {
-        await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id);
+        await supabase.rpc('ms_forms_drop_retry', { p_id: row.id });
         await supabase.rpc('ms_forms_log', {
           p_target: row.target_form, p_date: row.report_date, p_ok: false,
           p_error: 'retry queue gave up after ' + attempts + ' attempts: ' + String(err && err.message || err)
@@ -544,7 +558,9 @@ module.exports = async (req, res) => {
        gets queued or reaped either way, and running out of time is what produced the killed
        invocations this whole path is being hardened against. */
     const result = await attemptWithRetry(form, moduleId, data, dryRun || didBackgroundWork);
-    if (dryRun) { res.status(200).json({ ok: true, dryRun: true, questionsFilled: result.questionsFilled }); return; }
+    /* serviceRole is reported on dry runs only, so there is a way to confirm from outside whether
+       the Vercel env var actually took effect before revoking anon's EXECUTE on the RPCs. */
+    if (dryRun) { res.status(200).json({ ok: true, dryRun: true, questionsFilled: result.questionsFilled, serviceRole: usingServiceRole }); return; }
     if (rowId) await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: true });
     res.status(200).json({ ok: true });
   } catch (err) {
@@ -557,7 +573,7 @@ module.exports = async (req, res) => {
       /* Queued so the next call to this endpoint — for any module, not just this one — retries
          it once 90s have passed (see sweepRetryQueue). */
       try {
-        await supabase.from('ms_forms_retry_queue').insert({ target_form: moduleId, report_date: isoDate, payload: data });
+        await supabase.rpc('ms_forms_enqueue_retry', { p_target: moduleId, p_date: isoDate, p_payload: data });
       } catch (e) { /* queueing is a best-effort safety net, not allowed to mask the real error below */ }
     }
     res.status(502).json({ ok: false, error: message, transient });
