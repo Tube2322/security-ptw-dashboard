@@ -3856,6 +3856,16 @@ class Component extends DCLogic {
     const days = this.pdfDayOptionsFor(year, month);
     return days.length ? days[days.length - 1] : null;
   }
+  /* The day actually in effect, which is what the <select> shows, what the preview counts and
+     what the export uses — one value, so they cannot disagree. Falling back here (rather than
+     only syncing state on certain events) is what stops the case where the select displayed a
+     date, the state held none, and the export refused with "กรุณาเลือกวันที่" against a date the
+     user could see selected. */
+  effectivePdfDay() {
+    const days = this.pdfDayOptions();
+    if (!days.length) return null;
+    return days.indexOf(this.state.pdfPeriodDay) >= 0 ? this.state.pdfPeriodDay : days[days.length - 1];
+  }
   /* single source of truth for "which records does this export cover" — every period option
      resolves to a SOCCore.query() call, exactly like the dashboard's own scopeRecords(). */
   pdfRecords() {
@@ -3896,9 +3906,10 @@ class Component extends DCLogic {
         this.ensureScope({ year: s.pdfPeriodYear, month: s.pdfPeriodMonth });
         return { recs: core.query({ module: mod, year: s.pdfPeriodYear, month: s.pdfPeriodMonth }), label: core.thaiMonths[s.pdfPeriodMonth] + ' ' + (s.pdfPeriodYear + 543), zeroMsg: 'ไม่พบข้อมูลสำหรับเดือนที่เลือก' };
       case 'day': {
-        if (!s.pdfPeriodDay) return { recs: [], label: 'ยังไม่ได้เลือกวันที่', zeroMsg: 'กรุณาเลือกวันที่' };
-        core.ensureRange(s.pdfPeriodDay, s.pdfPeriodDay);
-        return { recs: core.query({ module: mod, date: s.pdfPeriodDay }), label: core.fmtDate(s.pdfPeriodDay), zeroMsg: 'ไม่พบข้อมูลสำหรับวันที่ที่เลือก' };
+        const day = this.effectivePdfDay();
+        if (!day) return { recs: [], label: 'ยังไม่ได้เลือกวันที่', zeroMsg: 'เดือนนี้ยังไม่มีวันที่ที่มีข้อมูล' };
+        core.ensureRange(day, day);
+        return { recs: core.query({ module: mod, date: day }), label: core.fmtDate(day), zeroMsg: 'ไม่พบข้อมูลสำหรับวันที่ที่เลือก' };
       }
       case 'range': {
         if (!s.pdfFrom || !s.pdfTo) return { recs: [], label: 'ยังไม่ได้ระบุช่วงวันที่ให้ครบ', zeroMsg: 'กรุณาระบุช่วงวันที่ให้ครบ' };
@@ -4496,18 +4507,24 @@ class Component extends DCLogic {
      zero-base handling as trafficDayDelta()). Only meaningful in single-date view. */
   trafficBalanceKpi(moduleId, prefix) {
     const core = this.core();
-    const today = this.trafficClosingBalanceAsOf(moduleId, prefix, this.state.date);
+    /* The balance is "as of a moment", so in week/month/year the moment that matters is the LAST
+       day of the period being viewed, and the thing to compare against is the last day of the
+       period before it. Reading state.date regardless of granularity (which is what this used to
+       do) meant a year view could show a balance for some unrelated single day and caption it
+       "เทียบกับเมื่อวาน" — and when state.date happened to sit past the end of the data, both
+       sides of that comparison were the same number, so it read "+0 คัน" on a year of real
+       traffic. */
+    const bounds = this.balanceBounds();
+    const today = this.trafficClosingBalanceAsOf(moduleId, prefix, bounds.at);
     if (!today.available) {
       const note = today.reason === 'no_date_selected' ? 'เลือกวันที่ (Daily History) เพื่อดูยอดคงเหลือสะสม ณ วันนั้น'
         : 'ยังไม่มีข้อมูลถึงวันที่เลือก';
-      return { label: 'ยอดคงเหลือสะสม', value: '—', note, color: 'var(--chart-neutral)', formula: 'Σ(in − out) สะสมจากข้อมูลทั้งหมด' };
+      return { label: bounds.label, value: '—', note, color: 'var(--chart-neutral)', formula: 'Σ(in − out) สะสมจากข้อมูลทั้งหมด' };
     }
-    const d = new Date(this.state.date + 'T00:00:00'); d.setDate(d.getDate() - 1);
-    const y = d.getFullYear() + '-' + core.pad(d.getMonth() + 1) + '-' + core.pad(d.getDate());
-    const yest = this.trafficClosingBalanceAsOf(moduleId, prefix, y);
+    const yest = this.trafficClosingBalanceAsOf(moduleId, prefix, bounds.prevAt);
     const baseNote = 'รถยนต์ ' + core.fmtNum(today.car) + ' · มอเตอร์ไซค์ ' + core.fmtNum(today.moto);
     let delta = '', note = baseNote;
-    if (yest.available) {
+    if (yest.available && this.state.compareOn !== false) {
       const diff = today.total - yest.total;
       const diffText = (diff >= 0 ? '+' : '') + core.fmtNum(diff) + ' คัน';
       if (yest.total === 0) {
@@ -4517,13 +4534,39 @@ class Component extends DCLogic {
         const pct = Math.round(diff / Math.abs(yest.total) * 1000) / 10;
         const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '●';
         delta = arrow + ' ' + (pct >= 0 ? '+' : '') + pct + '% · ' + diffText;
-        note = diffText + ' เทียบกับเมื่อวาน · ' + baseNote;
+        note = diffText + ' ' + bounds.compareWord + ' · ' + baseNote;
       }
-    } else {
-      note = 'วันแรกที่มีข้อมูล ยังไม่มีวันก่อนหน้าให้เปรียบเทียบ · ' + baseNote;
+    } else if (!yest.available) {
+      note = bounds.firstPeriodNote + ' · ' + baseNote;
     }
     const modColor = (core.module(moduleId) || {}).color || '#d6558a';
-    return { label: 'ยอดคงเหลือสะสม', value: core.fmtNum(today.total), delta, note, color: modColor, formula: 'Σ(in − out) สะสมจากข้อมูลทั้งหมด' };
+    return { label: bounds.label, value: core.fmtNum(today.total), delta, note, color: modColor, formula: 'Σ(in − out) สะสมจากข้อมูลทั้งหมด' };
+  }
+  /* Which day the cumulative balance is evaluated at, and which day the comparison is evaluated
+     at, for each granularity — plus the wording, so the caption can never claim "เมื่อวาน" for a
+     period that is not a day. */
+  balanceBounds() {
+    const core = this.core();
+    const s = this.state;
+    const g = s.compareOn === false ? (s.date ? 'day' : 'month') : (s.dashGranularity || 'day');
+    const dayBefore = (iso) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() - 1); return core.isoDay(d); };
+    if (g === 'week') {
+      const wb = this.weekBounds(s.date);
+      return { at: wb.to, prevAt: dayBefore(wb.from), label: 'ยอดคงเหลือสะสม (สิ้นสัปดาห์)',
+        compareWord: 'เทียบกับสิ้นสัปดาห์ก่อน', firstPeriodNote: 'สัปดาห์แรกที่มีข้อมูล ยังไม่มีสัปดาห์ก่อนหน้าให้เปรียบเทียบ' };
+    }
+    if (g === 'year') {
+      return { at: s.year + '-12-31', prevAt: (s.year - 1) + '-12-31', label: 'ยอดคงเหลือสะสม (สิ้นปี)',
+        compareWord: 'เทียบกับสิ้นปีก่อน', firstPeriodNote: 'ปีแรกที่มีข้อมูล ยังไม่มีปีก่อนหน้าให้เปรียบเทียบ' };
+    }
+    if (g === 'month' || !s.date) {
+      const end = core.isoDay(new Date(s.year, s.month + 1, 0));
+      const prevEnd = core.isoDay(new Date(s.year, s.month, 0));
+      return { at: end, prevAt: prevEnd, label: 'ยอดคงเหลือสะสม (สิ้นเดือน)',
+        compareWord: 'เทียบกับสิ้นเดือนก่อน', firstPeriodNote: 'เดือนแรกที่มีข้อมูล ยังไม่มีเดือนก่อนหน้าให้เปรียบเทียบ' };
+    }
+    return { at: s.date, prevAt: dayBefore(s.date), label: 'ยอดคงเหลือสะสม',
+      compareWord: 'เทียบกับเมื่อวาน', firstPeriodNote: 'วันแรกที่มีข้อมูล ยังไม่มีวันก่อนหน้าให้เปรียบเทียบ' };
   }
   /* Shift-level breakdown of the cumulative balance: opening (= previous day's closing, or 0 if
      this is the first day any data exists) → day-shift closing → night-shift closing (= end of
@@ -4689,7 +4732,7 @@ class Component extends DCLogic {
     switch (s.pdfPeriod) {
       case 'today': period = today; break;
       case 'yesterday': period = this.pdfShiftDay(today, -1); break;
-      case 'day': period = s.pdfPeriodDay || ''; break;
+      case 'day': period = this.effectivePdfDay() || ''; break;
       case 'month': period = s.pdfPeriodYear + '-' + core.pad(s.pdfPeriodMonth + 1); break;
       case 'thisMonth': { const d = new Date(); period = d.getFullYear() + '-' + core.pad(d.getMonth() + 1); break; }
       case 'lastMonth': { const d = new Date(); d.setMonth(d.getMonth() - 1); period = d.getFullYear() + '-' + core.pad(d.getMonth() + 1); break; }
@@ -5356,9 +5399,15 @@ class Component extends DCLogic {
       loading: s.loading,
       pageEmpty: !s.loading && data.empty,
       pageReady: !s.loading && !data.empty,
-      emptyHint: s.date
-        ? 'ไม่มีรายการที่บันทึกในวันที่ ' + core.fmtDate(s.date) + ' — เลือกวันที่อื่น หรือดูข้อมูลทั้งเดือน'
-        : 'ยังไม่มีรายการที่บันทึกในเดือนนี้',
+      /* the empty message has to name the period actually being looked at — in week or year mode
+         it used to name a single day, which is not the scope that came back empty */
+      emptyHint: (() => {
+        const g = s.compareOn === false ? (s.date ? 'day' : 'month') : (s.dashGranularity || 'day');
+        if (g === 'week') { const wb = this.weekBounds(s.date); return 'ไม่มีรายการที่บันทึกในสัปดาห์ ' + core.fmtDateShort(wb.from) + ' – ' + core.fmtDateShort(wb.to); }
+        if (g === 'year') return 'ไม่มีรายการที่บันทึกในปี ' + (s.year + 543);
+        if (!s.date) return 'ยังไม่มีรายการที่บันทึกในเดือนนี้';
+        return 'ไม่มีรายการที่บันทึกในวันที่ ' + core.fmtDate(s.date) + ' — เลือกวันที่อื่น หรือดูข้อมูลทั้งเดือน';
+      })(),
 
       /* a KPI drills into Records filtered to whichever module produced it: the module it names
          itself (Overview, where every card is a different module), otherwise the module whose
@@ -5639,7 +5688,7 @@ class Component extends DCLogic {
       setPdfPeriodMonth: (e) => { const m = parseInt(e.target.value, 10); this.setState({ pdfPeriodMonth: m, pdfPeriodDay: this.defaultPdfDay(s.pdfPeriodYear, m) }); },
       pdfPeriodDayOptions: this.pdfDayOptions().map(d => ({ value: d, label: core.fmtDate(d) })),
       pdfPeriodDayEmpty: this.pdfDayOptions().length === 0,
-      pdfPeriodDay: s.pdfPeriodDay || '',
+      pdfPeriodDay: this.effectivePdfDay() || '',
       setPdfPeriodDay: (e) => this.setState({ pdfPeriodDay: e.target.value }),
 
       pdfContentOptions: [
