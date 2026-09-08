@@ -168,6 +168,48 @@ async function attemptWithRetry(form, moduleId, data, dryRun) {
   }
 }
 
+/* The date the send is filed under: their own form's date question when it has one, otherwise
+   today (monthly_inspection_golf_cart's form asks for no date at all). */
+function reportDateFor(form, data) {
+  const dateField = form.fields.find((f) => f.type === 'date');
+  return (dateField && data[dateField.id]) || new Date().toISOString().slice(0, 10);
+}
+
+/* A row still marked 'sending' long after any real send could have finished means nobody ever
+   reported back on it: the browser that started it was closed mid-flight, or the function was
+   killed before it could mark the row. Either way the submission is in limbo — possibly never
+   delivered, and (for traffic+golf) holding a claim no other device will take over. Ten minutes
+   is far past the ~20-60s a real send takes, so anything older is safe to treat as abandoned and
+   retry from the payload the row itself carries. Returns true when it did work, so the caller
+   can keep a single invocation from launching more browsers than its time budget allows. */
+async function reapStuckSending() {
+  try {
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: rows, error } = await supabase
+      .from('ms_forms_outbox')
+      .select('*')
+      .eq('status', 'sending')
+      .lt('claimed_at', cutoff)
+      .lt('attempts', 5)
+      .order('claimed_at', { ascending: true })
+      .limit(1);
+    if (error || !rows || !rows.length) return false;
+    const row = rows[0];
+    const form = FORMS[row.target_form];
+    if (!form || !row.payload) {
+      await supabase.rpc('ms_forms_mark', { p_id: row.id, p_ok: false, p_error: 'abandoned: no payload or unknown target form' });
+      return true;
+    }
+    try {
+      await attemptFill(form, row.target_form, row.payload, false);
+      await supabase.rpc('ms_forms_mark', { p_id: row.id, p_ok: true });
+    } catch (err) {
+      await supabase.rpc('ms_forms_mark', { p_id: row.id, p_ok: false, p_error: 'stuck send retried and failed: ' + String((err && err.message) || err) });
+    }
+    return true;
+  } catch (e) { return false; /* best-effort — never let this affect the request that triggered it */ }
+}
+
 /* One row at a time, and only once it's had a real minute to breathe since it was last touched —
    this runs at the start of every invocation this endpoint gets for any module, so whatever
    submission happens next anywhere in the app is what nudges a stuck row forward. No cron job:
@@ -183,10 +225,10 @@ async function sweepRetryQueue() {
       .or(`last_attempt_at.is.null,last_attempt_at.lt.${cutoff}`)
       .order('created_at', { ascending: true })
       .limit(1);
-    if (error || !rows || !rows.length) return;
+    if (error || !rows || !rows.length) return false;
     const row = rows[0];
     const form = FORMS[row.target_form];
-    if (!form) { await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id); return; }
+    if (!form) { await supabase.from('ms_forms_retry_queue').delete().eq('id', row.id); return true; }
 
     try {
       await attemptFill(form, row.target_form, row.payload, false);
@@ -206,7 +248,8 @@ async function sweepRetryQueue() {
           .eq('id', row.id);
       }
     }
-  } catch (e) { /* best-effort — never let a sweep failure affect the request that triggered it */ }
+    return true;
+  } catch (e) { return false; /* best-effort — never let a sweep failure affect the request that triggered it */ }
 }
 
 const FORMS = {
@@ -480,33 +523,52 @@ module.exports = async (req, res) => {
   const form = FORMS[moduleId];
   if (!form) { res.status(400).json({ ok: false, error: 'unsupported module: ' + moduleId }); return; }
 
-  /* Whatever submission triggered this call also nudges one stuck retry-queue row forward first
-     — see sweepRetryQueue()'s own comment for why this, and not a cron job, is what "wait and
-     resend automatically" means in a serverless app with nothing running on a clock. */
-  await sweepRetryQueue();
+  /* Whatever submission triggered this call also nudges one piece of stuck work forward first —
+     see the two sweeps' own comments for why this, and not a cron job, is what "wait and resend
+     automatically" means in a serverless app with nothing running on a clock. At most ONE of them
+     runs per invocation: each launches its own browser, and two of those plus this request's own
+     send does not fit in the 60s function budget (vercel.json). The two are disjoint by design —
+     the queue holds sends that failed and said so, the reaper picks up sends nobody ever reported
+     back on at all. */
+  const sweptQueue = await sweepRetryQueue();
+  const didBackgroundWork = sweptQueue || await reapStuckSending();
+
+  /* A dry run stakes nothing: it is a diagnostic that deliberately never submits, so it must not
+     appear in the outbox or the log as if a real send had been attempted. */
+  const isoDate = reportDateFor(form, data);
+  let rowId = null;
+  if (!dryRun) {
+    /* Staked BEFORE the attempt, not after it. This is the fix for submissions vanishing without
+       a trace: the row (and its payload) exists from the moment the send starts, so if this
+       function or the caller's browser dies mid-flight, reapStuckSending() can still find it and
+       finish the job — and the status page shows "กำลังส่ง" instead of nothing at all. */
+    try {
+      const begun = await supabase.rpc('ms_forms_begin', { p_target: moduleId, p_date: isoDate, p_payload: data });
+      rowId = begun && begun.data ? begun.data : null;
+    } catch (e) { /* the send itself is still worth attempting even if staking the row failed */ }
+  }
 
   try {
-    const result = await attemptWithRetry(form, moduleId, data, dryRun);
+    /* No in-request retry when a background job already spent part of the budget — the failure
+       gets queued or reaped either way, and running out of time is what produced the killed
+       invocations this whole path is being hardened against. */
+    const result = await attemptWithRetry(form, moduleId, data, dryRun || didBackgroundWork);
     if (dryRun) { res.status(200).json({ ok: true, dryRun: true, questionsFilled: result.questionsFilled }); return; }
+    if (rowId) await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: true });
     res.status(200).json({ ok: true });
   } catch (err) {
+    const message = String((err && err.message) || err);
     const transient = !dryRun && isTransient(err);
+    if (!dryRun && rowId) {
+      try { await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: false, p_error: message }); } catch (e) {}
+    }
     if (transient) {
       /* Queued so the next call to this endpoint — for any module, not just this one — retries
-         it once 90s have passed (see sweepRetryQueue). The date comes from the form's own date
-         question rather than a separate parameter the caller would have to remember to send. */
+         it once 90s have passed (see sweepRetryQueue). */
       try {
-        /* our own data always stores this as an ISO date string (e.g. "2026-09-05") — it's the
-           Thai d/M/yyyy conversion in fillQuestion() that only happens on the way into their
-           form, never in what we store. monthly_inspection_golf_cart has no date question on
-           their form at all (see its FORMS entry) — today's date stands in for it there, same
-           as it would for any status line about "when this failed", since there is no
-           per-record date to key on. */
-        const dateField = form.fields.find((f) => f.type === 'date');
-        const isoDate = (dateField && data[dateField.id]) || new Date().toISOString().slice(0, 10);
         await supabase.from('ms_forms_retry_queue').insert({ target_form: moduleId, report_date: isoDate, payload: data });
       } catch (e) { /* queueing is a best-effort safety net, not allowed to mask the real error below */ }
     }
-    res.status(502).json({ ok: false, error: String(err && err.message || err), transient });
+    res.status(502).json({ ok: false, error: message, transient });
   }
 };

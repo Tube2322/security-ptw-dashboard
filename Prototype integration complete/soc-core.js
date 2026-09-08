@@ -747,21 +747,12 @@
         return res.data;
       });
     },
-    msFormsMark: function (id, ok, error) {
-      return sb.rpc('ms_forms_mark', { p_id: id, p_ok: !!ok, p_error: error || null });
-    },
-    /* fetch() rejecting outright (Vercel killed the function past its 60s budget, or the
-       device's own connection dropped) means the server never got to run its own
-       retry-queue insert — this is the client-side fallback for exactly that case, so a
-       genuine network-level failure still gets auto-resent instead of sitting stuck. */
-    msFormsEnqueueRetry: function (target, date, payload) {
-      return sb.from('ms_forms_retry_queue').insert({ target_form: target, report_date: date, payload: payload });
-    },
-    /* the single-record forms have nothing to hold and re-assemble — they only record the
-       outcome so the Settings page can show a real status per topic */
-    msFormsLog: function (target, date, ok, error) {
-      return sb.rpc('ms_forms_log', { p_target: target, p_date: date, p_ok: !!ok, p_error: error || null });
-    },
+    /* Recording what a forward did is deliberately NOT done from here any more. The browser that
+       starts a send is gone long before it finishes often enough (a guard submits, sees the done
+       screen and closes the tab, while the headless fill still has 20-60s to run) that anything
+       written from this side goes missing exactly when it matters. api/forward-msforms.js stakes
+       the outbox row before it starts and marks it when it ends, so the record survives the tab
+       closing, the phone locking, and the function itself being killed. */
     /* admin-only (RLS allows select to authenticated): newest row per target form */
     msFormsOutbox: function () {
       return sb.from('ms_forms_outbox').select('*').order('report_date', { ascending: false }).limit(200)
