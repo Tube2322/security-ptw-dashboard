@@ -503,7 +503,10 @@
     if (state.allLoaded) return Promise.resolve();
     var keys = monthKeysBetween(from, to || from).filter(function (k) { return !state.loadedMonths[k]; });
     if (!keys.length) return Promise.resolve();
-    return Promise.all(keys.map(fetchMonth)).then(bump);
+    /* wrapped rather than passed straight to map: map hands the callback (element, index, array),
+       so fetchMonth's second parameter (force) would receive the index — making every month
+       after the first bypass the in-flight guard and re-issue a request it already had running */
+    return Promise.all(keys.map(function (k) { return fetchMonth(k); })).then(bump);
   }
   /* Tier 2 — the Records page's "ทั้งหมด" browser and the PDF "ข้อมูลทั้งหมด" period both want
      genuine full history with no date bound. Real volume here is small (a few MB/year), so a
@@ -561,7 +564,33 @@
     });
   }
 
-  var ready = Promise.all([loadFormFields(), loadDateIndex(), loadCounts(), loadPortal(), loadModuleLabels()]);
+  /* Same in-flight guard as fetchMonth/ensureAll: the session arriving can be observed twice at
+     startup (getSession() resolving and onAuthStateChange's initial event), and both mean the
+     same single bootstrap, not two. */
+  var bootstrapInFlight = null;
+  function loadBootstrap() {
+    if (bootstrapInFlight) return bootstrapInFlight;
+    bootstrapInFlight = Promise.all([loadFormFields(), loadDateIndex(), loadCounts(), loadPortal(), loadModuleLabels()]);
+    bootstrapInFlight.then(function () { bootstrapInFlight = null; }, function () { bootstrapInFlight = null; });
+    return bootstrapInFlight;
+  }
+  /* These five must not run until Supabase has finished restoring the session from localStorage.
+     records/form_fields are RLS-protected and an unauthenticated read of them returns an EMPTY
+     SET WITH NO ERROR — indistinguishable from a brand-new install. Firing them at script-eval
+     time (which is what this used to do) raced the session restore, and losing that race left
+     the console booted against no data: pickLatestDate() found no dates so the dashboard opened
+     with no day selected, the header then offering a day-vs-yesterday comparison over what was
+     actually whole-month data, and nothing re-ran the loads once the session did arrive — the
+     numbers only reappeared incidentally, whenever some later render happened to refetch.
+     Waiting for the session (and reloading whenever the signed-in user actually changes) is what
+     makes the first paint reflect the real data. A failed getSession() still falls through to
+     loading, so a genuinely signed-out visitor is no worse off than before. */
+  var lastUserId = null;
+  function currentUserId(session) { return (session && session.user && session.user.id) || null; }
+  var ready = sb.auth.getSession().then(
+    function (res) { var s = res.data && res.data.session; setSession(s); lastUserId = currentUserId(s); },
+    function () { setSession(null); }
+  ).then(loadBootstrap);
 
   /* Refetches only what's actually cached (see refreshLoaded above), rather than the whole
      table — a change anywhere shouldn't cost every open Admin tab a full-table download,
@@ -613,8 +642,16 @@
     profileState = { role: null, loaded: false };
     loadProfile();
   }
-  sb.auth.getSession().then(function (res) { setSession(res.data && res.data.session); });
-  sb.auth.onAuthStateChange(function (_event, session) { setSession(session); });
+  /* getSession() is awaited by `ready` above, so it is not called a second time here. Signing in
+     or out changes which rows RLS will hand back, so the bootstrap set is re-pulled whenever the
+     identity actually changes — a plain token refresh keeps the same user and needs no refetch. */
+  sb.auth.onAuthStateChange(function (_event, session) {
+    var next = currentUserId(session);
+    var changed = next !== lastUserId;
+    lastUserId = next;
+    setSession(session);
+    if (changed) loadBootstrap();
+  });
 
   var Core = {
     MODULES: MODULES, TYPES: TYPES, OPERATORS: OPERATORS, COLORS: PALETTE,
