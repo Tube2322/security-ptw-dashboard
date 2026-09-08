@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260908"></script>
+<script src="./soc-core.js?v=20260908b"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -2030,12 +2030,26 @@ class Component extends DCLogic {
   }
   pickLatestDate() {
     const l = this.latestDateFor('traffic');
+    if (l.date) this._autoPicked = true;
     this.setState({ year: l.year, month: l.month, date: l.date, pdfPeriodYear: l.year, pdfPeriodMonth: l.month, pdfPeriodDay: l.date });
   }
   componentDidMount() {
     const core = window.SOCCore;
     if (core) {
-      this._unsub = core.subscribe(() => this.setState(s => ({ rev: s.rev + 1 })));
+      /* The date the console opens on has to be chosen when data actually arrives, not at a fixed
+         moment: the first RLS-filtered read can come back empty while the session is still being
+         restored, and core.ready resolves on that empty result. Picking only there left the
+         console with no date selected even once the real rows landed a moment later — the
+         granularity said "รายวัน" while the scope was the whole month, and the header offered a
+         comparison against yesterday that matched neither. This re-picks exactly once, the first
+         time any data exists, so a user who then chooses a whole-month view keeps it. */
+      this._unsub = core.subscribe(() => {
+        if (!this._autoPicked && !this.state.date && this.state.dashGranularity === 'day'
+            && this.latestDateFor('traffic').date) {
+          this.pickLatestDate();
+        }
+        this.setState(s => ({ rev: s.rev + 1 }));
+      });
       /* mount runs before the initial Supabase fetch resolves, so the first pass here always
          sees an empty cache — core.ready is the same promise the data layer awaits internally,
          and jumping to "today" a second time once it settles is what actually lands on the
@@ -5234,7 +5248,16 @@ class Component extends DCLogic {
       compareOff: s.compareOn === false,
       setCompareToggle: (e) => {
         const on = !!e.target.checked;
-        if (on) { this.setState({ compareOn: true }); return; }
+        if (on) {
+          /* The compare-off chip switches between a single day and a whole month by clearing
+             state.date, not by changing dashGranularity — so turning comparison back on while
+             that chip was showing "ทั้งเดือน" left granularity claiming 'day' over month-scoped
+             data, and the header offered to compare against yesterday. Realign the granularity
+             to whatever the chip was actually showing, so the same numbers stay on screen and
+             the comparison that appears matches them. */
+          this.setState({ compareOn: true, dashGranularity: s.date ? 'day' : 'month' });
+          return;
+        }
         /* forcing day granularity the moment this flips off is what makes "off" mean a plain
            single-day view everywhere: every volDelta() closure already returns '' at
            g === 'day', so this one flag alone silences every delta pill without touching
