@@ -442,12 +442,28 @@ async function choiceLabels(item) {
    ordinary last choiceItem that additionally holds the free-text box. A free-text input inside a
    choice question only ever belongs to Other, so its presence is the tell that works for both.
    Returns false when the question has no Other row at all. */
+/* .check() clicks the <input> itself and then asserts its checked state flipped — but on this
+   layout (input sitting outside any choiceItem) Fluent UI binds the actual toggle handler to an
+   ancestor element, not the input, so a direct click never registers and .check() throws
+   "did not change its state" (first seen on Visitor's custom-name radio, which always lands
+   here because the name never matches the form's fixed dropdown choices). Climbing to the
+   parent/grandparent to find whichever element the click handler actually lives on fixes it
+   without needing to know this form's exact DOM shape. */
+async function clickToCheck(input) {
+  const candidates = [input, input.locator('xpath=..'), input.locator('xpath=../..')];
+  for (const el of candidates) {
+    await el.click();
+    if (await input.isChecked().catch(() => false)) return;
+  }
+  throw new Error('clicking the "other" option did not check it (input nor its ancestors)');
+}
+
 async function fillOther(item, selector, choices, count, text) {
   const otherInput = item.locator('input[data-automation-id="textInput"]').first();
   if (await otherInput.count() === 0) return false;
   const inputs = item.locator(selector);
   const inputCount = await inputs.count();
-  if (inputCount > count) await inputs.nth(inputCount - 1).check();
+  if (inputCount > count) await clickToCheck(inputs.nth(inputCount - 1));
   else if (count > 0) await choices.last().click();
   await otherInput.fill(text);
   return true;
