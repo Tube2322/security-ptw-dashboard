@@ -163,9 +163,23 @@ async function attemptFill(form, moduleId, data, dryRun) {
       const f = form.fields[i];
       const v = data[f.id];
       if (v == null || String(v).trim() === '' || (f.type !== 'date' && f.type !== 'radio')) continue;
-      const ok = f.type === 'date'
-        ? !!((await items.nth(i).locator('[data-automation-id="dateContainer"] input').first().inputValue().catch(() => '')) || '').trim()
-        : (await items.nth(i).locator('input[type="radio"]:checked').count()) > 0;
+      let ok;
+      if (f.type === 'date') {
+        /* the calendar popup can revert the date after later questions were filled, so if it is
+           empty now, type it again (nothing else is pending at this point) and Tab out to commit it */
+        const dateInput = items.nth(i).locator('[data-automation-id="dateContainer"] input').first();
+        const readBack = async () => !!((await dateInput.inputValue().catch(() => '')) || '').trim();
+        ok = await readBack();
+        for (let attempt = 0; !ok && attempt < 3; attempt++) {
+          await dateInput.click();
+          await dateInput.fill(isoToThaiSlashDate(String(v).trim()));
+          await dateInput.press('Tab');
+          await page.waitForTimeout(500);
+          ok = await readBack();
+        }
+      } else {
+        ok = (await items.nth(i).locator('input[type="radio"]:checked').count()) > 0;
+      }
       if (!ok) throw new Error(`question ${i + 1} (${f.id}) was not answered before submit — a click or keystroke did not register`);
     }
 
