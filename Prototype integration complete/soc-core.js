@@ -803,6 +803,16 @@
       return sb.from('ms_forms_send_log').select('*').order('created_at', { ascending: false }).limit(500)
         .then(function (res) { return res.error ? [] : (res.data || []); });
     },
+    /* submissions still waiting to be delivered (ms_forms_jobs), oldest first. The website records every
+       submission there before it tries to send it, and a scheduled worker keeps retrying until it is
+       sent — so this is "what has not reached the other department yet". Admin-only via RLS. */
+    msFormsJobs: function () {
+      return sb.from('ms_forms_jobs')
+        .select('id,target_form,report_date,status,attempts,next_attempt_at,last_error,created_at')
+        .neq('status', 'sent')
+        .order('report_date', { ascending: true }).order('created_at', { ascending: true }).limit(500)
+        .then(function (res) { return res.error ? [] : (res.data || []); });
+    },
     addRecord: function (module, data, meta) {
       meta = meta || {};
       var mod = this.module(module) || {};

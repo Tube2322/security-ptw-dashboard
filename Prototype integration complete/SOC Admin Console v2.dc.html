@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260908b"></script>
+<script src="./soc-core.js?v=20260919a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -1886,6 +1886,7 @@ class Component extends DCLogic {
     recordSearch: '', recordSort: 'date_desc',
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
+    msJobs: [], /* ms_forms_jobs rows not yet sent — the queue the 20-minute worker drains */
     msSendLog: [], /* ms_forms_send_log rows — every attempt, never overwritten (see msFormsOutbox) */
     msLogOpen: null, /* target_form id of the one forwarding row with its log expanded, or null */
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
@@ -4470,17 +4471,30 @@ class Component extends DCLogic {
       r.target_form === target && r.report_date === reportDate && !r.ok
     ).length;
   }
+  /* submissions of this topic that have not reached the other department yet. Every one is a row
+     in ms_forms_jobs that the scheduled worker retries every 20 minutes until it is sent. */
+  msFormsPendingJobs(target) {
+    return (this.state.msJobs || []).filter(j => j.target_form === target);
+  }
+  msFormsQueueNote(target) {
+    const jobs = this.msFormsPendingJobs(target);
+    if (!jobs.length) return '';
+    const worst = jobs.reduce((m, j) => Math.max(m, j.attempts || 0), 0);
+    return ' · ⏳ ค้างส่ง ' + jobs.length + ' รายการ ระบบจะส่งซ้ำอัตโนมัติทุก 20 นาทีจนครบ'
+      + (worst >= 3 ? ' (บางรายการลองแล้ว ' + worst + ' ครั้ง)' : '');
+  }
   msFormsLastText(target) {
     const row = this.msFormsLast(target);
-    if (!row) return 'ยังไม่เคยส่ง';
+    const queueNote = this.msFormsQueueNote(target);
+    if (!row) return 'ยังไม่เคยส่ง' + queueNote;
     const core = this.core();
     const when = core.fmtDate(row.report_date);
     const hidden = this.msFormsHiddenFailures(target, row.report_date);
     const hiddenNote = (row.status === 'sent' && hidden > 0)
       ? ' · ⚠ มี ' + hidden + ' ครั้งที่ล้มเหลวในวันเดียวกัน (ดู log ด้านล่าง)' : '';
-    if (row.status === 'sent') return '✓ ส่งสำเร็จ ' + this.msFormsStamp(row.sent_at) + ' · ข้อมูลวันที่ ' + when + hiddenNote;
-    if (row.status === 'failed') return '⚠ ส่งไม่สำเร็จ ' + row.attempts + ' ครั้ง · ลองล่าสุด ' + this.msFormsStamp(row.updated_at) + ' · ข้อมูลวันที่ ' + when + (row.last_error ? ' — ' + row.last_error : '');
-    if (row.status === 'sending') return 'กำลังส่ง · เริ่มเมื่อ ' + this.msFormsStamp(row.claimed_at || row.updated_at) + ' · ข้อมูลวันที่ ' + when;
+    if (row.status === 'sent') return '✓ ส่งสำเร็จ ' + this.msFormsStamp(row.sent_at) + ' · ข้อมูลวันที่ ' + when + hiddenNote + queueNote;
+    if (row.status === 'failed') return '⚠ ส่งไม่สำเร็จ ' + row.attempts + ' ครั้ง · ลองล่าสุด ' + this.msFormsStamp(row.updated_at) + ' · ข้อมูลวันที่ ' + when + (row.last_error ? ' — ' + row.last_error : '') + queueNote;
+    if (row.status === 'sending') return 'กำลังส่ง · เริ่มเมื่อ ' + this.msFormsStamp(row.claimed_at || row.updated_at) + ' · ข้อมูลวันที่ ' + when + queueNote;
     /* pending only ever happens for the combined form, where it means exactly one thing */
     return 'รอข้อมูลอีกฟอร์มของวันที่ ' + when + ' · อัปเดตล่าสุด ' + this.msFormsStamp(row.updated_at);
   }
@@ -4488,7 +4502,13 @@ class Component extends DCLogic {
      not a full report; anyone needing the complete history can query ms_forms_send_log directly. */
   msFormsLogEntries(target) {
     const core = this.core();
-    return (this.state.msSendLog || [])
+    /* what is still waiting goes first: it is the part somebody has to know about */
+    const waiting = this.msFormsPendingJobs(target).slice(0, 6).map(j => ({
+      icon: '⏳', color: 'var(--warn)',
+      when: j.next_attempt_at ? 'ลองอีกครั้งหลัง ' + this.msFormsStamp(j.next_attempt_at) : 'รอส่ง',
+      text: 'ข้อมูลวันที่ ' + core.fmtDate(j.report_date) + ' — รอส่งอัตโนมัติ (ลองแล้ว ' + (j.attempts || 0) + ' ครั้ง)' + (j.last_error ? ' — ' + j.last_error : '')
+    }));
+    return waiting.concat((this.state.msSendLog || [])
       .filter(r => r.target_form === target)
       .slice(0, 10)
       .map(r => ({
@@ -4496,10 +4516,11 @@ class Component extends DCLogic {
         color: r.ok ? 'var(--ok)' : 'var(--danger)',
         when: this.msFormsStamp(r.created_at),
         text: 'ข้อมูลวันที่ ' + core.fmtDate(r.report_date) + (r.ok ? '' : (r.error ? ' — ' + r.error : ' — ล้มเหลว'))
-      }));
+      })));
   }
   msFormsLastColor(target) {
     const row = this.msFormsLast(target);
+    if (this.msFormsPendingJobs(target).length) return 'var(--warn)';
     if (!row) return 'var(--dim)';
     if (row.status === 'sent') return this.msFormsHiddenFailures(target, row.report_date) > 0 ? 'var(--warn)' : 'var(--ok)';
     if (row.status === 'failed') return 'var(--danger)';
@@ -5191,6 +5212,7 @@ class Component extends DCLogic {
       this._outboxLoaded = true;
       core.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
       core.msFormsSendLog().then(rows => this.setState({ msSendLog: rows }));
+      core.msFormsJobs().then(rows => this.setState({ msJobs: rows }));
     }
 
     let data = { kpis: [], charts: [], infoBlocks: [], tableRows: [], tableColumns: [], empty: true, tableTitle: '', tableNote: '' };
