@@ -1886,6 +1886,7 @@ class Component extends DCLogic {
     recordSearch: '', recordSort: 'date_desc',
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
+    msNow: 0, /* clock for the queue countdown, ticked while the Settings page shows a queue */
     msJobs: [], /* ms_forms_jobs rows not yet sent — the queue the 10-minute worker drains */
     msSendLog: [], /* ms_forms_send_log rows — every attempt, never overwritten (see msFormsOutbox) */
     msLogOpen: null, /* target_form id of the one forwarding row with its log expanded, or null */
@@ -4476,12 +4477,40 @@ class Component extends DCLogic {
   msFormsPendingJobs(target) {
     return (this.state.msJobs || []).filter(j => j.target_form === target);
   }
+  /* ms_forms_jobs timestamps are Bangkok wall-clock, no zone — read them as +07:00 */
+  msFormsEpoch(stamp) {
+    return stamp ? Date.parse(String(stamp).replace(' ', 'T').slice(0, 23) + '+07:00') : NaN;
+  }
+  /* a job parked far in the future (year 2099) is deliberately on hold, not waiting for a run */
+  msFormsIsHeld(job) {
+    return this.msFormsEpoch(job.next_attempt_at) > Date.now() + 365 * 86400000;
+  }
+  /* the worker is a GitHub Actions cron on every 10th minute (:00, :10, ...). Every whole hour of
+     the Bangkok offset is a multiple of 10 minutes, so ticks line up in either time zone. GitHub
+     can start a run several minutes late, so this is the earliest a send can happen, not a promise. */
+  msFormsCountdownMs(job, now) {
+    const STEP = 10 * 60000;
+    const due = Math.max(now, this.msFormsEpoch(job.next_attempt_at) || 0);
+    return Math.ceil(due / STEP) * STEP - now;
+  }
+  msFormsClock(ms) {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  }
   msFormsQueueNote(target) {
     const jobs = this.msFormsPendingJobs(target);
     if (!jobs.length) return '';
-    const worst = jobs.reduce((m, j) => Math.max(m, j.attempts || 0), 0);
-    return ' · ⏳ ค้างส่ง ' + jobs.length + ' รายการ ระบบจะส่งซ้ำอัตโนมัติทุก 10 นาทีจนครบ'
-      + (worst >= 3 ? ' (บางรายการลองแล้ว ' + worst + ' ครั้ง)' : '');
+    const now = this.state.msNow || Date.now();
+    const active = jobs.filter(j => !this.msFormsIsHeld(j));
+    const held = jobs.length - active.length;
+    const worst = active.reduce((m, j) => Math.max(m, j.attempts || 0), 0);
+    let note = ' · ⏳ ค้างส่ง ' + jobs.length + ' รายการ';
+    if (active.length) {
+      const next = active.reduce((m, j) => Math.min(m, this.msFormsCountdownMs(j, now)), Infinity);
+      note += ' · ⏱ รอบส่งถัดไปในอีก ' + this.msFormsClock(next) + ' (ส่งอัตโนมัติทุก 10 นาที · GitHub อาจเริ่มรอบช้าหรือข้ามรอบได้)';
+    }
+    if (held) note += ' · ⏸ พักคิวไว้ ' + held + ' รายการ ยังไม่ปล่อยส่ง';
+    return note + (worst >= 3 ? ' (บางรายการลองแล้ว ' + worst + ' ครั้ง)' : '');
   }
   msFormsLastText(target) {
     const row = this.msFormsLast(target);
@@ -4505,7 +4534,7 @@ class Component extends DCLogic {
     /* what is still waiting goes first: it is the part somebody has to know about */
     const waiting = this.msFormsPendingJobs(target).slice(0, 6).map(j => ({
       icon: '⏳', color: 'var(--warn)',
-      when: j.next_attempt_at ? 'ลองอีกครั้งหลัง ' + this.msFormsStamp(j.next_attempt_at) : 'รอส่ง',
+      when: this.msFormsIsHeld(j) ? 'พักคิวไว้' : 'ส่งในอีก ' + this.msFormsClock(this.msFormsCountdownMs(j, this.state.msNow || Date.now())),
       text: 'ข้อมูลวันที่ ' + core.fmtDate(j.report_date) + ' — รอส่งอัตโนมัติ (ลองแล้ว ' + (j.attempts || 0) + ' ครั้ง)' + (j.last_error ? ' — ' + j.last_error : '')
     }));
     return waiting.concat((this.state.msSendLog || [])
@@ -5213,6 +5242,24 @@ class Component extends DCLogic {
       core.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
       core.msFormsSendLog().then(rows => this.setState({ msSendLog: rows }));
       core.msFormsJobs().then(rows => this.setState({ msJobs: rows }));
+    }
+    /* ticks the queue countdown once a second while something is waiting, and re-reads the queue
+       every 30s so a send the worker just made shows up without a reload. It stops by itself once
+       the page is left or the queue is empty. */
+    if (page === 'settings' && (s.msJobs || []).length && !this._msTimer) {
+      this._msTicks = 0;
+      this._msTimer = setInterval(() => {
+        if (this.state.page !== 'settings' || !(this.state.msJobs || []).length) {
+          clearInterval(this._msTimer); this._msTimer = null; return;
+        }
+        if (++this._msTicks % 30 === 0) {
+          const c = this.core();
+          c.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
+          c.msFormsSendLog().then(rows => this.setState({ msSendLog: rows }));
+          c.msFormsJobs().then(rows => this.setState({ msJobs: rows }));
+        }
+        this.setState({ msNow: Date.now() });
+      }, 1000);
     }
 
     let data = { kpis: [], charts: [], infoBlocks: [], tableRows: [], tableColumns: [], empty: true, tableTitle: '', tableNote: '' };
