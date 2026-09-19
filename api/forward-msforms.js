@@ -149,10 +149,11 @@ async function attemptFill(form, moduleId, data, dryRun) {
 
     for (let i = 0; i < form.fields.length; i++) {
       let value = data[form.fields[i].id];
-      /* Every one of the Visitor form's 16 questions is mandatory ("ต้องใส่ข้อมูลนี้" on an empty submit),
-         but a submission only has the half that applies — no contractor came, so the contractor card
-         number and times are empty. The form refuses those, so a dash says "not applicable". */
-      if (moduleId === 'visitors' && form.fields[i].type === 'text' && (value == null || String(value).trim() === '')) value = '-';
+      /* The other department's questions are mandatory ("ต้องใส่ข้อมูลนี้" on an empty submit — all 16 on
+         the Visitor form), but a submission often has only the half that applies: no contractor came,
+         so the contractor card number and times are empty. The form refuses an empty answer, so a
+         dash says "nothing to report" on every form. */
+      if (form.fields[i].type === 'text' && (value == null || String(value).trim() === '')) value = '-';
       await fillQuestion(items.nth(i), form.fields[i], value);
     }
 
