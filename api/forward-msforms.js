@@ -172,7 +172,7 @@ async function attemptFill(form, moduleId, data, dryRun) {
         ok = await readBack();
         for (let attempt = 0; !ok && attempt < 3; attempt++) {
           await dateInput.click();
-          await dateInput.fill(isoToThaiSlashDate(String(v).trim()));
+          await dateInput.fill(await dateTextFor(dateInput, String(v).trim()));
           await dateInput.press('Tab');
           await page.waitForTimeout(500);
           ok = await readBack();
@@ -401,10 +401,18 @@ const FORMS = {
   }
 };
 
-function isoToThaiSlashDate(iso) {
+/* Microsoft Forms asks for the date in the order of the BROWSER's language: "d/M/yyyy" in a Thai
+   browser, "M/d/yyyy" in the headless en-US one this runs in. Typing d/M/yyyy into an M/d/yyyy box
+   silently files days 1-12 with day and month swapped (12/9 became 9 December) and rejects days
+   13-31 outright, which is exactly how this failed. So the order is read from the box's own
+   placeholder ("Please input date (M/d/yyyy)") instead of assumed. */
+async function dateTextFor(input, iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
   if (!m) return null;
-  return `${parseInt(m[3], 10)}/${parseInt(m[2], 10)}/${m[1]}`;
+  const hint = (await input.getAttribute('placeholder').catch(() => '')) || '';
+  const monthFirst = /\(\s*M+\s*\/\s*d+/i.test(hint) && !/\(\s*d+\s*\/\s*M+/i.test(hint);
+  const day = parseInt(m[3], 10), month = parseInt(m[2], 10);
+  return monthFirst ? `${month}/${day}/${m[1]}` : `${day}/${month}/${m[1]}`;
 }
 
 /* textContent, not innerText: innerText is the *rendered* text and depends on layout, so a
@@ -497,9 +505,9 @@ async function fillQuestion(item, field, rawValue) {
   if (!value) return; // optional/empty field (e.g. หมายเหตุ) — leave blank on the target form too
 
   if (field.type === 'date') {
-    const text = isoToThaiSlashDate(value);
-    if (!text) throw new Error(`invalid date value for ${field.id}: ${rawValue}`);
     const input = item.locator('[data-automation-id="dateContainer"] input').first();
+    const text = await dateTextFor(input, value);
+    if (!text) throw new Error(`invalid date value for ${field.id}: ${rawValue}`);
     /* on a slow browser the calendar popup can swallow the typed date, leaving question 1 empty
        ("2 question(s) need to be completed: Question 1, Question 2" was the form's own refusal),
        so read the value back and type it again if it did not stick */
@@ -611,4 +619,4 @@ async function handler(req, res) {
 
 module.exports = handler;
 /* the scheduled worker reuses the exact fill logic instead of keeping a second copy of it */
-module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor };
+module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor, dateTextFor };
