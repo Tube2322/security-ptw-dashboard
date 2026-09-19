@@ -175,9 +175,17 @@ async function attemptFill(form, moduleId, data, dryRun) {
       if (await items.count() === 0) { delivered = true; break; }
     }
     if (!delivered) {
-      const shown = norm(await page.locator('body').textContent().catch(() => ''));
-      const hint = shown.split(/จำเป็น|required/i).length > 2 ? ' (a required question looks unanswered)' : '';
-      throw new Error('submit was not accepted: the form still shows its questions after clicking submit' + hint);
+      /* say WHY: which questions the form flagged (its own validation message sits inside them), and
+         any banner-level alert (rate limit, closed form, sign-in) that is not tied to a question */
+      const flagged = [];
+      const total = await items.count();
+      for (let i = 0; i < total; i++) {
+        const t = norm(await items.nth(i).textContent().catch(() => ''));
+        if (/ต้องใส่ข้อมูลนี้|This is a required question|ไม่ถูกต้อง|invalid/i.test(t)) flagged.push(i + 1);
+      }
+      const alerts = norm((await page.locator('[role="alert"]').allTextContents().catch(() => [])).join(' | ')).slice(0, 200);
+      throw new Error('submit was not accepted: the form still shows its questions after clicking submit' +
+        (flagged.length ? ' — questions flagged: ' + flagged.join(',') : ' — no question flagged') + (alerts ? ' — alert: ' + alerts : ''));
     }
     await browser.close();
     return {};
