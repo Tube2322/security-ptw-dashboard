@@ -156,6 +156,18 @@ async function attemptFill(form, moduleId, data, dryRun) {
       await fillQuestion(items.nth(i), form.fields[i], value);
     }
 
+    /* Before anything is submitted, confirm the questions that must be picked (date, single choice)
+       really hold an answer — a swallowed click leaves them empty, and a submit would then be refused. */
+    for (let i = 0; i < form.fields.length; i++) {
+      const f = form.fields[i];
+      const v = data[f.id];
+      if (v == null || String(v).trim() === '' || (f.type !== 'date' && f.type !== 'radio')) continue;
+      const ok = f.type === 'date'
+        ? !!((await items.nth(i).locator('[data-automation-id="dateContainer"] input').first().inputValue().catch(() => '')) || '').trim()
+        : (await items.nth(i).locator('input[type="radio"]:checked').count()) > 0;
+      if (!ok) throw new Error(`question ${i + 1} (${f.id}) was not answered before submit — a click or keystroke did not register`);
+    }
+
     /* dryRun proves the whole pipeline (chromium launch, navigation, question-count match,
        every field fill) works without the one irreversible step — clicking submit on a form
        that belongs to another department and can't be un-submitted from our side. */
@@ -412,7 +424,7 @@ async function clickToCheck(input) {
       await new Promise((r) => setTimeout(r, 200));
     }
   }
-  throw new Error('clicking the "other" option did not check it after 3 attempts');
+  throw new Error('clicking the radio option did not check it after 3 attempts');
 }
 
 /* An allowCustom value that matches none of the fixed options goes into the form's own "อื่นๆ"
@@ -473,10 +485,17 @@ async function fillQuestion(item, field, rawValue) {
     const text = isoToThaiSlashDate(value);
     if (!text) throw new Error(`invalid date value for ${field.id}: ${rawValue}`);
     const input = item.locator('[data-automation-id="dateContainer"] input').first();
-    await input.click();
-    await input.fill(text);
-    await input.press('Escape');
-    return;
+    /* on a slow browser the calendar popup can swallow the typed date, leaving question 1 empty
+       ("2 question(s) need to be completed: Question 1, Question 2" was the form's own refusal),
+       so read the value back and type it again if it did not stick */
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await input.click();
+      await input.fill(text);
+      await input.press('Escape');
+      await new Promise((r) => setTimeout(r, 300));
+      if (((await input.inputValue().catch(() => '')) || '').trim()) return;
+    }
+    throw new Error(`the date question kept no value for ${field.id} after 3 attempts`);
   }
 
   if (field.type === 'text') {
@@ -489,7 +508,14 @@ async function fillQuestion(item, field, rawValue) {
   const target = norm(value);
   const { choices, count, labels } = await choiceLabels(item);
   const idx = labels.indexOf(target);
-  if (idx >= 0) { await choices.nth(idx).click(); return; }
+  if (idx >= 0) {
+    /* a plain click can be swallowed by the still-closing date popup and leave the question empty,
+       so click the radio itself and confirm it took (see clickToCheck) */
+    const radio = choices.nth(idx).locator('input[type="radio"]');
+    if (await radio.count()) await clickToCheck(radio.first());
+    else await choices.nth(idx).click();
+    return;
+  }
   if (await fillOther(item, 'input[type="radio"]', choices, count, value)) return;
   /* No exact match and no "other" row to put the value in. The old code guessed here — it
      clicked whatever the last choice happened to be and tried to type into a text box next to
