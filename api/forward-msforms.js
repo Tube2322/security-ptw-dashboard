@@ -432,6 +432,25 @@ async function choiceLabels(item) {
   return { choices, count, labels };
 }
 
+/* Selecting a radio by a single click is not reliable on the slow serverless Chromium: right after
+   the date question is filled its calendar popup can still be open (Escape dismisses it
+   asynchronously), so the first click only closes the popup and the radio stays unchecked.
+   Playwright's .check() reads the state the instant after ONE click and throws "Clicking the
+   checkbox did not change its state" — reproduced locally by throttling the CPU 8x, where .check()
+   failed every time and a second click succeeded. Clicking a radio again is harmless, so click,
+   give the state a moment to settle, and click again if it never does. Radios only: clicking a
+   checkbox twice would toggle it back off, so those keep .check(). */
+async function clickToCheck(input) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await input.click();
+    for (let i = 0; i < 5; i++) {
+      if (await input.isChecked().catch(() => false)) return;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+  throw new Error('clicking the "other" option did not check it after 3 attempts');
+}
+
 /* An allowCustom value that matches none of the fixed options goes into the form's own "อื่นๆ"
    (Other) row — which their form only offers when it means to accept free text there. Detected
    structurally, never by aria-label: that label is localized to the *browser's* UI language, so
@@ -442,29 +461,16 @@ async function choiceLabels(item) {
    ordinary last choiceItem that additionally holds the free-text box. A free-text input inside a
    choice question only ever belongs to Other, so its presence is the tell that works for both.
    Returns false when the question has no Other row at all. */
-/* .check() clicks the <input> itself and then asserts its checked state flipped — but on this
-   layout (input sitting outside any choiceItem) Fluent UI binds the actual toggle handler to an
-   ancestor element, not the input, so a direct click never registers and .check() throws
-   "did not change its state" (first seen on Visitor's custom-name radio, which always lands
-   here because the name never matches the form's fixed dropdown choices). Climbing to the
-   parent/grandparent to find whichever element the click handler actually lives on fixes it
-   without needing to know this form's exact DOM shape. */
-async function clickToCheck(input) {
-  const candidates = [input, input.locator('xpath=..'), input.locator('xpath=../..')];
-  for (const el of candidates) {
-    await el.click();
-    if (await input.isChecked().catch(() => false)) return;
-  }
-  throw new Error('clicking the "other" option did not check it (input nor its ancestors)');
-}
-
 async function fillOther(item, selector, choices, count, text) {
   const otherInput = item.locator('input[data-automation-id="textInput"]').first();
   if (await otherInput.count() === 0) return false;
   const inputs = item.locator(selector);
   const inputCount = await inputs.count();
-  if (inputCount > count) await clickToCheck(inputs.nth(inputCount - 1));
-  else if (count > 0) await choices.last().click();
+  if (inputCount > count) {
+    const other = inputs.nth(inputCount - 1);
+    if (selector === 'input[type="radio"]') await clickToCheck(other);
+    else await other.check();
+  } else if (count > 0) await choices.last().click();
   await otherInput.fill(text);
   return true;
 }
