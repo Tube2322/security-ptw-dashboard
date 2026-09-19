@@ -13,6 +13,10 @@ concurrency:
   group: msforms-drain
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  actions: write   # lets a run queue its own successor while jobs remain, so the chain does not depend on cron
+
 jobs:
   drain:
     if: github.repository == 'Tube2322/security-ptw-dashboard'
@@ -39,3 +43,4 @@ jobs:
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           MSFORMS_BROWSER: system-chrome
+          GITHUB_TOKEN: ${{ github.token }}
