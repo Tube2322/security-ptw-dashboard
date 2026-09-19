@@ -160,7 +160,20 @@ async function attemptFill(form, moduleId, data, dryRun) {
     }
 
     await page.locator('[data-automation-id="submitButton"]').click();
-    await page.waitForTimeout(1500);
+    /* Clicking submit proves nothing: a rejected submission (required answer missing, validation
+       error, form closed) leaves the questions on screen and the click still "succeeded". Microsoft
+       Forms replaces the questions with its thank-you page only once the response is stored, so
+       that is the one signal that counts as delivered. Anything else is a failed send. */
+    let delivered = false;
+    for (let i = 0; i < 40; i++) {
+      await page.waitForTimeout(500);
+      if (await items.count() === 0) { delivered = true; break; }
+    }
+    if (!delivered) {
+      const shown = norm(await page.locator('body').textContent().catch(() => ''));
+      const hint = shown.split(/จำเป็น|required/i).length > 2 ? ' (a required question looks unanswered)' : '';
+      throw new Error('submit was not accepted: the form still shows its questions after clicking submit' + hint);
+    }
     await browser.close();
     return {};
   } catch (err) {
