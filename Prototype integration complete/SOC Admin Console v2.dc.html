@@ -456,9 +456,9 @@
                            with no single module behind them (e.g. the ตรวจประจำเดือน group
                            roll-up) get drill: null and stay non-interactive. -->
                       <div class="soc-kpi-card" onClick="{{ k.drill }}" title="{{ k.cardTitle }}" style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 17px 18px 15px; min-width: 0; display: flex; flex-direction: column; gap: 9px; animation: socUp 260ms ease both; cursor: {{ k.cursor }}; transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;" style-hover="border-color: var(--line-2); transform: translateY(-2px); background: var(--panel-2);">
-                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                          <span style="width: 7px; height: 7px; flex: none; border-radius: 50%; background: {{ k.color }};"></span>
-                          <span style="font-size: 12.5px; font-weight: 500; color: var(--text); opacity: 0.82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.label }}</span>
+                        <div style="display: flex; align-items: flex-start; gap: 8px; min-width: 0;">
+                          <span style="width: 7px; height: 7px; flex: none; margin-top: 6px; border-radius: 50%; background: {{ k.color }};"></span>
+                          <span style="min-width: 0; font-size: 12.5px; font-weight: 500; line-height: 1.4; color: var(--text); opacity: 0.82; overflow-wrap: anywhere;">{{ k.label }}</span>
                           <sc-if value="{{ k.drillable }}" hint-placeholder-val="{{ false }}">
                             <span class="soc-kpi-drill" aria-hidden="true" style="flex: none; margin-left: auto; font-size: 12px; color: var(--dim);">↗</span>
                           </sc-if>
@@ -759,7 +759,7 @@
                           </svg>
                           <sc-for list="{{ c.series }}" as="sr2" hint-placeholder-count="1">
                             <sc-for list="{{ sr2.points }}" as="p2" hint-placeholder-count="6">
-                              <div style="position: absolute; left: {{ p2.leftPct }}; top: {{ p2.labelTop }}; transform: translate(-50%, -100%); font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--chart-text); pointer-events: none; white-space: nowrap;">{{ p2.labelText }}</div>
+                              <div style="position: absolute; left: {{ p2.leftPct }}; top: {{ p2.labelTop }}; transform: {{ p2.labelTransform }}; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--chart-text); pointer-events: none; white-space: nowrap;">{{ p2.labelText }}</div>
                             </sc-for>
                           </sc-for>
                           <div style="display: flex; gap: 4px; margin-top: 6px;">
@@ -2637,7 +2637,14 @@ class Component extends DCLogic {
          label would sit in the DOM with correct text yet paint nothing (confirmed: zero-size
          getBoundingClientRect despite correct textContent). label sits above the point, clamped
          so it never clips past the top edge on a near-max value. */
-      p.leftPct = (parseFloat(p.cx) / W * 100).toFixed(2) + '%';
+      /* left:% resolves against the card's padding box, which is 64px wider than the svg (the gutter
+         for the average caption) — so a plain percentage drifted every label right of its point,
+         by up to 60px at the end of the series. Measure against the svg's width instead. */
+      p.leftPct = 'calc((100% - 64px) * ' + (parseFloat(p.cx) / W).toFixed(5) + ')';
+      /* the last point sits at the plot's right edge, so a centred label spilled into the gutter
+         where the average-line caption lives and printed over it; right-aligning it to the point
+         keeps it inside the plot */
+      p.labelTransform = (n > 1 && p === pts[n - 1]) ? 'translate(-100%, -100%)' : 'translate(-50%, -100%)';
       p.labelTop = (Math.max(10, parseFloat(p.cy) - 10) / H * 230).toFixed(1) + 'px';
     });
     const path = this.smoothPath(pts);
@@ -5273,6 +5280,11 @@ class Component extends DCLogic {
         const period = s.comparePickerType === 'day'
           ? { id, type: 'day', date: s.comparePickerDate }
           : { id, type: 'month', year: s.comparePickerYear, month: s.comparePickerMonth };
+        /* the same period twice is two identical columns and two identical bars — a comparison of
+           something with itself, and the second one would inherit a "+0%" against the first */
+        const already = s.comparePeriods.some(p => p.type === period.type && (period.type === 'day'
+          ? p.date === period.date : (p.year === period.year && p.month === period.month)));
+        if (already) { this.flash('มีช่วงเวลานี้อยู่ในการเทียบแล้ว', 'var(--warn)'); return; }
         this.setState({ comparePeriods: s.comparePeriods.concat([period]), comparePickerOpen: false, comparePickerDate: '' });
       },
       hasTable: !!compareTable,
