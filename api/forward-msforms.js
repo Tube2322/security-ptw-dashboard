@@ -39,14 +39,14 @@ async function loadChromium() {
 }
 const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
 
-/* Everything this file touches in Postgres goes through SECURITY DEFINER RPCs (ms_forms_log /
-   ms_forms_begin / ms_forms_mark, and the claim/enqueue/drop trio for the retry queue); the
-   underlying tables grant the anon role no direct access at all.
+/* Everything this file touches in Postgres goes through SECURITY DEFINER RPCs (ms_forms_begin /
+   ms_forms_mark for the per-day status row, ms_forms_job_enqueue / _done for the durable queue);
+   the underlying tables grant the anon role no direct access at all.
 
    That is not sufficient on its own: EXECUTE on those functions is granted to anon by default,
    so anyone holding the publishable key — which every browser tab is handed — can call them.
-   Whatever lands in the retry queue is submitted to another department's live Microsoft Form by
-   the next sweep, so being able to write to it is being able to write to their form. The fix is
+   Whatever lands in the job queue is submitted to another department's live Microsoft Form by the
+   next drain, so being able to write to it is being able to write to their form. The fix is
    for this function, and only this function, to talk to Postgres as the service role: set
    SUPABASE_SERVICE_ROLE_KEY in the Vercel project (Settings → Environment Variables, Production)
    and EXECUTE on the server-only RPCs can then be revoked from anon, which closes the hole.
@@ -76,8 +76,8 @@ function isTransient(err) {
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 /* One real attempt: launch, navigate, fill, and (unless dryRun) submit. Pulled out of the request
-   handler so both the current request and the background retry-queue sweep can call the exact
-   same fill logic — the sweep must run the real thing, not a slightly different copy of it. */
+   handler so both the request and the scheduled worker (scripts/drain-msforms.js) run the exact
+   same fill logic — the worker must run the real thing, not a slightly different copy of it. */
 async function attemptFill(form, moduleId, data, dryRun) {
   /* Playwright doesn't clean up its per-launch --user-data-dir on a warm/reused Lambda
      container (a documented @sparticuz/chromium caveat) — every invocation leaves a fresh
@@ -98,22 +98,30 @@ async function attemptFill(form, moduleId, data, dryRun) {
 
   let browser;
   try {
-    const { playwright, chromium } = await loadChromium();
-    if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
-    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
-    /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
-       chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
-       lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
-       by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
-       alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
-    var pathMod = require('path');
-    var execDir = pathMod.dirname(executablePath);
-    process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
-    browser = await playwright.launch({
-      args: chromium.args,
-      executablePath: executablePath,
-      headless: true
-    });
+    if (process.env.MSFORMS_BROWSER === 'system-chrome') {
+      /* the scheduled worker (scripts/drain-msforms.js) runs on a GitHub Actions machine that already
+         has Chrome installed, with none of the Lambda limits (60s, a small /tmp, a cold start that
+         downloads the browser) that make sending from a Vercel function fragile */
+      const { chromium: playwright } = require('playwright-core');
+      browser = await playwright.launch({ channel: 'chrome', headless: true });
+    } else {
+      const { playwright, chromium } = await loadChromium();
+      if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
+      const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+      /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
+         chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
+         lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
+         by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
+         alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
+      var pathMod = require('path');
+      var execDir = pathMod.dirname(executablePath);
+      process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
+      browser = await playwright.launch({
+        args: chromium.args,
+        executablePath: executablePath,
+        headless: true
+      });
+    }
     const page = await browser.newPage();
     await page.goto(form.url, { waitUntil: 'networkidle', timeout: 20000 });
 
@@ -162,12 +170,10 @@ async function attemptFill(form, moduleId, data, dryRun) {
 }
 
 /* Retries only transient failures, only for a real (non-dryRun) send — a dry run is a one-shot
-   diagnostic, not a submission worth queueing. One short retry only: a launch (browser +
-   navigate) can itself take 10-20s under load, and this has to leave enough of the 60s function
-   budget (vercel.json) for the queue sweep above plus a real chance to return before Vercel
-   kills the invocation outright — a kill produces no response at all, which means the client
-   sees a raw network error and the retry-queue insert below never runs either. Anything beyond
-   one quick retry is what the queue+sweep is for, not this in-request loop. */
+   diagnostic. One short retry only: a launch (browser + navigate) can itself take 10-20s under
+   load, and this has to leave a real chance to return before Vercel kills the invocation at 60s.
+   Anything beyond one quick retry is what the job queue and its 20-minute worker are for, not
+   this in-request loop. */
 async function attemptWithRetry(form, moduleId, data, dryRun) {
   const delays = dryRun ? [] : [3000];
   let lastErr;
@@ -187,74 +193,6 @@ async function attemptWithRetry(form, moduleId, data, dryRun) {
 function reportDateFor(form, data) {
   const dateField = form.fields.find((f) => f.type === 'date');
   return (dateField && data[dateField.id]) || new Date().toISOString().slice(0, 10);
-}
-
-/* A row still marked 'sending' long after any real send could have finished means nobody ever
-   reported back on it: the browser that started it was closed mid-flight, or the function was
-   killed before it could mark the row. Either way the submission is in limbo — possibly never
-   delivered, and (for traffic+golf) holding a claim no other device will take over. Ten minutes
-   is far past the ~20-60s a real send takes, so anything older is safe to treat as abandoned and
-   retry from the payload the row itself carries. Returns true when it did work, so the caller
-   can keep a single invocation from launching more browsers than its time budget allows. */
-async function reapStuckSending() {
-  try {
-    /* the claim (and its 10-minute cutoff) happens in SQL, not here: these columns hold Bangkok
-       local time, so a cutoff built from JS's UTC clock would be seven hours off, and claiming
-       in the same statement stops two concurrent invocations from both submitting this row. */
-    const { data: rows, error } = await supabase.rpc('ms_forms_claim_stuck', { p_minutes: 10 });
-    if (error || !rows || !rows.length) return false;
-    const row = rows[0];
-    const form = FORMS[row.target_form];
-    if (!form || !row.payload) {
-      await supabase.rpc('ms_forms_mark', { p_id: row.id, p_ok: false, p_error: 'abandoned: no payload or unknown target form' });
-      return true;
-    }
-    try {
-      await attemptFill(form, row.target_form, row.payload, false);
-      await supabase.rpc('ms_forms_mark', { p_id: row.id, p_ok: true });
-    } catch (err) {
-      await supabase.rpc('ms_forms_mark', { p_id: row.id, p_ok: false, p_error: 'stuck send retried and failed: ' + String((err && err.message) || err) });
-    }
-    return true;
-  } catch (e) { return false; /* best-effort — never let this affect the request that triggered it */ }
-}
-
-/* One row at a time, and only once it's had a real minute to breathe since it was last touched —
-   this runs at the start of every invocation this endpoint gets for any module, so whatever
-   submission happens next anywhere in the app is what nudges a stuck row forward. No cron job:
-   there is nothing else in this serverless app that runs on a clock. Never allowed to throw —
-   a stuck retry row is a problem for its own next sweep, not for the request that happened to
-   trigger this one. */
-async function sweepRetryQueue() {
-  try {
-    /* claimed in SQL for the same two reasons as the reaper above: the cooldown has to be
-       measured against the Bangkok-local clock these columns are written with (comparing them to
-       a UTC cutoff from here meant the 90s never actually held), and claiming atomically keeps
-       two invocations from retrying the same row at once. The claim itself counts the attempt. */
-    const { data: rows, error } = await supabase.rpc('ms_forms_claim_retry', { p_seconds: 90 });
-    if (error || !rows || !rows.length) return false;
-    const row = rows[0];
-    const form = FORMS[row.target_form];
-    if (!form) { await supabase.rpc('ms_forms_drop_retry', { p_id: row.id }); return true; }
-
-    try {
-      await attemptFill(form, row.target_form, row.payload, false);
-      await supabase.rpc('ms_forms_drop_retry', { p_id: row.id });
-      await supabase.rpc('ms_forms_log', { p_target: row.target_form, p_date: row.report_date, p_ok: true });
-    } catch (err) {
-      /* the claim above already counted this attempt and stamped last_attempt_at, so a row that
-         is staying in the queue needs no further write — only one that is giving up does */
-      const attempts = row.attempts || 1;
-      if (attempts >= 5 || !isTransient(err)) {
-        await supabase.rpc('ms_forms_drop_retry', { p_id: row.id });
-        await supabase.rpc('ms_forms_log', {
-          p_target: row.target_form, p_date: row.report_date, p_ok: false,
-          p_error: 'retry queue gave up after ' + attempts + ' attempts: ' + String(err && err.message || err)
-        });
-      }
-    }
-    return true;
-  } catch (e) { return false; /* best-effort — never let a sweep failure affect the request that triggered it */ }
 }
 
 const FORMS = {
@@ -539,7 +477,7 @@ async function fillQuestion(item, field, rawValue) {
   );
 }
 
-module.exports = async (req, res) => {
+async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'method not allowed' }); return; }
 
   let body = req.body;
@@ -550,54 +488,60 @@ module.exports = async (req, res) => {
   const form = FORMS[moduleId];
   if (!form) { res.status(400).json({ ok: false, error: 'unsupported module: ' + moduleId }); return; }
 
-  /* Whatever submission triggered this call also nudges one piece of stuck work forward first —
-     see the two sweeps' own comments for why this, and not a cron job, is what "wait and resend
-     automatically" means in a serverless app with nothing running on a clock. At most ONE of them
-     runs per invocation: each launches its own browser, and two of those plus this request's own
-     send does not fit in the 60s function budget (vercel.json). The two are disjoint by design —
-     the queue holds sends that failed and said so, the reaper picks up sends nobody ever reported
-     back on at all. */
-  const sweptQueue = await sweepRetryQueue();
-  const didBackgroundWork = sweptQueue || await reapStuckSending();
-
   /* A dry run stakes nothing: it is a diagnostic that deliberately never submits, so it must not
-     appear in the outbox or the log as if a real send had been attempted. */
-  const isoDate = reportDateFor(form, data);
-  let rowId = null;
-  if (!dryRun) {
-    /* Staked BEFORE the attempt, not after it. This is the fix for submissions vanishing without
-       a trace: the row (and its payload) exists from the moment the send starts, so if this
-       function or the caller's browser dies mid-flight, reapStuckSending() can still find it and
-       finish the job — and the status page shows "กำลังส่ง" instead of nothing at all. */
+     appear in the queue, the outbox or the log as if a real send had been attempted. */
+  if (dryRun) {
     try {
-      const begun = await supabase.rpc('ms_forms_begin', { p_target: moduleId, p_date: isoDate, p_payload: data });
-      rowId = begun && begun.data ? begun.data : null;
-    } catch (e) { /* the send itself is still worth attempting even if staking the row failed */ }
+      const result = await attemptWithRetry(form, moduleId, data, true);
+      /* serviceRole is reported so there is a way to confirm from outside that the Vercel env var
+         took effect */
+      res.status(200).json({ ok: true, dryRun: true, questionsFilled: result.questionsFilled, serviceRole: usingServiceRole });
+    } catch (err) {
+      res.status(502).json({ ok: false, error: String((err && err.message) || err), transient: false });
+    }
+    return;
   }
 
+  const isoDate = reportDateFor(form, data);
+
+  /* The submission is written down BEFORE anything is attempted, as its own row in ms_forms_jobs.
+     A send can fail for reasons nobody controls — this function is killed at 60s, the shared
+     Chromium runs out of resources, the other department's form is briefly unreachable — and until
+     now each of those either lost the submission or left it as the single "last payload" of a
+     per-day row. Now the worst outcome of this request is that the job stays in the queue, and
+     scripts/drain-msforms.js (GitHub Actions, every 20 minutes) keeps retrying it until it is sent.
+     'claimed' means this request is already sending it, so the worker leaves it alone unless this
+     request dies and 10 minutes pass. */
+  let jobId = null;
   try {
-    /* No in-request retry when a background job already spent part of the budget — the failure
-       gets queued or reaped either way, and running out of time is what produced the killed
-       invocations this whole path is being hardened against. */
-    const result = await attemptWithRetry(form, moduleId, data, dryRun || didBackgroundWork);
-    /* serviceRole is reported on dry runs only, so there is a way to confirm from outside whether
-       the Vercel env var actually took effect before revoking anon's EXECUTE on the RPCs. */
-    if (dryRun) { res.status(200).json({ ok: true, dryRun: true, questionsFilled: result.questionsFilled, serviceRole: usingServiceRole }); return; }
+    const queued = await supabase.rpc('ms_forms_job_enqueue', { p_target: moduleId, p_date: isoDate, p_payload: data, p_claimed: true });
+    jobId = queued && queued.data ? queued.data : null;
+  } catch (e) { /* the immediate attempt below is still worth making without a queue row */ }
+
+  /* the per-(form, day) outbox row is what the Settings page shows as the latest status; it is
+     staked before the attempt for the same reason the job is */
+  let rowId = null;
+  try {
+    const begun = await supabase.rpc('ms_forms_begin', { p_target: moduleId, p_date: isoDate, p_payload: data });
+    rowId = begun && begun.data ? begun.data : null;
+  } catch (e) { /* not fatal either */ }
+
+  try {
+    await attemptWithRetry(form, moduleId, data, false);
     if (rowId) await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: true });
+    if (jobId) await supabase.rpc('ms_forms_job_done', { p_id: jobId, p_ok: true });
     res.status(200).json({ ok: true });
   } catch (err) {
     const message = String((err && err.message) || err);
-    const transient = !dryRun && isTransient(err);
-    if (!dryRun && rowId) {
-      try { await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: false, p_error: message }); } catch (e) {}
-    }
-    if (transient) {
-      /* Queued so the next call to this endpoint — for any module, not just this one — retries
-         it once 90s have passed (see sweepRetryQueue). */
-      try {
-        await supabase.rpc('ms_forms_enqueue_retry', { p_target: moduleId, p_date: isoDate, p_payload: data });
-      } catch (e) { /* queueing is a best-effort safety net, not allowed to mask the real error below */ }
-    }
-    res.status(502).json({ ok: false, error: message, transient });
+    if (rowId) { try { await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: false, p_error: message }); } catch (e) {} }
+    if (jobId) { try { await supabase.rpc('ms_forms_job_done', { p_id: jobId, p_ok: false, p_error: message }); } catch (e) {} }
+    /* `transient` is what the entry portal reads to say "will be retried automatically" instead of
+       "failed, copy it out by hand" — with a queued job that is true of every failure, whatever
+       its cause, so it no longer depends on what kind of error it was */
+    res.status(502).json({ ok: false, error: message, transient: !!jobId || isTransient(err), queued: !!jobId });
   }
-};
+}
+
+module.exports = handler;
+/* the scheduled worker reuses the exact fill logic instead of keeping a second copy of it */
+module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor };
