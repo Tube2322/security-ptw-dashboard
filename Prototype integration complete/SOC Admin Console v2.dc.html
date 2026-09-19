@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260919a"></script>
+<script src="./soc-core.js?v=20260919b"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -2015,7 +2015,7 @@ class Component extends DCLogic {
       return [
         { label: 'ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)', value: tr.totalIn + tr.totalOut + trTt.totalIn + trTt.totalOut, unit: 'คัน' },
         { label: 'รอบรถกอล์ฟ', value: this.golfMetrics(all.filter(r => r.module === 'golf')).total, unit: 'รอบ' },
-        { label: 'ผู้มาเยือน', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' },
+        { label: 'Visitor', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' },
         { label: 'รายงานลิฟต์', value: this.elevatorMetrics(all.filter(r => r.module === 'elevator')).total, unit: 'ครั้ง' }
       ];
     }
@@ -2046,7 +2046,7 @@ class Component extends DCLogic {
       return [
         { label: 'Visitor ทั่วไป', value: vm.gen, unit: 'คน' },
         { label: 'Visitor ผู้รับเหมา', value: vm.con, unit: 'คน' },
-        { label: 'รวมผู้มาเยือน', value: vm.total, unit: 'คน' }
+        { label: 'รวม Visitor', value: vm.total, unit: 'คน' }
       ];
     }
     if (mod === 'elevator') return [{ label: 'รายงานลิฟต์รวม', value: this.elevatorMetrics(recs).total, unit: 'ครั้ง' }];
@@ -2112,7 +2112,7 @@ class Component extends DCLogic {
             hoverText: baseRow.label + ' · ' + this.periodLabel(p) + ': ' + core.fmtNum(value) + (cell.unit ? ' ' + cell.unit : ''),
             /* what the bar IS, printed straight under it — 'all' uses short names because a full
                label like "ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)" cannot fit a 56px slot */
-            short: cm === 'all' ? ['ปริมาณรถ', 'รอบกอล์ฟ', 'ผู้มาเยือน', 'รายงานลิฟต์'][ri] || baseRow.label : baseRow.label,
+            short: cm === 'all' ? ['ปริมาณรถ', 'รอบกอล์ฟ', 'Visitor', 'รายงานลิฟต์'][ri] || baseRow.label : baseRow.label,
             display: core.fmtNum(value),
             h: (value / metricMax[ri] * 100).toFixed(1) + '%',
             fill: 'linear-gradient(180deg, ' + color + ' 0%, color-mix(in srgb, ' + color + ' 45%, transparent) 100%)'
@@ -2975,7 +2975,7 @@ class Component extends DCLogic {
          so has no single answer; it stays inert rather than silently picking one of them. */
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟ', module: 'golf', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
-      { label: 'ผู้มาเยือน', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
+      { label: 'Visitor/ผู้รับเหมา/ติดต่อ', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
       { label: 'รายงานลิฟต์', module: 'elevator', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
     ].concat(monthlyGroup ? [
       { label: monthlyGroup.name, value: monthlyDone + '/' + monthlyMembers.length + ' หัวข้อ', note: 'หัวข้อที่มีรายงานในช่วงที่เลือก', color: monthlyGroup.color, formula: 'COUNT(DISTINCT module) ในกลุ่ม ' + monthlyGroup.id }
@@ -3015,7 +3015,7 @@ class Component extends DCLogic {
         data: [
           { label: 'รถเข้า-ออก', value: vehicles, color: core.COLORS.traffic },
           { label: 'รถกอล์ฟ', value: rounds, color: core.COLORS.golf },
-          { label: 'ผู้มาเยือน', value: people, color: core.COLORS.visitors }
+          { label: 'Visitor', value: people, color: core.COLORS.visitors }
         ],
         trace: 'trace: module fields → SUM → part-to-whole' }),
       this.buildChart({ id: 'ov_reports', block: 'Block 04', title: 'จำนวนรายงานตามโมดูล',
@@ -3024,7 +3024,7 @@ class Component extends DCLogic {
         data: [
           { label: 'รถ (หลัก+ทะเลทอง)', value: tr.length + trTt.length, color: core.COLORS.traffic, unit: 'รายการ' },
           { label: 'รถกอล์ฟ', value: gf.length, color: core.COLORS.golf, unit: 'รายการ' },
-          { label: 'ผู้มาเยือน', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' },
+          { label: 'Visitor', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' },
           { label: 'ลิฟต์', value: el.length, color: core.COLORS.elevator, unit: 'รายการ' }
         ].concat(monthlyGroup ? [{ label: monthlyGroup.name, value: monthlyMembers.reduce((n, m) => n + all.filter(r => r.module === m.id).length, 0), color: monthlyGroup.color, unit: 'รายการ' }] : []),
         trace: 'trace: all modules → COUNT(records) per module → category comparison' })
@@ -3294,21 +3294,21 @@ class Component extends DCLogic {
     const kpis = [
       { label: 'Visitor ทั่วไป', value: core.fmtNum(gen), delta: volDelta(gen, prevVm.gen), note: total ? Math.round(gen / total * 100) + '% ของทั้งหมด' : '—', color: core.COLORS.visitors, formula: 'SUM(visitor_general_count)' },
       { label: 'Visitor ผู้รับเหมา', value: core.fmtNum(con), delta: volDelta(con, prevVm.con), note: total ? Math.round(con / total * 100) + '% ของทั้งหมด' : '—', color: '#d377c4', formula: 'SUM(visitor_contractor_count)' },
-      { label: 'รวมผู้มาเยือน', value: core.fmtNum(total), delta: volDelta(total, prevTotal), note: 'ทั่วไป + ผู้รับเหมา', color: 'var(--text)', formula: 'SUM(general) + SUM(contractor)' },
+      { label: 'รวม Visitor', value: core.fmtNum(total), delta: volDelta(total, prevTotal), note: 'ทั่วไป + ผู้รับเหมา', color: 'var(--text)', formula: 'SUM(general) + SUM(contractor)' },
       { label: 'เฉลี่ยต่อวัน', value: core.fmtNum(recs.length ? total / recs.length : 0), note: core.fmtNum(recs.length) + ' รายการบันทึก', color: 'var(--muted)', formula: 'AVERAGE(per record)' },
       { label: 'สูงสุดต่อรายการ', value: core.fmtNum(core.agg(recs, 'visitor_general_count', 'MAX')), note: 'Visitor ทั่วไป', color: 'var(--muted)', formula: 'MAX(visitor_general_count)' }
     ];
 
     const charts = [
       this.buildChart({ id: 'vs_mix', block: 'Block 01', title: 'Visitor Summary',
-        subtitle: 'สัดส่วนผู้มาเยือนทั่วไปและผู้รับเหมา · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
+        subtitle: 'สัดส่วน Visitor ทั่วไปและผู้รับเหมา · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
         family: 'partwhole', fallback: 'donut', centerLabel: 'คนรวม', recordCount: recs.length,
         data: [
           { label: 'ทั่วไป', value: gen, color: P.visitorGeneral },
           { label: 'ผู้รับเหมา', value: con, color: P.visitorContractor }
         ],
         trace: 'trace: visitor_general_count / visitor_contractor_count → SUM' }),
-      this.buildChart({ id: 'vs_trend', block: 'Block 02', title: g === 'year' ? 'แนวโน้มผู้มาเยือนรายเดือน' : 'แนวโน้มผู้มาเยือนรายวัน',
+      this.buildChart({ id: 'vs_trend', block: 'Block 02', title: g === 'year' ? 'แนวโน้ม Visitor รายเดือน' : 'แนวโน้ม Visitor รายวัน',
         subtitle: this.periodLabelText(),
         family: 'timeseries', fallback: 'bar',
         recordCount: g === 'week' ? this.weekRecords('visitors').length : g === 'year' ? this.yearRecords('visitors').length : this.monthRecords('visitors').length,
@@ -4176,7 +4176,7 @@ class Component extends DCLogic {
     if (m === 'visitors') {
       const v = this.visitorsMetrics(recs);
       const blocks = [
-        { title: 'สัดส่วนผู้มาเยือนทั่วไป vs ผู้รับเหมา', kind: 'donut',
+        { title: 'สัดส่วน Visitor ทั่วไป vs ผู้รับเหมา', kind: 'donut',
           geo: this.pdfChartGeometry([
             { label: 'ทั่วไป', value: v.gen, color: this.pdfSeriesColor(0) },
             { label: 'ผู้รับเหมา', value: v.con, color: this.pdfSeriesColor(1) }
@@ -4187,7 +4187,7 @@ class Component extends DCLogic {
       const dateCount = Object.keys(uniqueDates).length;
       if (dateCount > 1) {
         const series = this.groupByDateSeries(recs, (r) => core.agg([r], 'visitor_general_count', 'SUM') + core.agg([r], 'visitor_contractor_count', 'SUM'), this.pdfSeriesColor(0));
-        blocks.push({ title: 'แนวโน้มจำนวนผู้มาเยือนรายวัน (' + dateCount + ' วัน)', kind: 'bar',
+        blocks.push({ title: 'แนวโน้มจำนวน Visitor รายวัน (' + dateCount + ' วัน)', kind: 'bar',
           geo: this.pdfChartGeometry(series.map(p => ({ label: p.label, value: p.value, color: this.pdfSeriesColor(0) }))) });
       } else {
         blocks.push({ title: 'Daily Distribution — รายการบันทึกของวันนี้', kind: 'bar',
@@ -4279,7 +4279,7 @@ class Component extends DCLogic {
         { label: 'จำนวนรายการบันทึก', value: core.fmtNum(recs.length), formula: 'COUNT(records)' },
         { label: 'Visitor ทั่วไป', value: core.fmtNum(v.gen), formula: 'SUM(visitor_general_count)' },
         { label: 'Visitor ผู้รับเหมา', value: core.fmtNum(v.con), formula: 'SUM(visitor_contractor_count)' },
-        { label: 'รวมผู้มาเยือน', value: core.fmtNum(v.total), formula: 'SUM(general)+SUM(contractor)' }
+        { label: 'รวม Visitor', value: core.fmtNum(v.total), formula: 'SUM(general)+SUM(contractor)' }
       ];
     }
     if (mod.kind === 'elevator') {
@@ -4316,7 +4316,7 @@ class Component extends DCLogic {
       { label: 'จำนวนรายการทั้งหมด', value: core.fmtNum(recs.length), formula: 'COUNT(records)' },
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(tm.totalIn + tm.totalOut + tmTt.totalIn + tmTt.totalOut), formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟรวม', value: core.fmtNum(gm.total), formula: 'SUM(golf_cart_1..4)' },
-      { label: 'ผู้มาเยือนรวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' },
+      { label: 'Visitor รวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' },
       { label: 'รายงานปุ่มฉุกเฉินลิฟต์รวม', value: core.fmtNum(el.length), formula: 'COUNT(elevator records)' },
       { label: 'รายงานการตรวจจุดรวม', value: core.fmtNum(cp.length), formula: 'COUNT(checkpoint records)' }
     ];
@@ -5329,7 +5329,7 @@ class Component extends DCLogic {
       traffic: { kicker: 'Traffic Module', title: 'รถเข้า-ออก' },
       traffic_tt: { kicker: 'Traffic Module — Talay Thong', title: 'รถเข้า-ออก ทะเลทอง' },
       golf: { kicker: 'Golf Fleet Module', title: 'รถกอล์ฟ' },
-      visitors: { kicker: 'Visitors Module', title: 'ผู้มาเยือน' },
+      visitors: { kicker: 'Visitors Module', title: 'Visitor' },
       elevator: { kicker: 'Elevator Module', title: 'รายงานปุ่มฉุกเฉินลิฟต์' },
       checkpoint: { kicker: 'Checkpoint Module', title: 'รายงานการตรวจจุด' },
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
@@ -6045,7 +6045,7 @@ class Component extends DCLogic {
         { id: 'monthly_inspection_acc_door', name: 'ตรวจประจำเดือน — ประตู ACC' },
         { id: 'monthly_inspection_cctv', name: 'ตรวจประจำเดือน — กล้องวงจรปิด' },
         { id: 'monthly_inspection_golf_cart', name: 'ตรวจประจำเดือน — รถกอล์ฟ' },
-        { id: 'visitors', name: 'ผู้มาเยือน-Visitor' },
+        { id: 'visitors', name: 'Visitor' },
         /* one toggle for two of our modules: their form asks both in a single submission */
         { id: 'traffic_golf_daily', name: 'รถเข้า-ออก-Traffic Flow + รถกอล์ฟ-Golf Fleet (ฟอร์มรวมของอีกแผนก)' }
       ].map(row => {
