@@ -18,14 +18,23 @@ jobs:
     if: github.repository == 'Tube2322/security-ptw-dashboard'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      HAS_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
     steps:
+      - name: Secret check
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::SUPABASE_SERVICE_ROLE_KEY is not set as a repository secret, so nothing was sent. Add it under Settings -> Secrets and variables -> Actions."
       - uses: actions/checkout@v4
+        if: env.HAS_KEY == 'true'
       - uses: actions/setup-node@v4
+        if: env.HAS_KEY == 'true'
         with:
           node-version: '24'
       - name: Install dependencies
+        if: env.HAS_KEY == 'true'
         run: npm install --omit=dev --no-audit --no-fund
       - name: Send everything that is waiting
+        if: env.HAS_KEY == 'true'
         run: node scripts/drain-msforms.js
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
