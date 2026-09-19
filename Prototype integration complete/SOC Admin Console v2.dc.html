@@ -509,23 +509,186 @@
 
                       <sc-if value="{{ !c.empty }}" hint-placeholder-val="{{ true }}">
 
+                      <!-- MULTI-PERIOD COMPARISON (Overview only — sits in the charts list so it
+                           renders directly under Block 01) -->
+                      <sc-if value="{{ c.isCompare }}" hint-placeholder-val="{{ false }}">
+                        <div style="display: flex; flex-direction: column; gap: 14px;">
+
+                          <!-- module chips -->
+                          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <sc-for list="{{ c.moduleChips }}" as="mc" hint-placeholder-count="4">
+                              <button onClick="{{ mc.pick }}" style="min-height: 34px; padding: 0 12px; border-radius: 9px; cursor: pointer; font-size: 12.5px; border: 1px solid {{ mc.border }}; background: {{ mc.bg }}; color: {{ mc.fg }};" style-hover="border-color: var(--line-2);">{{ mc.label }}</button>
+                            </sc-for>
+                          </div>
+
+                          <!-- period chips -->
+                          <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                            <sc-for list="{{ c.periodChips }}" as="pc" hint-placeholder-count="2">
+                              <div style="display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 6px 0 12px; border-radius: 9px; border: 1px solid {{ pc.border }}; background: {{ pc.bg }}; font-size: 12.5px; color: var(--text);">
+                                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--dim);">{{ pc.typeTag }}</span>
+                                <span>{{ pc.label }}</span>
+                                <button onClick="{{ pc.remove }}" aria-label="เอาช่วงนี้ออก" style="width: 22px; height: 22px; border-radius: 999px; border: none; background: transparent; color: var(--dim); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--danger);">✕</button>
+                              </div>
+                            </sc-for>
+                            <sc-if value="{{ c.canAdd }}" hint-placeholder-val="{{ true }}">
+                              <button onClick="{{ c.openPicker }}" style="min-height: 34px; padding: 0 13px; border-radius: 9px; border: 1px dashed var(--line-2); background: transparent; color: var(--accent); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--accent-soft);">+ เพิ่มช่วง</button>
+                            </sc-if>
+                          </div>
+
+                          <!-- inline picker -->
+                          <sc-if value="{{ c.pickerOpen }}" hint-placeholder-val="{{ false }}">
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2);">
+                              <div style="display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px;">
+                                <button onClick="{{ c.setPickerDay }}" style="min-height: 30px; padding: 0 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: {{ c.pickerDayBg }}; color: {{ c.pickerDayFg }};">📅 วัน</button>
+                                <button onClick="{{ c.setPickerMonth }}" style="min-height: 30px; padding: 0 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: {{ c.pickerMonthBg }}; color: {{ c.pickerMonthFg }};">🗓️ เดือน</button>
+                              </div>
+
+                              <sc-if value="{{ c.pickerIsDay }}" hint-placeholder-val="{{ false }}">
+                                <input type="date" value="{{ c.pickerDate }}" onChange="{{ c.setPickerDate }}" style="min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                              </sc-if>
+                              <sc-if value="{{ c.pickerIsMonth }}" hint-placeholder-val="{{ true }}">
+                                <select value="{{ c.pickerYear }}" onChange="{{ c.setPickerYear }}" style="min-height: 36px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                                  <sc-for list="{{ c.yearOptions }}" as="yo" hint-placeholder-count="3">
+                                    <option value="{{ yo.value }}">{{ yo.label }}</option>
+                                  </sc-for>
+                                </select>
+                                <select value="{{ c.pickerMonth }}" onChange="{{ c.setPickerMonthValue }}" style="min-height: 36px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
+                                  <sc-for list="{{ c.monthOptions }}" as="mo" hint-placeholder-count="12">
+                                    <option value="{{ mo.value }}">{{ mo.label }}</option>
+                                  </sc-for>
+                                </select>
+                              </sc-if>
+
+                              <button onClick="{{ c.confirmAdd }}" style="min-height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px; font-weight: 600;">เพิ่ม</button>
+                              <button onClick="{{ c.closePicker }}" style="min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 12.5px;">ยกเลิก</button>
+                            </div>
+                          </sc-if>
+
+                          <!-- bar chart — ONE continuous row on a single baseline; a group per period
+                               (months read left to right), a bar per metric inside it -->
+                          <sc-if value="{{ c.chartShown }}" hint-placeholder-val="{{ false }}">
+                            <!-- own card on the page background: the chart used to sit directly on the block's
+                                 panel colour and read as part of it -->
+                            <div style="border: 1px solid var(--line-2); border-radius: 14px; background: var(--bg); padding: 16px 14px 14px;">
+                              <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 14px;">
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--chart-text);">กราฟเทียบแต่ละช่วงเวลา</span>
+                                <span style="font-size: 11.5px; color: var(--dim);">แบ่งเป็นช่วง · ในแต่ละช่วงมีแท่งของทุกหมวด</span>
+                              </div>
+
+                              <!-- legend: colour keys the metric, the same in every month -->
+                              <div style="display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 14px;">
+                                <sc-for list="{{ c.chartLegend }}" as="lg" hint-placeholder-count="5">
+                                  <div style="display: inline-flex; align-items: center; gap: 7px; min-width: 0;">
+                                    <span style="width: 10px; height: 10px; flex: none; border-radius: 3px; background: {{ lg.color }};"></span>
+                                    <span style="font-size: 12px; color: var(--chart-muted); overflow-wrap: anywhere;">{{ lg.label }}</span>
+                                  </div>
+                                </sc-for>
+                              </div>
+
+                              <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px;">
+                                <div style="display: flex; align-items: stretch; min-width: {{ c.chartMinWidth }};">
+                                  <sc-for list="{{ c.chartGroups }}" as="grp" hint-placeholder-count="2">
+                                    <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; border-left: {{ grp.divider }};">
+                                      <!-- the baseline sits on this row and the groups touch, so it runs unbroken across every month -->
+                                      <div style="display: flex; align-items: flex-end; justify-content: center; gap: 6px; height: 230px; padding: 24px 10px 0; border-bottom: 1px solid var(--line-2); min-width: 0;">
+                                        <sc-for list="{{ grp.bars }}" as="b" hint-placeholder-count="5">
+                                          <div title="{{ b.hoverText }}" style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; max-width: 66px;">
+                                            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; color: var(--chart-text); white-space: nowrap;">{{ b.display }}</div>
+                                            <div class="soc-bar-fill" style="width: 100%; max-width: 52px; height: {{ b.h }}; min-height: 3px; background: {{ b.fill }};"></div>
+                                          </div>
+                                        </sc-for>
+                                      </div>
+                                      <!-- what each bar is, straight under it; same flex recipe as the bars row so the names line up -->
+                                      <div style="display: flex; justify-content: center; gap: 6px; padding: 8px 10px 0; min-width: 0;">
+                                        <sc-for list="{{ grp.bars }}" as="b" hint-placeholder-count="5">
+                                          <div style="flex: 1 1 0; min-width: 0; max-width: 66px; text-align: center; font-size: 10.5px; line-height: 1.3; color: var(--chart-muted); overflow-wrap: anywhere;">{{ b.short }}</div>
+                                        </sc-for>
+                                      </div>
+                                      <div style="display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 12px; padding: 9px 6px 0; border-top: 1px dashed var(--line); text-align: center;">
+                                        <span style="font-size: 13.5px; font-weight: 600; color: var(--chart-text); overflow-wrap: anywhere;">{{ grp.label }}</span>
+                                        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--dim);">{{ grp.typeTag }}<sc-if value="{{ grp.isBaseline }}" hint-placeholder-val="{{ false }}"> · <span style="color: var(--accent);">ฐาน</span></sc-if></span>
+                                      </div>
+                                    </div>
+                                  </sc-for>
+                                </div>
+                              </div>
+
+                              <div style="margin-top: 12px; font-size: 11.5px; color: var(--dim); overflow-wrap: anywhere;">ตัวเลขบนแท่งคือค่าจริง · ความสูงเทียบกับช่วงที่สูงที่สุดของหมวดเดียวกัน (คนละหน่วย จึงเทียบความสูงข้ามหมวดไม่ได้)</div>
+                            </div>
+                          </sc-if>
+
+                          <!-- table -->
+                          <sc-if value="{{ c.hasTable }}" hint-placeholder-val="{{ false }}">
+                            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                              <table style="width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                  <tr>
+                                    <th style="text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-2); font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.8px; color: var(--dim); text-transform: uppercase; font-weight: 500; white-space: nowrap;">ตัวชี้วัด</th>
+                                    <sc-for list="{{ c.columns }}" as="col" hint-placeholder-count="3">
+                                      <th style="text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-2); white-space: nowrap;">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--dim);">{{ col.typeTag }}</span>
+                                          <span style="font-size: 12.5px; font-weight: 600; color: var(--text); text-transform: none;">{{ col.label }}</span>
+                                          <sc-if value="{{ col.isBaseline }}" hint-placeholder-val="{{ false }}">
+                                            <span style="font-size: 10px; color: var(--accent);">ฐาน</span>
+                                          </sc-if>
+                                        </div>
+                                      </th>
+                                    </sc-for>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <sc-for list="{{ c.rows }}" as="row" hint-placeholder-count="5">
+                                    <tr>
+                                      <td style="padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); color: var(--muted); white-space: nowrap;">{{ row.label }}</td>
+                                      <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="3">
+                                        <td style="padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); white-space: nowrap;">
+                                          <span style="font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text);">{{ cell.value }}</span>
+                                          <sc-if value="{{ cell.delta }}" hint-placeholder-val="{{ '' }}">
+                                            <span style="margin-left: 7px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; color: {{ cell.deltaColor }}; background: {{ cell.deltaBg }};">{{ cell.delta }}</span>
+                                          </sc-if>
+                                        </td>
+                                      </sc-for>
+                                    </tr>
+                                  </sc-for>
+                                </tbody>
+                              </table>
+                            </div>
+                          </sc-if>
+
+                          <sc-if value="{{ !c.hasTable }}" hint-placeholder-val="{{ true }}">
+                            <div style="padding: 30px 18px; border-radius: 12px; border: 1px dashed var(--line-2); text-align: center;">
+                              <div style="font-size: 13.5px; color: var(--muted);">เพิ่มช่วงเวลาที่ต้องการเทียบด้านบน (อย่างน้อย 1 ช่วง)</div>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </sc-if>
+
                       <!-- BAR / COLUMN -->
                       <sc-if value="{{ c.isBar }}" hint-placeholder-val="{{ true }}">
-                        <div style="display: flex; align-items: flex-end; gap: clamp(8px, 2vw, 20px); height: 232px; padding-top: 8px; border-bottom: 1px solid var(--chart-grid); min-width: 0;">
-                          <sc-for list="{{ c.bars }}" as="b" hint-placeholder-count="4">
-                            <div class="soc-bar-wrap{{ b.selectedClass }}" style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 7px; max-width: 96px; margin: 0 auto;">
-                              <div class="soc-tip">
-                                <div class="soc-tip-row"><span>{{ b.tipLabel }}</span><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; margin-left: 14px;">{{ b.tipValue }}</span></div>
-                              </div>
-                              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: {{ b.textColor }};">{{ b.display }}</div>
-                              <div class="soc-bar-fill" style="width: 100%; max-width: 56px; height: {{ b.h }}; min-height: 3px; background: {{ b.fill }};"></div>
+                        <!-- With more than a handful of bars the row keeps a minimum slot per bar and scrolls
+                             sideways inside this wrapper rather than squeezing every value label into the
+                             neighbour's space. barScroll stays 'visible' for a few bars, so those still let
+                             their tooltip and top label draw outside the box exactly as before. -->
+                        <div style="overflow-x: {{ c.barScroll }}; -webkit-overflow-scrolling: touch;">
+                          <div style="min-width: {{ c.barMinWidth }};">
+                            <div style="display: flex; align-items: flex-end; gap: {{ c.barGap }}; height: 232px; padding-top: 8px; border-bottom: 1px solid var(--chart-grid); min-width: 0;">
+                              <sc-for list="{{ c.bars }}" as="b" hint-placeholder-count="4">
+                                <div class="soc-bar-wrap{{ b.selectedClass }}" title="{{ b.nativeTitle }}" style="flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 7px; max-width: 96px; margin: 0 auto;">
+                                  <div class="soc-tip" style="{{ b.tipStyle }}">
+                                    <div class="soc-tip-row"><span>{{ b.tipLabel }}</span><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; margin-left: 14px;">{{ b.tipValue }}</span></div>
+                                  </div>
+                                  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: {{ b.textColor }}; {{ b.valueStyle }}">{{ b.display }}</div>
+                                  <div class="soc-bar-fill" style="width: 100%; max-width: 56px; height: {{ b.fillH }}; min-height: 3px; background: {{ b.fill }};"></div>
+                                </div>
+                              </sc-for>
                             </div>
-                          </sc-for>
-                        </div>
-                        <div style="display: flex; gap: clamp(8px, 2vw, 20px); margin-top: 9px;">
-                          <sc-for list="{{ c.bars }}" as="b" hint-placeholder-count="4">
-                            <div title="{{ b.tipLabel }}" style="flex: 1 1 0; min-width: 0; max-width: 96px; margin: 0 auto; text-align: center; font-size: 11px; color: var(--chart-muted); line-height: 1.3; white-space: pre-line; overflow-wrap: anywhere;">{{ b.label }}</div>
-                          </sc-for>
+                            <div style="display: flex; gap: {{ c.barGap }}; margin-top: 9px;">
+                              <sc-for list="{{ c.bars }}" as="b" hint-placeholder-count="4">
+                                <div title="{{ b.tipLabel }}" style="flex: 1 1 0; min-width: 0; max-width: 96px; margin: 0 auto; text-align: center; font-size: 11px; color: var(--chart-muted); line-height: 1.3; white-space: pre-line; overflow-wrap: anywhere; {{ b.labelStyle }}">{{ b.label }}</div>
+                              </sc-for>
+                            </div>
+                          </div>
                         </div>
                       </sc-if>
 
@@ -601,7 +764,7 @@
                           </sc-for>
                           <div style="display: flex; gap: 4px; margin-top: 6px;">
                             <sc-for list="{{ c.xLabels }}" as="x" hint-placeholder-count="6">
-                              <div title="{{ x }}" class="soc-line-xlabel" style="flex: 1 1 0; min-width: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--chart-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ x }}</div>
+                              <div title="{{ x }}" class="soc-line-xlabel" style="flex: 1 1 0; min-width: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--chart-muted); white-space: nowrap; overflow: {{ c.xLabelOverflow }}; text-overflow: ellipsis;">{{ x }}</div>
                             </sc-for>
                           </div>
                         </div>
@@ -684,111 +847,6 @@
                       </section>
                     </sc-for>
                   </div>
-
-                  <!-- MULTI-PERIOD COMPARISON (Overview page only) -->
-                  <sc-if value="{{ pageIsOverview }}" hint-placeholder-val="{{ false }}">
-                    <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
-                      <div>
-                        <h2 style="margin: 0; font-size: 16px; font-weight: 600;">เปรียบเทียบหลายช่วงเวลา</h2>
-                        <div style="margin-top: 3px; font-size: 12px; color: var(--dim);">เลือกได้ทั้งวันที่เจาะจงและทั้งเดือนผสมกัน สูงสุด 6 ช่วง — คอลัมน์แรกที่เพิ่มคือฐานสำหรับเทียบ %</div>
-                      </div>
-
-                      <!-- module chips -->
-                      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                        <sc-for list="{{ compareModuleChips }}" as="mc" hint-placeholder-count="4">
-                          <button onClick="{{ mc.pick }}" style="min-height: 34px; padding: 0 12px; border-radius: 9px; cursor: pointer; font-size: 12.5px; border: 1px solid {{ mc.border }}; background: {{ mc.bg }}; color: {{ mc.fg }};" style-hover="border-color: var(--line-2);">{{ mc.label }}</button>
-                        </sc-for>
-                      </div>
-
-                      <!-- period chips -->
-                      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-                        <sc-for list="{{ comparePeriodChips }}" as="pc" hint-placeholder-count="2">
-                          <div style="display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 6px 0 12px; border-radius: 9px; border: 1px solid {{ pc.border }}; background: {{ pc.bg }}; font-size: 12.5px; color: var(--text);">
-                            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--dim);">{{ pc.typeTag }}</span>
-                            <span>{{ pc.label }}</span>
-                            <button onClick="{{ pc.remove }}" aria-label="เอาช่วงนี้ออก" style="width: 22px; height: 22px; border-radius: 999px; border: none; background: transparent; color: var(--dim); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="background: var(--panel-2); color: var(--danger);">✕</button>
-                          </div>
-                        </sc-for>
-                        <sc-if value="{{ canAddPeriod }}" hint-placeholder-val="{{ true }}">
-                          <button onClick="{{ openComparePicker }}" style="min-height: 34px; padding: 0 13px; border-radius: 9px; border: 1px dashed var(--line-2); background: transparent; color: var(--accent); cursor: pointer; font-size: 12.5px;" style-hover="background: var(--accent-soft);">+ เพิ่มช่วง</button>
-                        </sc-if>
-                      </div>
-
-                      <!-- inline picker -->
-                      <sc-if value="{{ comparePickerOpen }}" hint-placeholder-val="{{ false }}">
-                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2);">
-                          <div style="display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px;">
-                            <button onClick="{{ setPickerDay }}" style="min-height: 30px; padding: 0 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: {{ pickerDayBg }}; color: {{ pickerDayFg }};">📅 วัน</button>
-                            <button onClick="{{ setPickerMonth }}" style="min-height: 30px; padding: 0 10px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: {{ pickerMonthBg }}; color: {{ pickerMonthFg }};">🗓️ เดือน</button>
-                          </div>
-
-                          <sc-if value="{{ pickerIsDay }}" hint-placeholder-val="{{ false }}">
-                            <input type="date" value="{{ pickerDate }}" onChange="{{ setPickerDate }}" style="min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
-                          </sc-if>
-                          <sc-if value="{{ pickerIsMonth }}" hint-placeholder-val="{{ true }}">
-                            <select value="{{ pickerYear }}" onChange="{{ setPickerYear }}" style="min-height: 36px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
-                              <sc-for list="{{ pickerYearOptions }}" as="yo" hint-placeholder-count="3">
-                                <option value="{{ yo.value }}">{{ yo.label }}</option>
-                              </sc-for>
-                            </select>
-                            <select value="{{ pickerMonth }}" onChange="{{ setPickerMonthValue }}" style="min-height: 36px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px;">
-                              <sc-for list="{{ pickerMonthOptions }}" as="mo" hint-placeholder-count="12">
-                                <option value="{{ mo.value }}">{{ mo.label }}</option>
-                              </sc-for>
-                            </select>
-                          </sc-if>
-
-                          <button onClick="{{ confirmAddPeriod }}" style="min-height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 12.5px; font-weight: 600;">เพิ่ม</button>
-                          <button onClick="{{ closeComparePicker }}" style="min-height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 12.5px;">ยกเลิก</button>
-                        </div>
-                      </sc-if>
-
-                      <!-- table -->
-                      <sc-if value="{{ hasCompareTable }}" hint-placeholder-val="{{ false }}">
-                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                          <table style="width: 100%; min-width: 480px; border-collapse: collapse; font-size: 13px;">
-                            <thead>
-                              <tr>
-                                <th style="text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-2); font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.8px; color: var(--dim); text-transform: uppercase; font-weight: 500; white-space: nowrap;">ตัวชี้วัด</th>
-                                <sc-for list="{{ compareColumns }}" as="col" hint-placeholder-count="3">
-                                  <th style="text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-2); white-space: nowrap;">
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--dim);">{{ col.typeTag }}</span>
-                                      <span style="font-size: 12.5px; font-weight: 600; color: var(--text); text-transform: none;">{{ col.label }}</span>
-                                      <sc-if value="{{ col.isBaseline }}" hint-placeholder-val="{{ false }}">
-                                        <span style="font-size: 10px; color: var(--accent);">ฐาน</span>
-                                      </sc-if>
-                                    </div>
-                                  </th>
-                                </sc-for>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <sc-for list="{{ compareRowsOut }}" as="row" hint-placeholder-count="5">
-                                <tr>
-                                  <td style="padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); color: var(--muted); white-space: nowrap;">{{ row.label }}</td>
-                                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="3">
-                                    <td style="padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); white-space: nowrap;">
-                                      <span style="font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text);">{{ cell.value }}</span>
-                                      <sc-if value="{{ cell.delta }}" hint-placeholder-val="{{ '' }}">
-                                        <span style="margin-left: 7px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; color: {{ cell.deltaColor }}; background: {{ cell.deltaBg }};">{{ cell.delta }}</span>
-                                      </sc-if>
-                                    </td>
-                                  </sc-for>
-                                </tr>
-                              </sc-for>
-                            </tbody>
-                          </table>
-                        </div>
-                      </sc-if>
-
-                      <sc-if value="{{ !hasCompareTable }}" hint-placeholder-val="{{ true }}">
-                        <div style="padding: 30px 18px; border-radius: 12px; border: 1px dashed var(--line-2); text-align: center;">
-                          <div style="font-size: 13.5px; color: var(--muted);">เพิ่มช่วงเวลาที่ต้องการเทียบด้านบน (อย่างน้อย 1 ช่วง)</div>
-                        </div>
-                      </sc-if>
-                    </section>
-                  </sc-if>
 
                   <!-- DAILY RECORD TABLE -->
                   <sc-if value="{{ hasTable }}" hint-placeholder-val="{{ false }}">
@@ -1957,7 +2015,6 @@ class Component extends DCLogic {
         { label: 'ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)', value: tr.totalIn + tr.totalOut + trTt.totalIn + trTt.totalOut, unit: 'คัน' },
         { label: 'รอบรถกอล์ฟ', value: this.golfMetrics(all.filter(r => r.module === 'golf')).total, unit: 'รอบ' },
         { label: 'ผู้มาเยือน', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' },
-        { label: 'รอบตรวจจุด', value: this.checkpointMetrics(all.filter(r => r.module === 'checkpoint')).total, unit: 'ครั้ง' },
         { label: 'รายงานลิฟต์', value: this.elevatorMetrics(all.filter(r => r.module === 'elevator')).total, unit: 'ครั้ง' }
       ];
     }
@@ -1991,7 +2048,6 @@ class Component extends DCLogic {
         { label: 'รวมผู้มาเยือน', value: vm.total, unit: 'คน' }
       ];
     }
-    if (mod === 'checkpoint') return [{ label: 'รอบตรวจจุดรวม', value: this.checkpointMetrics(recs).total, unit: 'ครั้ง' }];
     if (mod === 'elevator') return [{ label: 'รายงานลิฟต์รวม', value: this.elevatorMetrics(recs).total, unit: 'ครั้ง' }];
     return [{ label: 'จำนวนรายการ', value: recs.length, unit: 'รายการ' }];
   }
@@ -2004,8 +2060,64 @@ class Component extends DCLogic {
     if (!periods.length) return null;
     const perPeriodRows = periods.map(p => this.compareRows(p));
     const baselineRows = perPeriodRows[0];
+    /* One continuous row on a single baseline: a group per period (so the months read left to
+       right), a bar per metric inside it, colour keying the metric. The metrics run from tens
+       (รายงานลิฟต์) to tens of thousands (ปริมาณรถ), so a bar's height is measured against the
+       highest period of ITS OWN metric — on one shared axis every small metric would be an
+       invisible stub. The number printed on each bar is always the real value; only the height
+       is relative, which is exactly the period-vs-period question this panel exists to answer. */
+    const metricMax = baselineRows.map((baseRow, ri) =>
+      Math.max(1, ...perPeriodRows.map(rows => (rows[ri] || {}).value || 0)));
+    /* 'all' rows ARE the five modules, so they wear the module colours used everywhere else on
+       the page; a single module has no per-metric colours of its own, so its metrics are shades
+       of that module's colour — the same look as its own dashboard's bars. */
+    const cm = this.state.compareModule;
+    const metricColors = cm === 'all'
+      ? ['traffic', 'golf', 'visitors', 'elevator'].map(id => core.COLORS[id])
+      : (() => {
+          const base = core.COLORS[cm] || '#3fbf8f';
+          return [
+            base,
+            'color-mix(in srgb, ' + base + ' 50%, white)',
+            'color-mix(in srgb, ' + base + ' 70%, black)',
+            'color-mix(in srgb, ' + base + ' 60%, #7d8fb3)',
+            'color-mix(in srgb, ' + base + ' 80%, #ffd27a)'
+          ];
+        })();
+    const BAR_SLOT = 56;
     return {
       columns: periods.map((p, i) => ({ id: p.id, label: this.periodLabel(p), typeTag: p.type === 'day' ? 'วัน' : 'เดือน', isBaseline: i === 0 })),
+      /* a single bar is not a comparison — the chart only earns its space from two periods up */
+      chartShown: periods.length >= 2,
+      /* below this width the row scrolls inside its own wrapper instead of squeezing the value
+         labels (7 characters for a car total) into overlapping each other */
+      chartMinWidth: (periods.length * baselineRows.length * BAR_SLOT + periods.length * 24) + 'px',
+      chartLegend: baselineRows.map((baseRow, ri) => ({
+        label: baseRow.label,
+        color: metricColors[ri % metricColors.length]
+      })),
+      chartGroups: periods.map((p, ci) => ({
+        label: this.periodLabel(p),
+        typeTag: p.type === 'day' ? 'วัน' : 'เดือน',
+        isBaseline: ci === 0,
+        divider: ci === 0 ? 'none' : '1px solid var(--line)',
+        bars: baselineRows.map((baseRow, ri) => {
+          const cell = perPeriodRows[ci][ri] || { value: 0, unit: baseRow.unit };
+          const value = cell.value || 0;
+          const color = metricColors[ri % metricColors.length];
+          return {
+            /* native title, not the .soc-tip popover the other bar charts use: this row lives in
+               an overflow-x scroller, which clips anything drawn above the top bar */
+            hoverText: baseRow.label + ' · ' + this.periodLabel(p) + ': ' + core.fmtNum(value) + (cell.unit ? ' ' + cell.unit : ''),
+            /* what the bar IS, printed straight under it — 'all' uses short names because a full
+               label like "ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)" cannot fit a 56px slot */
+            short: cm === 'all' ? ['ปริมาณรถ', 'รอบกอล์ฟ', 'ผู้มาเยือน', 'รายงานลิฟต์'][ri] || baseRow.label : baseRow.label,
+            display: core.fmtNum(value),
+            h: (value / metricMax[ri] * 100).toFixed(1) + '%',
+            fill: 'linear-gradient(180deg, ' + color + ' 0%, color-mix(in srgb, ' + color + ' 45%, transparent) 100%)'
+          };
+        })
+      })),
       rows: baselineRows.map((baseRow, ri) => ({
         label: baseRow.label,
         cells: perPeriodRows.map((rows, ci) => {
@@ -2429,6 +2541,42 @@ class Component extends DCLogic {
       };
     });
 
+    /* Value labels are sized to their text (a car total is 5-7 characters of 12px mono), so how
+       many bars fit is a width question the layout cannot answer after the fact — it just lets
+       them overprint. Three modes instead, chosen by count:
+         up to 6   — unchanged: flexible slots, top label and tooltip free to overflow the box.
+         7 to 10   — each bar gets a slot as wide as its label, row scrolls sideways inside its own
+                     wrapper when the screen is narrower than that.
+         over 10   — labels turn vertical so a slot can shrink to 26px (a day-of-month chart is 31
+                     bars); same scrolling wrapper below that width.
+       Anything that scrolls clips what it draws above the row, so those two modes reserve headroom
+       for the label inside the bar's own height and swap the hover popover for a native title. */
+    const nBars = out.bars.length;
+    const rotate = nBars > 10;
+    const scrolls = nBars > 6;
+    const maxLen = out.bars.reduce((m, b) => Math.max(m, String(b.display).length), 1);
+    /* a full date label ("14/09/2569") is 10 unbreakable characters: in a narrow slot it used to
+       wrap mid-number ("14/09/256" over "9"). Break it at the year while there is room to wrap,
+       and drop the year altogether once the row is dense enough that labels can't wrap. */
+    const fullDate = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+    out.bars.forEach(b => {
+      if (fullDate.test(b.label)) b.label = rotate ? b.label.replace(/\/\d{4}$/, '') : b.label.replace(/\/(\d{4})$/, '\n$1');
+    });
+    const labelLen = out.bars.reduce((m, b) => Math.max(m, ...String(b.label).split('\n').map(s => s.length)), 1);
+    const barGapPx = rotate ? 4 : 8;
+    const slot = rotate ? Math.min(64, Math.max(26, Math.ceil(labelLen * 6.4) + 4)) : Math.max(46, Math.ceil(maxLen * 7.4 + 14));
+    const reserve = rotate ? Math.ceil(maxLen * 6.6 + 14) + 7 : 30;
+    out.barScroll = scrolls ? 'auto' : 'visible';
+    out.barGap = scrolls ? barGapPx + 'px' : 'clamp(8px, 2vw, 20px)';
+    out.barMinWidth = scrolls ? Math.ceil(nBars * slot + (nBars - 1) * barGapPx) + 'px' : '0px';
+    out.bars.forEach((b, i) => {
+      b.fillH = scrolls ? 'calc((100% - ' + reserve + 'px) * ' + ((data[i].value || 0) / max).toFixed(4) + ')' : b.h;
+      b.valueStyle = rotate ? 'writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 10.5px; line-height: 1;' : '';
+      b.labelStyle = rotate ? 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis;' : '';
+      b.tipStyle = scrolls ? 'display: none;' : '';
+      b.nativeTitle = scrolls ? b.tipLabel + ': ' + b.tipValue : '';
+    });
+
     out.legend = data.map(d => ({
       label: d.label.replace(/\n/g, ' '), value: core.fmtNum(d.value),
       pct: total ? Math.round(d.value / total * 100) + '%' : '0%', color: d.color
@@ -2470,6 +2618,16 @@ class Component extends DCLogic {
       labelText: d.display != null ? d.display : core.fmtNum(d.value),
       isLast: i === data.length - 1, selected: !!d.selected
     }));
+    /* A label needs ~45px of run; on a 31-point month at phone width each point gets ~10px, so
+       printing every one just smears them together. Past 7 points only every stride-th label is
+       drawn (the last one too, if it can't collide with its neighbour) — every point still carries
+       its own hover title with the exact value. The x-axis names are shorter, so they thin less. */
+    const labelStride = n <= 7 ? 1 : Math.ceil(n / 7);
+    const axisStride = n <= 12 ? 1 : Math.ceil(n / 12);
+    pts.forEach((p, i) => {
+      const drawn = labelStride === 1 || i % labelStride === 0 || (i === n - 1 && (n - 1) % labelStride >= Math.ceil(labelStride / 2));
+      if (!drawn) p.labelText = '';
+    });
     pts.forEach(p => {
       p.ring = (p.isLast || p.selected) ? '1' : '0'; p.ringR = p.selected ? '6.5' : '5.5';
       /* Value labels are plain HTML overlaid on top of the SVG (positioned via left%/top-px
@@ -2488,7 +2646,11 @@ class Component extends DCLogic {
       : '';
     out.series = [{ path: path, area: areaPath, color: cfg.lineColor || 'var(--accent)', fill: cfg.lineFill || 'rgba(70,200,216,0.16)', points: pts }];
     out.grid = [0, 0.25, 0.5, 0.75, 1].map(t => ({ y: (PAD + t * (H - PAD * 2)).toFixed(1) }));
-    out.xLabels = data.map(d => d.label.replace(/\n/g, ' '));
+    out.xLabels = data.map((d, i) => (axisStride === 1 || i % axisStride === 0 || i === n - 1 && (n - 1) % axisStride >= Math.ceil(axisStride / 2))
+      ? d.label.replace(/\n/g, ' ') : '');
+    /* once the axis is thinned the neighbouring slots are empty, so a two-digit day may spill into
+       them instead of being clipped to its first digit (which read "1 1 1 1" for 10, 13, 16, 19) */
+    out.xLabelOverflow = axisStride > 1 ? 'visible' : 'hidden';
     if (n > 1) {
       const avgVal = data.reduce((a, d) => a + (d.value || 0), 0) / n;
       const avgY = y(avgVal);
@@ -2772,24 +2934,26 @@ class Component extends DCLogic {
     const g = this.state.dashGranularity;
     const q = this.scopeQuery(null);
     this.ensureScope(q);
-    const all = core.query(q);
+    /* checkpoint rounds are not shown anywhere on Overview, so they are dropped from the scope
+       itself rather than hidden card by card — otherwise the record totals, the latest-records
+       table and the period deltas would still be counting rows the page never displays. */
+    const notCheckpoint = (r) => r.module !== 'checkpoint';
+    const all = core.query(q).filter(notCheckpoint);
     const tr = all.filter(r => r.module === 'traffic');
     const trTt = all.filter(r => r.module === 'traffic_tt');
     const gf = all.filter(r => r.module === 'golf');
     const vs = all.filter(r => r.module === 'visitors');
-    const cp = all.filter(r => r.module === 'checkpoint');
     const el = all.filter(r => r.module === 'elevator');
     const trMain = this.trafficMetrics(tr, 'traffic');
     const trTalayThong = this.trafficMetrics(trTt, 'tt');
     const vehicles = trMain.totalIn + trMain.totalOut + trTalayThong.totalIn + trTalayThong.totalOut;
     const rounds = this.golfMetrics(gf).total;
     const people = this.visitorsMetrics(vs).total;
-    const cm = this.checkpointMetrics(cp);
     const em = this.elevatorMetrics(el);
     const latest = all[0];
     /* same day/week/month/year branch every other dashboard uses — day/month call the exact
        same functions as before this dropdown existed. */
-    const prevAll = g === 'week' ? this.prevWeekRecs() : g === 'year' ? this.prevYearRecs() : this.prevMonthRecs();
+    const prevAll = (g === 'week' ? this.prevWeekRecs() : g === 'year' ? this.prevYearRecs() : this.prevMonthRecs()).filter(notCheckpoint);
     const volDelta = (cur, prev) => g === 'month' ? this.momDelta(cur, prev) : (g === 'day' ? '' : this.pairDelta(cur, prev));
 
     const monthlyGroup = core.GROUPS[0];
@@ -2804,7 +2968,6 @@ class Component extends DCLogic {
       { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
       { label: 'รอบรถกอล์ฟ', module: 'golf', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
       { label: 'ผู้มาเยือน', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
-      { label: 'รอบตรวจจุด', module: 'checkpoint', value: core.fmtNum(cm.total), note: cm.total ? 'จุดที่ตรวจบ่อยสุด: ' + cm.mostVisited.label : 'ยังไม่มีรายงาน', color: core.COLORS.checkpoint, formula: 'COUNT(checkpoint records)' },
       { label: 'รายงานลิฟต์', module: 'elevator', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
     ].concat(monthlyGroup ? [
       { label: monthlyGroup.name, value: monthlyDone + '/' + monthlyMembers.length + ' หัวข้อ', note: 'หัวข้อที่มีรายงานในช่วงที่เลือก', color: monthlyGroup.color, formula: 'COUNT(DISTINCT module) ในกลุ่ม ' + monthlyGroup.id }
@@ -2838,7 +3001,7 @@ class Component extends DCLogic {
         subtitle: 'ทุกโมดูลรวมกัน — ' + this.periodLabelText() + ' · อ้างอิงจาก ' + core.fmtNum(trend.length) + (g === 'year' ? ' เดือนที่มีข้อมูล' : ' วันที่มีข้อมูล'),
         family: 'timeseries', fallback: 'area', data: trend, recordCount: trend.length,
         trace: 'trace: all modules → reportDate → SUM → time series' }),
-      this.buildChart({ id: 'ov_mix', block: 'Block 02', title: 'สัดส่วนกิจกรรมตามโมดูล',
+      this.buildChart({ id: 'ov_mix', block: 'Block 03', title: 'สัดส่วนกิจกรรมตามโมดูล',
         subtitle: 'รวมเฉพาะข้อมูลที่นับเป็นจำนวน (รถ/รอบ/คน) · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
         family: 'partwhole', fallback: 'donut', centerLabel: 'หน่วยรวม', recordCount: all.length,
         data: [
@@ -2847,14 +3010,13 @@ class Component extends DCLogic {
           { label: 'ผู้มาเยือน', value: people, color: core.COLORS.visitors }
         ],
         trace: 'trace: module fields → SUM → part-to-whole' }),
-      this.buildChart({ id: 'ov_reports', block: 'Block 03', title: 'จำนวนรายงานตามโมดูล',
+      this.buildChart({ id: 'ov_reports', block: 'Block 04', title: 'จำนวนรายงานตามโมดูล',
         subtitle: 'นับจำนวนรายการที่บันทึกในแต่ละโมดูล (ไม่รวมปริมาณ/หน่วยภายใน) · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
         family: 'category', fallback: 'bar', recordCount: all.length,
         data: [
           { label: 'รถ (หลัก+ทะเลทอง)', value: tr.length + trTt.length, color: core.COLORS.traffic, unit: 'รายการ' },
           { label: 'รถกอล์ฟ', value: gf.length, color: core.COLORS.golf, unit: 'รายการ' },
           { label: 'ผู้มาเยือน', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' },
-          { label: 'ตรวจจุด', value: cp.length, color: core.COLORS.checkpoint, unit: 'รายการ' },
           { label: 'ลิฟต์', value: el.length, color: core.COLORS.elevator, unit: 'รายการ' }
         ].concat(monthlyGroup ? [{ label: monthlyGroup.name, value: monthlyMembers.reduce((n, m) => n + all.filter(r => r.module === m.id).length, 0), color: monthlyGroup.color, unit: 'รายการ' }] : []),
         trace: 'trace: all modules → COUNT(records) per module → category comparison' })
@@ -5056,6 +5218,71 @@ class Component extends DCLogic {
     const pickerAvailMonths = core.availableMonths(comparePickerScope);
     const pickerAvailYears = Array.from(new Set(pickerAvailMonths.map(m => m.year))).sort((a, b) => b - a);
     const monthsInPickerYear = pickerAvailMonths.filter(m => m.year === s.comparePickerYear);
+    /* The panel rides in the charts list as its own block, so it lands directly under Block 01
+       without the chart <section> markup having to be duplicated to sandwich it. Everything it
+       needs travels on the item itself: the list is rendered inside an sc-for, so `c.xxx` is the
+       binding shape that is guaranteed to resolve there. */
+    const comparePanel = page !== 'overview' ? null : {
+      id: 'ov_compare', block: 'Block 02', title: 'เปรียบเทียบหลายช่วงเวลา',
+      subtitle: 'เลือกได้ทั้งวันที่เจาะจงและทั้งเดือนผสมกัน สูงสุด 6 ช่วง — คอลัมน์แรกที่เพิ่มคือฐานสำหรับเทียบ %',
+      isCompare: true, empty: false, warning: '', types: [],
+      rowBasis: '100%', rowMin: '0', gutter: '0px',
+      trace: 'trace: comparePeriods → per-module metrics → side-by-side + bar chart',
+      bars: [], series: [], grid: [], xLabels: [], slices: [], wedges: [], legend: [],
+
+      moduleChips: [{ id: 'all', label: 'รวมทุกหัวข้อ' }]
+        .concat(['traffic', 'traffic_tt', 'golf', 'visitors', 'elevator'].map(id => ({ id, label: (core.module(id) || {}).name || id })))
+        .map(mc => ({
+          label: mc.label,
+          border: s.compareModule === mc.id ? 'var(--accent-line)' : 'var(--line)',
+          bg: s.compareModule === mc.id ? 'var(--accent-soft)' : 'transparent',
+          fg: s.compareModule === mc.id ? 'var(--accent)' : 'var(--muted)',
+          pick: () => this.setState({ compareModule: mc.id })
+        })),
+      periodChips: s.comparePeriods.map((p, i) => ({
+        label: this.periodLabel(p),
+        typeTag: p.type === 'day' ? 'วัน' : 'เดือน',
+        border: i === 0 ? 'var(--accent-line)' : 'var(--line)',
+        bg: i === 0 ? 'var(--accent-soft)' : 'var(--panel)',
+        remove: () => this.setState({ comparePeriods: s.comparePeriods.filter(x => x.id !== p.id) })
+      })),
+      canAdd: s.comparePeriods.length < 6,
+      openPicker: () => this.setState({ comparePickerOpen: true }),
+      closePicker: () => this.setState({ comparePickerOpen: false }),
+      pickerOpen: s.comparePickerOpen,
+      pickerIsDay: s.comparePickerType === 'day',
+      pickerIsMonth: s.comparePickerType === 'month',
+      pickerDayBg: s.comparePickerType === 'day' ? 'var(--panel)' : 'transparent',
+      pickerDayFg: s.comparePickerType === 'day' ? 'var(--text)' : 'var(--muted)',
+      pickerMonthBg: s.comparePickerType === 'month' ? 'var(--panel)' : 'transparent',
+      pickerMonthFg: s.comparePickerType === 'month' ? 'var(--text)' : 'var(--muted)',
+      setPickerDay: () => this.setState({ comparePickerType: 'day' }),
+      setPickerMonth: () => this.setState({ comparePickerType: 'month' }),
+      pickerDate: s.comparePickerDate,
+      setPickerDate: (e) => this.setState({ comparePickerDate: e.target.value }),
+      pickerYear: s.comparePickerYear,
+      setPickerYear: (e) => this.setState({ comparePickerYear: parseInt(e.target.value, 10) }),
+      pickerMonth: s.comparePickerMonth,
+      setPickerMonthValue: (e) => this.setState({ comparePickerMonth: parseInt(e.target.value, 10) }),
+      yearOptions: (pickerAvailYears.length ? pickerAvailYears : [s.comparePickerYear]).map(y => ({ value: y, label: String(y + 543) })),
+      monthOptions: (monthsInPickerYear.length ? monthsInPickerYear.map(m => m.month) : core.thaiMonths.map((_, i) => i)).map(m => ({ value: m, label: core.thaiMonths[m] })),
+      confirmAdd: () => {
+        if (s.comparePeriods.length >= 6) { this.flash('เทียบได้สูงสุด 6 ช่วง', 'var(--warn)'); return; }
+        if (s.comparePickerType === 'day' && !s.comparePickerDate) { this.flash('กรุณาเลือกวันที่', 'var(--warn)'); return; }
+        const id = Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const period = s.comparePickerType === 'day'
+          ? { id, type: 'day', date: s.comparePickerDate }
+          : { id, type: 'month', year: s.comparePickerYear, month: s.comparePickerMonth };
+        this.setState({ comparePeriods: s.comparePeriods.concat([period]), comparePickerOpen: false, comparePickerDate: '' });
+      },
+      hasTable: !!compareTable,
+      columns: compareTable ? compareTable.columns : [],
+      rows: compareTable ? compareTable.rows : [],
+      chartShown: !!(compareTable && compareTable.chartShown),
+      chartLegend: compareTable ? compareTable.chartLegend : [],
+      chartGroups: compareTable ? compareTable.chartGroups : [],
+      chartMinWidth: compareTable ? compareTable.chartMinWidth : '0px'
+    };
     const activeMonth = months.filter(m => m.year === s.year && m.month === s.month)[0];
     const dayRecords = historyScope.reduce(
       (acc, id) => acc.concat(core.query({ module: id, year: s.year, month: s.month })), []);
@@ -5345,57 +5572,6 @@ class Component extends DCLogic {
       comparisonBaselineLabel: this.comparisonBaselineLabel(),
       goPdf: () => this.setState({ page: 'pdf', pdfModule: moduleId || 'traffic', pdfPeriod: s.date ? 'day' : 'month', pdfPeriodDay: s.date, pdfPeriodYear: s.year, pdfPeriodMonth: s.month }),
 
-      /* ---- multi-period comparison (Overview page) ---- */
-      pageIsOverview: page === 'overview',
-      compareModuleChips: [{ id: 'all', label: 'รวมทุกหัวข้อ' }]
-        .concat(['traffic', 'traffic_tt', 'golf', 'visitors', 'checkpoint', 'elevator'].map(id => ({ id, label: (core.module(id) || {}).name || id })))
-        .map(mc => ({
-          label: mc.label,
-          border: s.compareModule === mc.id ? 'var(--accent-line)' : 'var(--line)',
-          bg: s.compareModule === mc.id ? 'var(--accent-soft)' : 'transparent',
-          fg: s.compareModule === mc.id ? 'var(--accent)' : 'var(--muted)',
-          pick: () => this.setState({ compareModule: mc.id })
-        })),
-      comparePeriodChips: s.comparePeriods.map((p, i) => ({
-        label: this.periodLabel(p),
-        typeTag: p.type === 'day' ? 'วัน' : 'เดือน',
-        border: i === 0 ? 'var(--accent-line)' : 'var(--line)',
-        bg: i === 0 ? 'var(--accent-soft)' : 'var(--panel)',
-        remove: () => this.setState({ comparePeriods: s.comparePeriods.filter(x => x.id !== p.id) })
-      })),
-      canAddPeriod: s.comparePeriods.length < 6,
-      openComparePicker: () => this.setState({ comparePickerOpen: true }),
-      closeComparePicker: () => this.setState({ comparePickerOpen: false }),
-      comparePickerOpen: s.comparePickerOpen,
-      pickerIsDay: s.comparePickerType === 'day',
-      pickerIsMonth: s.comparePickerType === 'month',
-      pickerDayBg: s.comparePickerType === 'day' ? 'var(--panel)' : 'transparent',
-      pickerDayFg: s.comparePickerType === 'day' ? 'var(--text)' : 'var(--muted)',
-      pickerMonthBg: s.comparePickerType === 'month' ? 'var(--panel)' : 'transparent',
-      pickerMonthFg: s.comparePickerType === 'month' ? 'var(--text)' : 'var(--muted)',
-      setPickerDay: () => this.setState({ comparePickerType: 'day' }),
-      setPickerMonth: () => this.setState({ comparePickerType: 'month' }),
-      pickerDate: s.comparePickerDate,
-      setPickerDate: (e) => this.setState({ comparePickerDate: e.target.value }),
-      pickerYear: s.comparePickerYear,
-      setPickerYear: (e) => this.setState({ comparePickerYear: parseInt(e.target.value, 10) }),
-      pickerMonth: s.comparePickerMonth,
-      setPickerMonthValue: (e) => this.setState({ comparePickerMonth: parseInt(e.target.value, 10) }),
-      pickerYearOptions: (pickerAvailYears.length ? pickerAvailYears : [s.comparePickerYear]).map(y => ({ value: y, label: String(y + 543) })),
-      pickerMonthOptions: (monthsInPickerYear.length ? monthsInPickerYear.map(m => m.month) : core.thaiMonths.map((_, i) => i)).map(m => ({ value: m, label: core.thaiMonths[m] })),
-      confirmAddPeriod: () => {
-        if (s.comparePeriods.length >= 6) { this.flash('เทียบได้สูงสุด 6 ช่วง', 'var(--warn)'); return; }
-        if (s.comparePickerType === 'day' && !s.comparePickerDate) { this.flash('กรุณาเลือกวันที่', 'var(--warn)'); return; }
-        const id = Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        const period = s.comparePickerType === 'day'
-          ? { id, type: 'day', date: s.comparePickerDate }
-          : { id, type: 'month', year: s.comparePickerYear, month: s.comparePickerMonth };
-        this.setState({ comparePeriods: s.comparePeriods.concat([period]), comparePickerOpen: false, comparePickerDate: '' });
-      },
-      hasCompareTable: !!compareTable,
-      compareColumns: compareTable ? compareTable.columns : [],
-      compareRowsOut: compareTable ? compareTable.rows : [],
-
       loading: s.loading,
       pageEmpty: !s.loading && data.empty,
       pageReady: !s.loading && !data.empty,
@@ -5422,7 +5598,11 @@ class Component extends DCLogic {
           drill: drillModule ? (() => this.goRecordsFor(drillModule)) : (() => {})
         });
       }),
-      charts: data.charts,
+      /* slotted in right behind Block 01 rather than appended, because that position — under the
+         page's headline trend chart — is where the comparison panel belongs on the page */
+      charts: comparePanel
+        ? data.charts.slice(0, 1).concat([comparePanel], data.charts.slice(1))
+        : data.charts,
       infoBlocks: data.infoBlocks,
       hasTable: (data.tableRows || []).length > 0,
       tableTitle: data.tableTitle,
