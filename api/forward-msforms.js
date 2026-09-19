@@ -185,7 +185,7 @@ async function attemptFill(form, moduleId, data, dryRun) {
 /* Retries only transient failures, only for a real (non-dryRun) send — a dry run is a one-shot
    diagnostic. One short retry only: a launch (browser + navigate) can itself take 10-20s under
    load, and this has to leave a real chance to return before Vercel kills the invocation at 60s.
-   Anything beyond one quick retry is what the job queue and its 20-minute worker are for, not
+   Anything beyond one quick retry is what the job queue and its 10-minute worker are for, not
    this in-request loop. */
 async function attemptWithRetry(form, moduleId, data, dryRun) {
   const delays = dryRun ? [] : [3000];
@@ -522,7 +522,7 @@ async function handler(req, res) {
      Chromium runs out of resources, the other department's form is briefly unreachable — and until
      now each of those either lost the submission or left it as the single "last payload" of a
      per-day row. Now the worst outcome of this request is that the job stays in the queue, and
-     scripts/drain-msforms.js (GitHub Actions, every 20 minutes) keeps retrying it until it is sent.
+     scripts/drain-msforms.js (GitHub Actions, every 10 minutes) keeps retrying it until it is sent.
      'claimed' means this request is already sending it, so the worker leaves it alone unless this
      request dies and 10 minutes pass. */
   let jobId = null;

@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260919b"></script>
+<script src="./soc-core.js?v=20260919c"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -1886,7 +1886,7 @@ class Component extends DCLogic {
     recordSearch: '', recordSort: 'date_desc',
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
-    msJobs: [], /* ms_forms_jobs rows not yet sent — the queue the 20-minute worker drains */
+    msJobs: [], /* ms_forms_jobs rows not yet sent — the queue the 10-minute worker drains */
     msSendLog: [], /* ms_forms_send_log rows — every attempt, never overwritten (see msFormsOutbox) */
     msLogOpen: null, /* target_form id of the one forwarding row with its log expanded, or null */
     confirmOpen: false, confirmTitle: '', confirmBody: '', confirmLabel: 'ยืนยัน',
@@ -4472,7 +4472,7 @@ class Component extends DCLogic {
     ).length;
   }
   /* submissions of this topic that have not reached the other department yet. Every one is a row
-     in ms_forms_jobs that the scheduled worker retries every 20 minutes until it is sent. */
+     in ms_forms_jobs that the scheduled worker retries every 10 minutes until it is sent. */
   msFormsPendingJobs(target) {
     return (this.state.msJobs || []).filter(j => j.target_form === target);
   }
@@ -4480,7 +4480,7 @@ class Component extends DCLogic {
     const jobs = this.msFormsPendingJobs(target);
     if (!jobs.length) return '';
     const worst = jobs.reduce((m, j) => Math.max(m, j.attempts || 0), 0);
-    return ' · ⏳ ค้างส่ง ' + jobs.length + ' รายการ ระบบจะส่งซ้ำอัตโนมัติทุก 20 นาทีจนครบ'
+    return ' · ⏳ ค้างส่ง ' + jobs.length + ' รายการ ระบบจะส่งซ้ำอัตโนมัติทุก 10 นาทีจนครบ'
       + (worst >= 3 ? ' (บางรายการลองแล้ว ' + worst + ' ครั้ง)' : '');
   }
   msFormsLastText(target) {
