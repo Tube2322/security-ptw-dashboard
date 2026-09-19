@@ -98,7 +98,13 @@ async function main() {
 
   const left = await waitingCount();
   log(`done: ${sent} sent, ${failed} failed this run; ${left} still waiting`);
-  if (left && !stopped) await startSuccessor();
+  /* a run that stopped on the breaker still hands over: the next run only takes jobs that are due
+     (a refused job is not due for another 10 minutes), so it moves on instead of hammering, and the
+     queue keeps draining without waiting for GitHub's cron. A minute's pause first. */
+  if (left) {
+    if (stopped) await sleep(Number(process.env.DRAIN_COOLDOWN_MS || 60000));
+    await startSuccessor();
+  }
 }
 
 main().catch((e) => { console.error('worker crashed:', e); process.exit(1); });
