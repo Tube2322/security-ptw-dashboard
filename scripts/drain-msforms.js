@@ -1,4 +1,4 @@
-/* Drains the Microsoft Forms job queue (ms_forms_jobs). Run every 20 minutes by
+/* Drains the Microsoft Forms job queue (ms_forms_jobs). Run every 10 minutes by
    .github/workflows/msforms-drain.yml on a GitHub Actions machine, where a send is not limited by the
    60s / small-/tmp / cold-start constraints of a Vercel function.
 
