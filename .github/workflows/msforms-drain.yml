@@ -1,0 +1,32 @@
+name: Drain Microsoft Forms queue
+
+# Sends every submission the website could not deliver to the other department's Microsoft Form on the
+# spot. The website records each one in ms_forms_jobs first; this job retries them until they are sent.
+# Needs one repository secret: SUPABASE_SERVICE_ROLE_KEY (Settings -> Secrets and variables -> Actions).
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch: {}
+
+# a run that is still busy must never overlap the next one
+concurrency:
+  group: msforms-drain
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    if: github.repository == 'Tube2322/security-ptw-dashboard'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Send everything that is waiting
+        run: node scripts/drain-msforms.js
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MSFORMS_BROWSER: system-chrome
