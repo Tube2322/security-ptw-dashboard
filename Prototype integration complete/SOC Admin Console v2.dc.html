@@ -1005,7 +1005,7 @@
               <sc-if value="{{ kpi.msg }}" hint-placeholder-val="{{ false }}">
                 <div style="margin-bottom: 10px; padding: 9px 13px; border-radius: 10px; border: 1px solid {{ kpi.msgBorder }}; background: {{ kpi.msgBg }}; font-size: 13px; font-weight: 500; color: {{ kpi.msgColor }};">{{ kpi.msg }}</div>
               </sc-if>
-              <div style="overflow-x: auto; overflow-y: hidden; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2);">
+              <div style="overflow-x: auto; overflow-y: hidden; scroll-padding-left: 310px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2);">
                 <div style="min-width: 1240px;">
                   <div style="display: grid; grid-template-columns: 300px 92px repeat(12, minmax(62px, 1fr)) 104px; align-items: stretch; font-size: 11.5px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line-2); background: var(--panel-2);">
                     <div style="position: sticky; left: 0; z-index: 3; padding: 10px 12px; background: linear-gradient(var(--panel-2), var(--panel-2)), var(--bg-2); box-shadow: 1px 0 0 var(--line-2);">ตัวชี้วัด</div>
@@ -3498,7 +3498,8 @@ class Component extends DCLogic {
       ? { fg: OK, bg: 'rgba(47,168,107,0.13)', border: 'rgba(47,168,107,0.35)', bar: OK }
       : st === 'fail' ? { fg: BAD, bg: 'rgba(209,72,58,0.13)', border: 'rgba(209,72,58,0.38)', bar: BAD }
       : { fg: DIM, bg: 'transparent', border: 'var(--line)', bar: 'transparent' };
-    const short = (def, v) => v == null ? '' : def.kind === 'count' ? String(Math.round(v * 100) / 100) : (Math.round(v * 10) / 10).toFixed(1);
+    /* bar labels have ~25px to sit in: 100 not 100.0, 99.7 not 99.70 */
+    const short = (def, v) => v == null ? '' : def.kind === 'count' ? String(Math.round(v * 100) / 100) : String(Math.round(v * 10) / 10);
     const fmt = (n) => String(Math.round(n * 100) / 100);
 
     /* summary cards */
@@ -3511,7 +3512,7 @@ class Component extends DCLogic {
       { label: last >= 0 ? 'ตัวชี้วัดที่ผ่านเป้า — เดือน' + K.MONTHS[last] : 'ตัวชี้วัดที่ผ่านเป้า', value: lastM ? lastM.achieved + ' / ' + K.TOTAL : '—', color: lastM && lastM.achieved === K.TOTAL ? OK : 'var(--text)', note: lastM ? Math.round(lastM.pct) + '% ของตัวชี้วัดทั้งหมด' : 'ยังไม่มีข้อมูลในปีนี้' },
       { label: 'ไม่ผ่านเป้า' + (last >= 0 ? ' — เดือน' + K.MONTHS[last] : ''), value: last >= 0 ? String(failNos.length) : '—', color: failNos.length ? BAD : OK, note: last < 0 ? '—' : failNos.length ? 'KPI ข้อ ' + failNos.join(', ') : 'ผ่านครบทุกตัวชี้วัด' },
       { label: 'ผ่านเป้าเฉลี่ยทั้งปี', value: tot.ytdPct == null ? '—' : (Math.round(tot.ytdPct * 10) / 10) + '%', color: 'var(--text)', note: tot.reportedMonths ? 'เฉลี่ยจาก ' + tot.reportedMonths + ' เดือนที่มีข้อมูล' : '—' },
-      { label: 'ผ่านเป้าทุกเดือน', value: allMonthsOk + ' / ' + K.TOTAL, color: 'var(--text)', note: 'ตัวชี้วัดที่ไม่มีเดือนใดหลุดเป้าเลย' }
+      { label: 'ผ่านเป้าทุกเดือน', value: tot.reportedMonths ? allMonthsOk + ' / ' + K.TOTAL : '—', color: 'var(--text)', note: tot.reportedMonths ? 'ตัวชี้วัดที่ไม่มีเดือนใดหลุดเป้าเลย' : '—' }
     ];
 
     /* Total KPI chart */
@@ -3540,7 +3541,8 @@ class Component extends DCLogic {
           inputBg: mi === nowM ? 'var(--accent-soft)' : 'var(--panel)',
           label: 'KPI ' + d.no + ' · ' + K.MONTHS[mi] + ' — ' + (field === 'numerator' ? d.numShort : d.denShort),
           change: (e) => this.saveKpiCell(d.no, mi + 1, field, e.target.value),
-          focus: (e) => { try { e.target.select(); } catch (err) { /* selecting is only a convenience */ } },
+          /* selecting what is already in the box makes typing over it a single step */
+          focus: (e) => { try { e.target.select(); } catch (err) { /* only a convenience */ } },
           text: '', fg: 'var(--text)', bg: 'transparent', title: ''
         };
       };
@@ -3564,7 +3566,7 @@ class Component extends DCLogic {
             isInput: false, isResult: true, value: '', disabled: true, change: null, focus: null, inputBg: 'transparent', label: '',
             text: m.status === 'none' ? '·' : m.status === 'na' ? 'ไม่มีเหตุ' : m.display,
             fg: t.fg, bg: t.bg, border: t.border,
-            title: 'KPI ' + d.no + ' · ' + K.MONTHS[mi] + ' — ' + (m.status === 'none' ? m.note : m.display + ' (' + (m.status === 'fail' ? 'ไม่ผ่าน' : 'ผ่าน') + ') ' + (m.note || ''))
+            title: 'KPI ' + d.no + ' · ' + K.MONTHS[mi] + ' — ' + (m.status === 'none' || m.status === 'na' ? m.note : m.display + ' (' + (m.status === 'fail' ? 'ไม่ผ่าน' : 'ผ่าน') + ') ' + (m.note || ''))
           };
         }),
         ytdText: y.status === 'none' ? '—' : y.status === 'na' ? 'ไม่มีเหตุ' : y.display,
