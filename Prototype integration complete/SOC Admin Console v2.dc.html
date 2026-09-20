@@ -1016,19 +1016,14 @@
                     <div style="padding: 10px 6px; text-align: center;">รวมทั้งปี</div>
                   </div>
                   <sc-for list="{{ kpi.rows }}" as="r" hint-placeholder-count="4">
-                    <div style="border-bottom: 1px solid var(--line-2);">
+                    <div style="display: grid; grid-template-columns: 148px 1fr; border-bottom: 1px solid var(--line-2);">
+                      <div style="position: sticky; left: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 6px; background: var(--bg-2); box-shadow: 1px 0 0 var(--line);">
+                        <span style="flex: none; width: 20px; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'IBM Plex Mono', monospace;">{{ r.no }}</span>
+                        <div style="flex: 1; min-width: 0; line-height: 1.4; font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere;">{{ r.name }}</div>
+                      </div>
+                      <div>
                       <sc-for list="{{ r.lines }}" as="l" hint-placeholder-count="3">
-                        <div style="display: grid; grid-template-columns: 148px 120px repeat(12, minmax(60px, 1fr)) 96px; align-items: center; min-height: 54px; font-size: 12.5px;">
-                          <div style="position: sticky; left: 0; z-index: 2; align-self: stretch; display: flex; align-items: {{ l.align }}; gap: 8px; padding: 6px 8px 6px 6px; background: var(--bg-2); box-shadow: 1px 0 0 var(--line);">
-                            <span style="flex: none; width: 20px; padding-top: 2px; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'IBM Plex Mono', monospace;">
-                              <sc-if value="{{ l.first }}" hint-placeholder-val="{{ false }}">{{ r.no }}</sc-if>
-                            </span>
-                            <div style="flex: 1; min-width: 0; line-height: 1.4;">
-                              <sc-if value="{{ l.first }}" hint-placeholder-val="{{ false }}">
-                                <div style="font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; margin-bottom: 2px;">{{ r.name }}</div>
-                              </sc-if>
-                            </div>
-                          </div>
+                        <div style="display: grid; grid-template-columns: 120px repeat(12, minmax(60px, 1fr)) 96px; align-items: center; min-height: 54px; font-size: 12.5px;">
                           <div style="padding: 6px; font-size: 11.5px; overflow-wrap: anywhere; line-height: 1.35;">
                             <div style="font-weight: 500; color: {{ l.tagColor }};" title="{{ l.tip }}">{{ l.label }}</div>
                             <sc-if value="{{ l.first }}" hint-placeholder-val="{{ false }}"><div style="color: var(--muted); margin-top: 2px;">{{ r.targetText }}</div></sc-if>
@@ -1046,6 +1041,7 @@
                           <div style="padding: 4px 6px; text-align: center; font-weight: 600; font-size: 13px; color: {{ l.ytdColor }}; line-height: 1.3;">{{ l.ytdText }}<div style="font-size: 10.5px; font-weight: 400; color: var(--dim);">{{ l.ytdNote }}</div></div>
                         </div>
                       </sc-for>
+                      </div>
                     </div>
                   </sc-for>
                   <sc-for list="{{ kpi.totalRows }}" as="r" hint-placeholder-count="3">
