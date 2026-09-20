@@ -1005,9 +1005,9 @@
               <sc-if value="{{ kpi.msg }}" hint-placeholder-val="{{ false }}">
                 <div style="margin-bottom: 10px; padding: 9px 13px; border-radius: 10px; border: 1px solid {{ kpi.msgBorder }}; background: {{ kpi.msgBg }}; font-size: 13px; font-weight: 500; color: {{ kpi.msgColor }};">{{ kpi.msg }}</div>
               </sc-if>
-              <div style="overflow-x: auto; overflow-y: hidden; scroll-padding-left: 310px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2);">
-                <div style="min-width: 1240px;">
-                  <div style="display: grid; grid-template-columns: 300px 92px repeat(12, minmax(62px, 1fr)) 104px; align-items: stretch; font-size: 11.5px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line-2); background: var(--panel-2);">
+              <div style="overflow-x: auto; overflow-y: hidden; scroll-padding-left: 236px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg-2);">
+                <div style="min-width: 1130px;">
+                  <div style="display: grid; grid-template-columns: 224px 84px repeat(12, minmax(60px, 1fr)) 96px; align-items: stretch; font-size: 11.5px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line-2); background: var(--panel-2);">
                     <div style="position: sticky; left: 0; z-index: 3; padding: 10px 12px; background: linear-gradient(var(--panel-2), var(--panel-2)), var(--bg-2); box-shadow: 1px 0 0 var(--line-2);">ตัวชี้วัด</div>
                     <div style="padding: 10px 6px;">เป้าหมาย</div>
                     <sc-for list="{{ kpi.monthHeads }}" as="ml" hint-placeholder-count="12">
@@ -1018,9 +1018,9 @@
                   <sc-for list="{{ kpi.rows }}" as="r" hint-placeholder-count="4">
                     <div style="border-bottom: 1px solid var(--line-2);">
                       <sc-for list="{{ r.lines }}" as="l" hint-placeholder-count="3">
-                        <div style="display: grid; grid-template-columns: 300px 92px repeat(12, minmax(62px, 1fr)) 104px; align-items: center; font-size: 12.5px;">
-                          <div style="position: sticky; left: 0; z-index: 2; align-self: stretch; display: flex; align-items: {{ l.align }}; gap: 8px; padding: 6px 10px 6px 8px; background: var(--bg-2); box-shadow: 1px 0 0 var(--line);">
-                            <span style="flex: none; width: 24px; padding-top: 2px; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'IBM Plex Mono', monospace;">
+                        <div style="display: grid; grid-template-columns: 224px 84px repeat(12, minmax(60px, 1fr)) 96px; align-items: center; font-size: 12.5px;">
+                          <div style="position: sticky; left: 0; z-index: 2; align-self: stretch; display: flex; align-items: {{ l.align }}; gap: 8px; padding: 6px 8px 6px 6px; background: var(--bg-2); box-shadow: 1px 0 0 var(--line);">
+                            <span style="flex: none; width: 20px; padding-top: 2px; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); font-family: 'IBM Plex Mono', monospace;">
                               <sc-if value="{{ l.first }}" hint-placeholder-val="{{ false }}">{{ r.no }}</sc-if>
                             </span>
                             <div style="flex: 1; min-width: 0; line-height: 1.4;">
@@ -1049,7 +1049,7 @@
                     </div>
                   </sc-for>
                   <sc-for list="{{ kpi.totalRows }}" as="r" hint-placeholder-count="3">
-                    <div style="display: grid; grid-template-columns: 300px 92px repeat(12, minmax(62px, 1fr)) 104px; align-items: center; font-size: 12.5px; background: var(--panel-2); border-top: 1px solid var(--line);">
+                    <div style="display: grid; grid-template-columns: 224px 84px repeat(12, minmax(60px, 1fr)) 96px; align-items: center; font-size: 12.5px; background: var(--panel-2); border-top: 1px solid var(--line);">
                       <div style="position: sticky; left: 0; z-index: 2; align-self: stretch; display: flex; align-items: center; padding: 9px 12px; background: linear-gradient(var(--panel-2), var(--panel-2)), var(--bg-2); box-shadow: 1px 0 0 var(--line-2); font-weight: 600;">{{ r.label }}</div>
                       <div style="padding: 8px 6px; color: var(--dim); font-size: 11.5px; line-height: 1.3;">{{ r.hint }}</div>
                       <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="12">
