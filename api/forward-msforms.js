@@ -75,6 +75,77 @@ function isTransient(err) {
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
+/* what Microsoft Forms says once a response is stored ("ส่งคำตอบของคุณแล้ว" in Thai) */
+const THANK_YOU = /ส่งคำตอบของคุณแล้ว|your response (was|has been) (submitted|recorded)|response (was|has been) (submitted|recorded)|thank you|thanks for/i;
+
+async function launchBrowser() {
+  if (process.env.MSFORMS_BROWSER === 'system-chrome') {
+    /* the scheduled worker (scripts/drain-msforms.js) runs on a GitHub Actions machine that already
+       has Chrome installed, with none of the Lambda limits (60s, a small /tmp, a cold start that
+       downloads the browser) that make sending from a Vercel function fragile */
+    const { chromium: playwright } = require('playwright-core');
+    return playwright.launch({ channel: 'chrome', headless: true });
+  }
+  const { playwright, chromium } = await loadChromium();
+  if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
+  const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
+  /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
+     chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
+     lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
+     by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
+     alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
+  const pathMod = require('path');
+  const execDir = pathMod.dirname(executablePath);
+  process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
+  return playwright.launch({ args: chromium.args, executablePath: executablePath, headless: true });
+}
+
+/* Opens the response page and gets past the welcome screen some forms have. */
+async function openForm(browser, form) {
+  const page = await browser.newPage();
+  await page.goto(form.url, { waitUntil: 'networkidle', timeout: 20000 });
+  const items = page.locator('[data-automation-id="questionItem"]');
+  /* Some of these forms (the golf-cart one) are configured with a welcome screen, so the
+     response page loads with zero questions on it until a "start" button is pressed. The
+     button carries no data-automation-id and its label is localized, so it's identified by
+     elimination: the only visible button on that screen other than the Microsoft Forms brand
+     link in the footer (a product name, not localized text). */
+  if (await items.count() === 0) {
+    const buttons = page.locator('button:visible');
+    const total = await buttons.count();
+    for (let i = 0; i < total; i++) {
+      const text = norm(await buttons.nth(i).textContent());
+      if (!text || text.includes('Microsoft Forms')) continue;
+      await buttons.nth(i).click();
+      break;
+    }
+    await items.first().waitFor({ timeout: 10000 });
+  }
+  return { page, items };
+}
+
+/* Puts `iso` into a date question and only returns once the form itself shows exactly that day (read
+   back from its calendar, see readBackDate). Typing the day/month the wrong way round is accepted
+   silently for days 1-12 and rejected for 13-31, so if the first try is not the date meant, type it
+   again — the other way round on odd attempts. Returns { ok, got } and never throws on a mismatch. */
+async function ensureDate(page, dateInput, iso) {
+  const im = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!im) throw new Error(`invalid date value: ${iso}`);
+  const want = { y: Number(im[1]), m: Number(im[2]), d: Number(im[3]) };
+  const same = (g) => !!(g && g.y === want.y && g.m === want.m && g.d === want.d);
+  let got = await readBackDate(page, dateInput);
+  for (let attempt = 0; !same(got) && attempt < 4; attempt++) {
+    const primary = await dateTextFor(dateInput, iso);
+    const alternate = primary === `${want.m}/${want.d}/${want.y}` ? `${want.d}/${want.m}/${want.y}` : `${want.m}/${want.d}/${want.y}`;
+    await dateInput.click();
+    await dateInput.fill(attempt % 2 === 0 ? primary : alternate);
+    await dateInput.press('Tab');
+    await page.waitForTimeout(500);
+    got = await readBackDate(page, dateInput);
+  }
+  return { ok: same(got), got };
+}
+
 /* One real attempt: launch, navigate, fill, and (unless dryRun) submit. Pulled out of the request
    handler so both the request and the scheduled worker (scripts/drain-msforms.js) run the exact
    same fill logic — the worker must run the real thing, not a slightly different copy of it. */
@@ -98,50 +169,8 @@ async function attemptFill(form, moduleId, data, dryRun) {
 
   let browser;
   try {
-    if (process.env.MSFORMS_BROWSER === 'system-chrome') {
-      /* the scheduled worker (scripts/drain-msforms.js) runs on a GitHub Actions machine that already
-         has Chrome installed, with none of the Lambda limits (60s, a small /tmp, a cold start that
-         downloads the browser) that make sending from a Vercel function fragile */
-      const { chromium: playwright } = require('playwright-core');
-      browser = await playwright.launch({ channel: 'chrome', headless: true });
-    } else {
-      const { playwright, chromium } = await loadChromium();
-      if (typeof chromium.setGraphicsMode === 'function') chromium.setGraphicsMode(false);
-      const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL);
-      /* Vercel's function sandbox doesn't have libnss3.so etc. on the default library search path.
-         chromium-min's pack unpacks the actual .so files into <dir>/al2023/lib (an AL2023-specific
-         lib bundle, since that base image dropped libraries Lambda/Vercel used to ship — confirmed
-         by listing /tmp at runtime: libnss3.so etc. live under al2023/lib, not directly in /tmp
-         alongside the chromium binary), so LD_LIBRARY_PATH needs both directories. */
-      var pathMod = require('path');
-      var execDir = pathMod.dirname(executablePath);
-      process.env.LD_LIBRARY_PATH = execDir + ':' + pathMod.join(execDir, 'al2023', 'lib');
-      browser = await playwright.launch({
-        args: chromium.args,
-        executablePath: executablePath,
-        headless: true
-      });
-    }
-    const page = await browser.newPage();
-    await page.goto(form.url, { waitUntil: 'networkidle', timeout: 20000 });
-
-    const items = page.locator('[data-automation-id="questionItem"]');
-    /* Some of these forms (the golf-cart one) are configured with a welcome screen, so the
-       response page loads with zero questions on it until a "start" button is pressed. The
-       button carries no data-automation-id and its label is localized, so it's identified by
-       elimination: the only visible button on that screen other than the Microsoft Forms brand
-       link in the footer (a product name, not localized text). */
-    if (await items.count() === 0) {
-      const buttons = page.locator('button:visible');
-      const total = await buttons.count();
-      for (let i = 0; i < total; i++) {
-        const text = norm(await buttons.nth(i).textContent());
-        if (!text || text.includes('Microsoft Forms')) continue;
-        await buttons.nth(i).click();
-        break;
-      }
-      await items.first().waitFor({ timeout: 10000 });
-    }
+    browser = await launchBrowser();
+    const { page, items } = await openForm(browser, form);
     const count = await items.count();
     if (count !== form.fields.length) {
       throw new Error(`question count mismatch for ${moduleId}: expected ${form.fields.length}, form now has ${count} — it was likely edited, mapping needs updating`);
@@ -167,30 +196,12 @@ async function attemptFill(form, moduleId, data, dryRun) {
       if (f.type === 'date') {
         /* the calendar popup can revert the date after later questions were filled, so if it is
            empty now, type it again (nothing else is pending at this point) and Tab out to commit it */
-        const dateInput = items.nth(i).locator('[data-automation-id="dateContainer"] input').first();
         const iso = String(v).trim();
-        const im = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-        const want = im ? { y: Number(im[1]), m: Number(im[2]), d: Number(im[3]) } : null;
-        if (!want) throw new Error(`invalid date value for ${f.id}: ${iso}`);
-        const same = (g) => !!(g && want && g.y === want.y && g.m === want.m && g.d === want.d);
-        /* What counts is the date the form itself parsed (its calendar), not the text that was typed:
-           typing the day/month the wrong way round is accepted silently for days 1-12. If it is not the
-           date we meant, type it again — the other way round on odd attempts — and only submit once the
-           form shows exactly the intended day. */
-        let got = await readBackDate(page, dateInput);
-        ok = same(got);
-        for (let attempt = 0; !ok && attempt < 4; attempt++) {
-          const primary = await dateTextFor(dateInput, iso);
-          const [d, mo, y] = [want.d, want.m, want.y];
-          const alternate = primary === `${mo}/${d}/${y}` ? `${d}/${mo}/${y}` : `${mo}/${d}/${y}`;
-          await dateInput.click();
-          await dateInput.fill(attempt % 2 === 0 ? primary : alternate);
-          await dateInput.press('Tab');
-          await page.waitForTimeout(500);
-          got = await readBackDate(page, dateInput);
-          ok = same(got);
-        }
-        if (!ok) throw new Error(`date question ${i + 1} (${f.id}) shows ${got ? `${got.d}/${got.m}/${got.y}` : 'no valid date'} but ${iso} was meant — not submitting`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) throw new Error(`invalid date value for ${f.id}: ${iso}`);
+        /* what counts is the date the form itself parsed, not the text that was typed */
+        const res = await ensureDate(page, items.nth(i).locator('[data-automation-id="dateContainer"] input').first(), iso);
+        if (!res.ok) throw new Error(`date question ${i + 1} (${f.id}) shows ${res.got ? `${res.got.d}/${res.got.m}/${res.got.y}` : 'no valid date'} but ${iso} was meant — not submitting`);
+        ok = true;
       } else {
         ok = (await items.nth(i).locator('input[type="radio"]:checked').count()) > 0;
       }
@@ -228,12 +239,66 @@ async function attemptFill(form, moduleId, data, dryRun) {
       throw new Error('submit was not accepted: the form still shows its questions after clicking submit' +
         (flagged.length ? ' — questions flagged: ' + flagged.join(',') : ' — no question flagged') + (alerts ? ' — alert: ' + alerts : ''));
     }
+    /* The questions vanishing is the signal that decides success (it is language-independent). The
+       thank-you wording is a second, independent confirmation: recorded so a page that emptied for some
+       other reason (an error screen, a sign-in wall) shows up as unconfirmed instead of passing silently.
+       It is deliberately not a hard requirement — a wording this pattern does not know would otherwise
+       turn a real delivery into a "failure" and the retry would file the same answer twice. */
+    let confirmed = false;
+    for (let i = 0; i < 6 && !confirmed; i++) {
+      const shown = norm(await page.locator('body').textContent().catch(() => ''));
+      confirmed = THANK_YOU.test(shown);
+      if (!confirmed) await page.waitForTimeout(500);
+    }
     await browser.close();
-    return {};
+    return { confirmed };
   } catch (err) {
     if (browser) { try { await browser.close(); } catch (e) {} }
     throw err;
   }
+}
+
+/* Health check of one form, run daily by scripts/healthcheck-msforms.js: opens the live form and proves,
+   without filling in anything that could be submitted, that everything the sender relies on still holds —
+   the question count, that choice/text questions are where the mapping expects, and that a date typed on
+   a day <= 12 and one > 12 (the two cases that broke) both come back from the form as the same day. A form
+   edit on the other department's side shows up here before any real submission is lost to it. */
+async function checkForm(browser, moduleId, form) {
+  const problems = [];
+  let page;
+  try {
+    const opened = await openForm(browser, form);
+    page = opened.page;
+    const items = opened.items;
+    const count = await items.count();
+    if (count !== form.fields.length) {
+      problems.push(`the form has ${count} questions, the mapping expects ${form.fields.length}`);
+    } else {
+      const today = new Date();
+      const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      for (let i = 0; i < form.fields.length; i++) {
+        const f = form.fields[i];
+        if (f.type === 'date') {
+          const input = items.nth(i).locator('[data-automation-id="dateContainer"] input').first();
+          for (const day of ['13', '05']) {
+            const res = await ensureDate(page, input, `${ym}-${day}`);
+            if (!res.ok) problems.push(`question ${i + 1} (${f.id}): typed ${ym}-${day}, the form shows ${res.got ? `${res.got.d}/${res.got.m}/${res.got.y}` : 'no valid date'}`);
+          }
+        } else if (f.type === 'radio' || f.type === 'checkbox') {
+          const { count: choices } = await choiceLabels(items.nth(i));
+          if (!choices) problems.push(`question ${i + 1} (${f.id}) shows no choices`);
+        } else if (f.type === 'text') {
+          const inputs = await items.nth(i).locator('input[data-automation-id="textInput"], textarea[data-automation-id="textInput"]').count();
+          if (!inputs) problems.push(`question ${i + 1} (${f.id}) has no text box`);
+        }
+      }
+    }
+  } catch (err) {
+    problems.push(String((err && err.message) || err).split('\n')[0]);
+  } finally {
+    if (page) { try { await page.close(); } catch (e) {} }
+  }
+  return { ok: problems.length === 0, problems };
 }
 
 /* Retries only transient failures, only for a real (non-dryRun) send — a dry run is a one-shot
@@ -669,4 +734,4 @@ async function handler(req, res) {
 
 module.exports = handler;
 /* the scheduled worker reuses the exact fill logic instead of keeping a second copy of it */
-module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor, dateTextFor, readBackDate };
+module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor, dateTextFor, readBackDate, launchBrowser, checkForm };

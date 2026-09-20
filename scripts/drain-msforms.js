@@ -77,10 +77,12 @@ async function main() {
     } catch (e) { /* the status row is best-effort; the send matters more */ }
 
     try {
-      await attemptFill(form, job.target_form, job.payload, false);
+      const result = await attemptFill(form, job.target_form, job.payload, false);
       if (rowId) await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: true });
       await supabase.rpc('ms_forms_job_done', { p_id: job.id, p_ok: true });
-      sent++; rejects = 0; log('SENT  ', label);
+      sent++; rejects = 0;
+      /* the questions vanished (that is what counts as sent) but the thank-you wording was not seen */
+      log('SENT  ', label, result && result.confirmed === false ? '(thank-you text not recognised — worth a look)' : '');
     } catch (err) {
       const message = String((err && err.message) || err);
       if (rowId) { try { await supabase.rpc('ms_forms_mark', { p_id: rowId, p_ok: false, p_error: message }); } catch (e) {} }
