@@ -16,11 +16,7 @@
      "0 ครั้ง/เดือน"     -> at most 0 in the month
      "≥95%"            -> rate at least 95 %
      "≤ 2 ครั้ง/เดือน"   -> at most 2 in the month;  "2 ครั้ง/เดือน" (KPI 11) is read the same way
-   Everything follows the sheet, including where it gives an error: a rate whose denominator is 0 is #DIV/0! (as in
-   Excel), which is not a number and so is never counted as achieved.
-   Display precision follows the sheet's cell formats: KPI 1 "0.00%", KPI 2 and 7 "0%", counts "0", Total % "0.00".
-   The YTD Total is the sheet's own: sum of Achieved over sum of Total, where Total is 12 for each of the 12 months
-   (AA53 = SUM(O53:Z53) = 144), so months that have not happened yet stay in the divisor exactly as in the file. */
+   A rate with nothing to divide by (0 events out of 0) is "ไม่มีเหตุการณ์" and counts as achieved. */
 (function (root) {
   var MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
@@ -54,8 +50,7 @@
   function fmtValue(def, value) {
     if (value == null) return '—';
     if (def.kind === 'count') return String(Math.round(value * 100) / 100);
-    /* the sheet formats KPI 1 as 0.00% and KPI 2 / 7 as 0% */
-    return def.kind === 'availability' ? value.toFixed(2) + '%' : Math.round(value) + '%';
+    return (Math.round(value * 100) / 100).toFixed(2) + '%';
   }
   /* one number for a rate KPI from a summed numerator/denominator; null when there is nothing to divide by */
   function rateOf(def, a, b) {
@@ -73,7 +68,12 @@
         note: def.target.per === 'year' ? 'สะสมทั้งปี ' + cumulative + ' ครั้ง (เป้าหมาย ' + def.targetText + ')' : 'เป้าหมาย ' + def.targetText };
     }
     if (b == null) return { status: 'none', value: null, display: '—', a: a, b: b, note: 'ต้องกรอกตัวหารด้วย' };
-    if (!b) return { status: 'err', value: null, display: '#DIV/0!', a: a, b: b, note: 'ตัวหารเป็น 0 — สูตรในไฟล์ Excel ได้ #DIV/0! เช่นกัน จึงไม่นับว่าผ่านเป้า' };
+    if (!b) {
+      /* nothing to divide by: no events at all is fine, events with no base is a data error */
+      return a === 0
+        ? { status: 'na', value: null, display: 'ไม่มีเหตุการณ์', a: a, b: b, note: 'ตัวตั้งและตัวหารเป็น 0 — นับว่าผ่านเป้า' }
+        : { status: 'none', value: null, display: '—', a: a, b: b, note: 'ตัวหารเป็น 0 แต่ตัวตั้งมีค่า — ตรวจข้อมูลอีกครั้ง' };
+    }
     var v = rateOf(def, a, b);
     return { status: meets(def, v) ? 'ok' : 'fail', value: v, display: fmtValue(def, v), a: a, b: b, note: 'เป้าหมาย ' + def.targetText };
   }
@@ -87,7 +87,7 @@
       if (a != null) cum += a;
       var r = evalMonth(def, e, cum);
       months.push(r);
-      if (r.status !== 'none') { dataMonths++; if (r.status === 'ok') passed++; }
+      if (r.status !== 'none') { dataMonths++; if (r.status === 'ok' || r.status === 'na') passed++; }
       if (a != null) { sumA += a; if (def.kind !== 'count') sumB += (e && num(e.denominator)) || 0; }
     }
     var ytd;
@@ -97,7 +97,7 @@
       ytd = { status: okYtd ? 'ok' : 'fail', value: sumA, display: fmtValue(def, sumA) };
     } else {
       var yv = rateOf(def, sumA, sumB);
-      ytd = yv == null ? { status: 'err', value: null, display: '#DIV/0!' } : { status: meets(def, yv) ? 'ok' : 'fail', value: yv, display: fmtValue(def, yv) };
+      ytd = yv == null ? { status: 'na', value: null, display: 'ไม่มีเหตุการณ์' } : { status: meets(def, yv) ? 'ok' : 'fail', value: yv, display: fmtValue(def, yv) };
     }
     ytd.passedMonths = passed; ytd.dataMonths = dataMonths; ytd.a = sumA; ytd.b = def.kind === 'count' ? null : sumB;
     return { months: months, ytd: ytd };
@@ -111,19 +111,12 @@
       results.forEach(function (r) {
         var s = r.months[m].status;
         if (s !== 'none') has = true;
-        if (s === 'ok') achieved++;
+        if (s === 'ok' || s === 'na') achieved++;
       });
       out.push({ has: has, achieved: has ? achieved : null, total: TOTAL, pct: has ? achieved / TOTAL * 100 : null });
       if (has) { sumAchieved += achieved; reported++; }
     }
-    /* sheet: AA52 = SUM(O52:Z52), AA53 = SUM(O53:Z53) = 12 x 12, AA54 = AA52/AA53*100 */
-    var ytdTotal = TOTAL * 12;
-    return {
-      months: out, ytdAchieved: sumAchieved, ytdTotal: ytdTotal, reportedMonths: reported,
-      ytdPct: reported ? sumAchieved / ytdTotal * 100 : null,
-      /* the same achievements averaged over only the months that have data (not the sheet's figure) */
-      ytdPctOfReported: reported ? sumAchieved / (TOTAL * reported) * 100 : null
-    };
+    return { months: out, ytdAchieved: sumAchieved, reportedMonths: reported, ytdPct: reported ? sumAchieved / (TOTAL * reported) * 100 : null };
   }
 
   var api = { MONTHS: MONTHS, DEFS: DEFS, TOTAL: TOTAL, num: num, meets: meets, fmtValue: fmtValue, evalMonth: evalMonth, evalYear: evalYear, totals: totals };
