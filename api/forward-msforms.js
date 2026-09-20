@@ -168,15 +168,29 @@ async function attemptFill(form, moduleId, data, dryRun) {
         /* the calendar popup can revert the date after later questions were filled, so if it is
            empty now, type it again (nothing else is pending at this point) and Tab out to commit it */
         const dateInput = items.nth(i).locator('[data-automation-id="dateContainer"] input').first();
-        const readBack = async () => !!((await dateInput.inputValue().catch(() => '')) || '').trim();
-        ok = await readBack();
-        for (let attempt = 0; !ok && attempt < 3; attempt++) {
+        const iso = String(v).trim();
+        const im = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+        const want = im ? { y: Number(im[1]), m: Number(im[2]), d: Number(im[3]) } : null;
+        if (!want) throw new Error(`invalid date value for ${f.id}: ${iso}`);
+        const same = (g) => !!(g && want && g.y === want.y && g.m === want.m && g.d === want.d);
+        /* What counts is the date the form itself parsed (its calendar), not the text that was typed:
+           typing the day/month the wrong way round is accepted silently for days 1-12. If it is not the
+           date we meant, type it again — the other way round on odd attempts — and only submit once the
+           form shows exactly the intended day. */
+        let got = await readBackDate(page, dateInput);
+        ok = same(got);
+        for (let attempt = 0; !ok && attempt < 4; attempt++) {
+          const primary = await dateTextFor(dateInput, iso);
+          const [d, mo, y] = [want.d, want.m, want.y];
+          const alternate = primary === `${mo}/${d}/${y}` ? `${d}/${mo}/${y}` : `${mo}/${d}/${y}`;
           await dateInput.click();
-          await dateInput.fill(await dateTextFor(dateInput, String(v).trim()));
+          await dateInput.fill(attempt % 2 === 0 ? primary : alternate);
           await dateInput.press('Tab');
           await page.waitForTimeout(500);
-          ok = await readBack();
+          got = await readBackDate(page, dateInput);
+          ok = same(got);
         }
+        if (!ok) throw new Error(`date question ${i + 1} (${f.id}) shows ${got ? `${got.d}/${got.m}/${got.y}` : 'no valid date'} but ${iso} was meant — not submitting`);
       } else {
         ok = (await items.nth(i).locator('input[type="radio"]:checked').count()) > 0;
       }
@@ -406,6 +420,42 @@ const FORMS = {
    silently files days 1-12 with day and month swapped (12/9 became 9 December) and rejects days
    13-31 outright, which is exactly how this failed. So the order is read from the box's own
    placeholder ("Please input date (M/d/yyyy)") instead of assumed. */
+/* The other way round: what date does the form ACTUALLY hold? The text box only echoes what was typed,
+   but opening its calendar shows the date the form parsed — the highlighted day cell carries an
+   aria-label like "13, September, 2026" (month name localized, day and year plain digits). Reading that
+   back is the only check that does not depend on guessing the form's date order. Returns
+   { y, m, d } or null when nothing parsed / the month name cannot be mapped (fail closed). */
+function monthFromName(name, lang) {
+  const want = norm(name).toLowerCase();
+  const locales = [String(lang || 'en').replace(/-u-.*$/, ''), 'en-US'];
+  for (const loc of locales) {
+    for (const style of ['long', 'short']) {
+      let fmt;
+      try { fmt = new Intl.DateTimeFormat(loc + '-u-ca-gregory', { month: style, timeZone: 'UTC' }); } catch (e) { continue; }
+      for (let m = 0; m < 12; m++) if (norm(fmt.format(Date.UTC(2026, m, 15))).toLowerCase().replace(/\.$/, '') === want.replace(/\.$/, '')) return m + 1;
+    }
+  }
+  return null;
+}
+async function readBackDate(page, dateInput) {
+  /* an empty box makes the calendar highlight TODAY, which would read back as a valid date and pass for
+     a submission dated today — so an empty box is never a match */
+  if (!((await dateInput.inputValue().catch(() => '')) || '').trim()) return null;
+  await dateInput.click();
+  await page.waitForTimeout(600);
+  const label = await page.evaluate(() => {
+    const td = document.querySelector('td[aria-selected="true"]');
+    const btn = td && td.querySelector('button');
+    return { label: btn ? btn.getAttribute('aria-label') : null, lang: document.documentElement.lang };
+  }).catch(() => ({ label: null, lang: '' }));
+  await dateInput.press('Escape').catch(() => {});
+  await page.waitForTimeout(300);
+  const m = /^\s*(\d{1,2})\s*,\s*(.+?)\s*,\s*(\d{4})\s*$/.exec(label.label || '');
+  if (!m) return null;
+  const month = monthFromName(m[2], label.lang);
+  return month ? { y: Number(m[3]), m: month, d: Number(m[1]) } : null;
+}
+
 async function dateTextFor(input, iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
   if (!m) return null;
@@ -619,4 +669,4 @@ async function handler(req, res) {
 
 module.exports = handler;
 /* the scheduled worker reuses the exact fill logic instead of keeping a second copy of it */
-module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor, dateTextFor };
+module.exports.internals = { supabase, usingServiceRole, FORMS, attemptFill, reportDateFor, dateTextFor, readBackDate };
