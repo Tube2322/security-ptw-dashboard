@@ -806,6 +806,10 @@
     /* submissions still waiting to be delivered (ms_forms_jobs), oldest first. The website records every
        submission there before it tries to send it, and a scheduled worker keeps retrying until it is
        sent — so this is "what has not reached the other department yet". Admin-only via RLS. */
+    msFormsHealth: function () {
+      return sb.from('ms_forms_health').select('target_form,checked_at,ok,detail')
+        .then(function (res) { return res.error ? [] : (res.data || []); });
+    },
     msFormsJobs: function () {
       return sb.from('ms_forms_jobs')
         .select('id,target_form,report_date,status,attempts,next_attempt_at,last_error,created_at')
