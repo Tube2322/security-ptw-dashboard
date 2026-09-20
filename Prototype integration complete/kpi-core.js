@@ -1,4 +1,4 @@
-/* KPI definitions and calculations, taken one to one from the department's KPI_Template sheet
+/* KPI definitions and calculations, adapted from the department's KPI_Template sheet
    (PTW-FM-02-QMD-008 REV00): 12 indicators, each entered as a monthly numerator (ตัวตั้ง) and, where the
    sheet uses one, a denominator (ตัวหาร). Kept apart from the page so the arithmetic can be tested on its own
    and cannot drift from what the sheet does.
@@ -22,18 +22,18 @@
 
   /* per: 'rate' (a percentage), 'month' (a count judged month by month), 'year' (a count judged on the year so far) */
   var DEFS = [
-    { no: 1, name: 'อัตราความไม่พร้อมใช้ของกล้อง CCTV', kind: 'availability', unit: 'จำนวน', numLabel: 'จำนวนกล้องที่ไม่พร้อมใช้', denLabel: 'จำนวนกล้อง CCTV ทั้งหมด', formula: '(1 − ตัวตั้ง ÷ ตัวหาร) × 100', targetText: '1 (100%)', target: { op: '>=', value: 100, per: 'rate' } },
-    { no: 2, name: 'อัตราการปฏิบัติตามมาตรฐานการเข้าถึงข้อมูล CCTV เช่น การขอดูกล้อง', kind: 'ratio', unit: 'จำนวน', numLabel: 'จำนวนครั้งที่ไม่มีการปฏิบัติตามมาตรฐานการเข้าถึงข้อมูล CCTV', denLabel: 'จำนวนครั้งที่มีการขอดูกล้อง CCTV ทั้งหมด', formula: 'ตัวตั้ง ÷ ตัวหาร × 100', targetText: '1 (100%)', target: { op: '>=', value: 100, per: 'rate' } },
-    { no: 3, name: 'จำนวนครั้งการเกิดการโจรกรรม ลักขโมย / ทำลายทรัพย์สินในพื้นที่โรงพยาบาล', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งการเกิดการโจรกรรม ลักขโมย / ทำลายทรัพย์สินในพื้นที่โรงพยาบาล', formula: 'ตัวตั้ง', targetText: '0 ครั้ง/ปี', target: { op: '<=', value: 0, per: 'year' } },
-    { no: 4, name: 'จำนวนครั้งที่เกิดการลักพาตัวทารกหรือเด็กในโรงพยาบาล', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งที่เกิดการลักพาตัวทารกหรือเด็กในโรงพยาบาล', formula: 'ตัวตั้ง', targetText: '0 ครั้ง/ปี', target: { op: '<=', value: 0, per: 'year' } },
-    { no: 5, name: 'จำนวนครั้งการเกิดเหตุคุกคาม/ความรุนแรงในพื้นที่โรงพยาบาล', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งการเกิดเหตุคุกคาม/ความรุนแรงในพื้นที่โรงพยาบาล', formula: 'ตัวตั้ง', targetText: '0 ครั้ง/เดือน', target: { op: '<=', value: 0, per: 'month' } },
-    { no: 6, name: 'จำนวนครั้งที่เกิดเหตุการณ์เข้าถึงพื้นที่ควบคุมของโรงพยาบาลของบุคคลที่ไม่ได้รับอนุญาต', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งที่เกิดเหตุการณ์เข้าถึงพื้นที่ควบคุมของบุคคลที่ไม่ได้รับอนุญาต', formula: 'ตัวตั้ง', targetText: '0 ครั้ง/เดือน', target: { op: '<=', value: 0, per: 'month' } },
-    { no: 7, name: 'อัตราการตอบสนองเหตุฉุกเฉิน (Incident Response Time) เมื่อได้รับแจ้งเหตุหรือ Code ต่างๆ ภายใน 3 นาที', kind: 'ratio', unit: 'จำนวน', numLabel: 'จำนวนครั้งที่เข้าถึงจุดเกิดเหตุภายใน 3 นาที', denLabel: 'จำนวนครั้งในการได้รับแจ้งเหตุฉุกเฉินทั้งหมด', formula: 'ตัวตั้ง ÷ ตัวหาร × 100', targetText: '≥ 95%', target: { op: '>=', value: 95, per: 'rate' } },
-    { no: 8, name: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของเจ้าหน้าที่ รปภ.', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของเจ้าหน้าที่ รปภ.', formula: 'ตัวตั้ง', targetText: '≤ 2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } },
-    { no: 9, name: 'จำนวนครั้งที่เกิดอุบัติเหตุในลานจอดรถหรือพื้นที่ของโรงพยาบาล', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งที่เกิดอุบัติเหตุในลานจอดรถหรือพื้นที่ของโรงพยาบาล', formula: 'ตัวตั้ง', targetText: '≤ 2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } },
-    { no: 10, name: 'จำนวนครั้งการเกิดข้อมูล CCTV หลุด จากเจ้าหน้าที่ CCTV ขัดต่อข้อกฎหมาย PDPA', kind: 'count', unit: 'จำนวน', numLabel: 'จำนวนครั้งที่ข้อมูลถูกเผยแพร่จากเจ้าหน้าที่ CCTV', formula: 'ตัวตั้ง', targetText: '0 ครั้ง/เดือน', target: { op: '<=', value: 0, per: 'month' } },
-    { no: 11, name: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของแผนกหน่วยงานรักษาความปลอดภัย', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของแผนกหน่วยงานรักษาความปลอดภัย', formula: 'ตัวตั้ง', targetText: '2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } },
-    { no: 12, name: 'จำนวนครั้งที่รถกอล์ฟไฟฟ้าชำรุดจนไม่สามารถใช้งานได้', kind: 'count', unit: 'ครั้ง', numLabel: 'จำนวนครั้งที่รถกอล์ฟไม่สามารถให้บริการได้', formula: 'ตัวตั้ง', targetText: '≤ 2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } }
+    { no: 1, name: 'อัตราความไม่พร้อมใช้ของกล้อง CCTV', kind: 'availability', unit: 'จำนวน', numShort: 'กล้องไม่พร้อมใช้', denShort: 'กล้องทั้งหมด', numLabel: 'จำนวนกล้องที่ไม่พร้อมใช้', denLabel: 'จำนวนกล้อง CCTV ทั้งหมด', formula: '(1 − กล้องไม่พร้อมใช้ ÷ กล้องทั้งหมด) × 100', targetText: '1 (100%)', target: { op: '>=', value: 100, per: 'rate' } },
+    { no: 2, name: 'อัตราการปฏิบัติตามมาตรฐานการเข้าถึงข้อมูล CCTV เช่น การขอดูกล้อง', kind: 'ratio', unit: 'จำนวน', numShort: 'ไม่ปฏิบัติตามมาตรฐาน', denShort: 'ขอดูกล้องทั้งหมด', numLabel: 'จำนวนครั้งที่ไม่มีการปฏิบัติตามมาตรฐานการเข้าถึงข้อมูล CCTV', denLabel: 'จำนวนครั้งที่มีการขอดูกล้อง CCTV ทั้งหมด', formula: 'ไม่ปฏิบัติตามมาตรฐาน ÷ ขอดูกล้องทั้งหมด × 100', targetText: '1 (100%)', target: { op: '>=', value: 100, per: 'rate' } },
+    { no: 3, name: 'จำนวนครั้งการเกิดการโจรกรรม ลักขโมย / ทำลายทรัพย์สินในพื้นที่โรงพยาบาล', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งการเกิดการโจรกรรม ลักขโมย / ทำลายทรัพย์สินในพื้นที่โรงพยาบาล', formula: 'นับจำนวนครั้งในเดือน', targetText: '0 ครั้ง/ปี', target: { op: '<=', value: 0, per: 'year' } },
+    { no: 4, name: 'จำนวนครั้งที่เกิดการลักพาตัวทารกหรือเด็กในโรงพยาบาล', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่เกิดการลักพาตัวทารกหรือเด็กในโรงพยาบาล', formula: 'นับจำนวนครั้งในเดือน', targetText: '0 ครั้ง/ปี', target: { op: '<=', value: 0, per: 'year' } },
+    { no: 5, name: 'จำนวนครั้งการเกิดเหตุคุกคาม/ความรุนแรงในพื้นที่โรงพยาบาล', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งการเกิดเหตุคุกคาม/ความรุนแรงในพื้นที่โรงพยาบาล', formula: 'นับจำนวนครั้งในเดือน', targetText: '0 ครั้ง/เดือน', target: { op: '<=', value: 0, per: 'month' } },
+    { no: 6, name: 'จำนวนครั้งที่เกิดเหตุการณ์เข้าถึงพื้นที่ควบคุมของโรงพยาบาลของบุคคลที่ไม่ได้รับอนุญาต', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่เกิดเหตุการณ์เข้าถึงพื้นที่ควบคุมของบุคคลที่ไม่ได้รับอนุญาต', formula: 'นับจำนวนครั้งในเดือน', targetText: '0 ครั้ง/เดือน', target: { op: '<=', value: 0, per: 'month' } },
+    { no: 7, name: 'อัตราการตอบสนองเหตุฉุกเฉิน (Incident Response Time) เมื่อได้รับแจ้งเหตุหรือ Code ต่างๆ ภายใน 3 นาที', kind: 'ratio', unit: 'จำนวน', numShort: 'ถึงที่เกิดเหตุใน 3 นาที', denShort: 'แจ้งเหตุทั้งหมด', numLabel: 'จำนวนครั้งที่เข้าถึงจุดเกิดเหตุภายใน 3 นาที', denLabel: 'จำนวนครั้งในการได้รับแจ้งเหตุฉุกเฉินทั้งหมด', formula: 'ถึงที่เกิดเหตุใน 3 นาที ÷ แจ้งเหตุทั้งหมด × 100', targetText: '≥ 95%', target: { op: '>=', value: 95, per: 'rate' } },
+    { no: 8, name: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของเจ้าหน้าที่ รปภ.', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของเจ้าหน้าที่ รปภ.', formula: 'นับจำนวนครั้งในเดือน', targetText: '≤ 2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } },
+    { no: 9, name: 'จำนวนครั้งที่เกิดอุบัติเหตุในลานจอดรถหรือพื้นที่ของโรงพยาบาล', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่เกิดอุบัติเหตุในลานจอดรถหรือพื้นที่ของโรงพยาบาล', formula: 'นับจำนวนครั้งในเดือน', targetText: '≤ 2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } },
+    { no: 10, name: 'จำนวนครั้งการเกิดข้อมูล CCTV หลุด จากเจ้าหน้าที่ CCTV ขัดต่อข้อกฎหมาย PDPA', kind: 'count', unit: 'จำนวน', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่ข้อมูลถูกเผยแพร่จากเจ้าหน้าที่ CCTV', formula: 'นับจำนวนครั้งในเดือน', targetText: '0 ครั้ง/เดือน', target: { op: '<=', value: 0, per: 'month' } },
+    { no: 11, name: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของแผนกหน่วยงานรักษาความปลอดภัย', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่มีข้อร้องเรียนเรื่องพฤติกรรมบริการของแผนกหน่วยงานรักษาความปลอดภัย', formula: 'นับจำนวนครั้งในเดือน', targetText: '2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } },
+    { no: 12, name: 'จำนวนครั้งที่รถกอล์ฟไฟฟ้าชำรุดจนไม่สามารถใช้งานได้', kind: 'count', unit: 'ครั้ง', numShort: 'จำนวนครั้ง', numLabel: 'จำนวนครั้งที่รถกอล์ฟไม่สามารถให้บริการได้', formula: 'นับจำนวนครั้งในเดือน', targetText: '≤ 2 ครั้ง/เดือน', target: { op: '<=', value: 2, per: 'month' } }
   ];
   var TOTAL = DEFS.length; /* the sheet's "Total : จำนวน KPI ทั้งหมด" = 12 */
 
@@ -50,7 +50,7 @@
   function fmtValue(def, value) {
     if (value == null) return '—';
     if (def.kind === 'count') return String(Math.round(value * 100) / 100);
-    return (Math.round(value * 100) / 100).toFixed(2) + '%';
+    return def.kind === 'availability' ? value.toFixed(2) + '%' : String(Math.round(value * 10) / 10) + '%';
   }
   /* one number for a rate KPI from a summed numerator/denominator; null when there is nothing to divide by */
   function rateOf(def, a, b) {
@@ -67,12 +67,12 @@
       return { status: ok ? 'ok' : 'fail', value: a, display: fmtValue(def, a), a: a, b: null,
         note: def.target.per === 'year' ? 'สะสมทั้งปี ' + cumulative + ' ครั้ง (เป้าหมาย ' + def.targetText + ')' : 'เป้าหมาย ' + def.targetText };
     }
-    if (b == null) return { status: 'none', value: null, display: '—', a: a, b: b, note: 'ต้องกรอกตัวหารด้วย' };
+    if (b == null) return { status: 'none', value: null, display: '—', a: a, b: b, note: 'ต้องกรอก "' + def.denShort + '" ด้วย' };
     if (!b) {
       /* nothing to divide by: no events at all is fine, events with no base is a data error */
       return a === 0
-        ? { status: 'na', value: null, display: 'ไม่มีเหตุการณ์', a: a, b: b, note: 'ตัวตั้งและตัวหารเป็น 0 — นับว่าผ่านเป้า' }
-        : { status: 'none', value: null, display: '—', a: a, b: b, note: 'ตัวหารเป็น 0 แต่ตัวตั้งมีค่า — ตรวจข้อมูลอีกครั้ง' };
+        ? { status: 'na', value: null, display: 'ไม่มีเหตุการณ์', a: a, b: b, note: 'ไม่มีเหตุการณ์ในเดือนนี้ — นับว่าผ่านเป้า' }
+        : { status: 'none', value: null, display: '—', a: a, b: b, note: '"' + def.denShort + '" เป็น 0 แต่ "' + def.numShort + '" มีค่า — ตรวจข้อมูลอีกครั้ง' };
     }
     var v = rateOf(def, a, b);
     return { status: meets(def, v) ? 'ok' : 'fail', value: v, display: fmtValue(def, v), a: a, b: b, note: 'เป้าหมาย ' + def.targetText };
