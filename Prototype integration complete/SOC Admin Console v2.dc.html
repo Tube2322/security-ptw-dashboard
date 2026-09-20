@@ -20,7 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260920a"></script>
+<script src="./soc-core.js?v=20260920b"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -2013,9 +2013,10 @@ class Component extends DCLogic {
     if (mod === 'all') {
       const all = core.query(q);
       const tr = this.trafficMetrics(all.filter(r => r.module === 'traffic'), 'traffic');
-      const trTt = this.trafficMetrics(all.filter(r => r.module === 'traffic_tt'), 'tt');
+      const pk = this.parkingMetrics(all.filter(r => r.module === 'traffic_tt'));
       return [
-        { label: 'ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)', value: tr.totalIn + tr.totalOut + trTt.totalIn + trTt.totalOut, unit: 'คัน' },
+        { label: 'ปริมาณรถเข้า-ออก (พื้นที่หลัก)', value: tr.totalIn + tr.totalOut, unit: 'คัน' },
+        { label: 'รถจอดทะเลทอง', value: pk.total, unit: 'คัน' },
         { label: 'รอบรถกอล์ฟ', value: this.golfMetrics(all.filter(r => r.module === 'golf')).total, unit: 'รอบ' },
         { label: 'Visitor', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' },
         { label: 'รายงานลิฟต์', value: this.elevatorMetrics(all.filter(r => r.module === 'elevator')).total, unit: 'ครั้ง' }
@@ -2023,7 +2024,16 @@ class Component extends DCLogic {
     }
 
     const recs = core.query(this.periodQuery(period, mod));
-    if (mod === 'traffic' || mod === 'traffic_tt') {
+    if (mod === 'traffic_tt') {
+      const pk = this.parkingMetrics(recs);
+      return [
+        { label: 'รถเจ้าหน้าที่ที่เข้ามาจอด', value: pk.staff, unit: 'คัน' },
+        { label: 'รถที่ไม่ใช่เจ้าหน้าที่', value: pk.other, unit: 'คัน' },
+        { label: 'รถจอดรวม', value: pk.total, unit: 'คัน' },
+        { label: 'รถตกค้างเฉลี่ย/วัน', value: Math.round(pk.leftAvg * 10) / 10, unit: 'คัน' }
+      ];
+    }
+    if (mod === 'traffic') {
       const prefix = (core.module(mod) || {}).fieldPrefix || 'traffic';
       const m = this.trafficMetrics(recs, prefix);
       return [
@@ -2114,7 +2124,7 @@ class Component extends DCLogic {
             hoverText: baseRow.label + ' · ' + this.periodLabel(p) + ': ' + core.fmtNum(value) + (cell.unit ? ' ' + cell.unit : ''),
             /* what the bar IS, printed straight under it — 'all' uses short names because a full
                label like "ปริมาณรถรวม (พื้นที่หลัก+ทะเลทอง)" cannot fit a 56px slot */
-            short: cm === 'all' ? ['ปริมาณรถ', 'รอบกอล์ฟ', 'Visitor', 'รายงานลิฟต์'][ri] || baseRow.label : baseRow.label,
+            short: cm === 'all' ? ['ปริมาณรถ', 'รถจอดทะเลทอง', 'รอบกอล์ฟ', 'Visitor', 'รายงานลิฟต์'][ri] || baseRow.label : baseRow.label,
             display: core.fmtNum(value),
             h: (value / metricMax[ri] * 100).toFixed(1) + '%',
             fill: 'linear-gradient(180deg, ' + color + ' 0%, color-mix(in srgb, ' + color + ' 45%, transparent) 100%)'
@@ -2955,8 +2965,10 @@ class Component extends DCLogic {
     const vs = all.filter(r => r.module === 'visitors');
     const el = all.filter(r => r.module === 'elevator');
     const trMain = this.trafficMetrics(tr, 'traffic');
-    const trTalayThong = this.trafficMetrics(trTt, 'tt');
-    const vehicles = trMain.totalIn + trMain.totalOut + trTalayThong.totalIn + trTalayThong.totalOut;
+    /* Talay Thong records how many cars PARKED and were left over, not cars entering/leaving, so it is
+       not added into the vehicle traffic total — it has its own card below */
+    const parkTt = this.parkingMetrics(trTt);
+    const vehicles = trMain.totalIn + trMain.totalOut;
     const rounds = this.golfMetrics(gf).total;
     const people = this.visitorsMetrics(vs).total;
     const em = this.elevatorMetrics(el);
@@ -2975,7 +2987,8 @@ class Component extends DCLogic {
       /* module: which module's rows this card is counting — renderVals turns it into the
          drill-through to Records. The vehicles card sums two modules (main + Talay Thong) and
          so has no single answer; it stays inert rather than silently picking one of them. */
-      { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length + trTt.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
+      { label: 'ปริมาณรถเข้า-ออก (พื้นที่หลัก)', module: 'traffic', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out)' },
+      { label: 'รถจอดทะเลทอง', module: 'traffic_tt', value: core.fmtNum(parkTt.total), note: core.fmtNum(trTt.length) + ' รายการ · ตกค้างล่าสุด ' + core.fmtNum(parkTt.leftLatest) + ' คัน', color: core.COLORS.traffic_tt, formula: 'SUM(tt_staff_cars)+SUM(tt_other_cars)' },
       { label: 'รอบรถกอล์ฟ', module: 'golf', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
       { label: 'Visitor/ผู้รับเหมา/ติดต่อ', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
       { label: 'รายงานลิฟต์', module: 'elevator', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
@@ -2987,7 +3000,6 @@ class Component extends DCLogic {
        showed); year buckets by calendar month instead, same as every other dashboard's
        year-granularity trend chart. */
     const valueOfRecs = (rs) => core.sumFields(rs.filter(r => r.module === 'traffic'), TRAFFIC_IN.concat(TRAFFIC_OUT))
-      + core.sumFields(rs.filter(r => r.module === 'traffic_tt'), TT_IN.concat(TT_OUT))
       + core.sumFields(rs.filter(r => r.module === 'golf'), GOLF_CARTS)
       + core.agg(rs.filter(r => r.module === 'visitors'), 'visitor_general_count', 'SUM')
       + core.agg(rs.filter(r => r.module === 'visitors'), 'visitor_contractor_count', 'SUM');
@@ -3024,7 +3036,8 @@ class Component extends DCLogic {
         subtitle: 'นับจำนวนรายการที่บันทึกในแต่ละโมดูล (ไม่รวมปริมาณ/หน่วยภายใน) · อ้างอิงจาก ' + core.fmtNum(all.length) + ' รายการบันทึก',
         family: 'category', fallback: 'bar', recordCount: all.length,
         data: [
-          { label: 'รถ (หลัก+ทะเลทอง)', value: tr.length + trTt.length, color: core.COLORS.traffic, unit: 'รายการ' },
+          { label: 'รถเข้า-ออก', value: tr.length, color: core.COLORS.traffic, unit: 'รายการ' },
+          { label: 'ลานจอดทะเลทอง', value: trTt.length, color: core.COLORS.traffic_tt, unit: 'รายการ' },
           { label: 'รถกอล์ฟ', value: gf.length, color: core.COLORS.golf, unit: 'รายการ' },
           { label: 'Visitor', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' },
           { label: 'ลิฟต์', value: el.length, color: core.COLORS.elevator, unit: 'รายการ' }
@@ -3274,6 +3287,116 @@ class Component extends DCLogic {
           { text: r.submittedBy, color: 'var(--muted)', wrap: 'nowrap' },
           cell('golf_cart_1'), cell('golf_cart_2'), cell('golf_cart_3'), cell('golf_cart_4'),
           { text: core.fmtNum(core.sumFields([r], GOLF_CARTS)), color: 'var(--text)', wrap: 'nowrap' }
+        ] };
+      }),
+      empty: recs.length === 0
+    };
+  }
+
+  /* ลานจอดทะเลทอง — the figures on the other department's live "ลานจอดทะเลทอง" form, one record per day:
+     cars of staff that parked, cars of non-staff that parked (optional) and cars left over. Parked cars
+     are a plain SUM of the two parked fields. "Left over" is a stock counted once a day, so adding days
+     of it together would count the same car again — it is shown as the latest value, the daily average
+     and the peak instead. recs are newest-first, like every other module. */
+  parkingMetrics(recs) {
+    const core = this.core();
+    const staff = core.agg(recs, 'tt_staff_cars', 'SUM'), other = core.agg(recs, 'tt_other_cars', 'SUM');
+    const left = core.agg(recs, 'tt_left_cars', 'SUM');
+    let peak = 0, peakDate = '';
+    recs.forEach(r => {
+      const t = core.agg([r], 'tt_staff_cars', 'SUM') + core.agg([r], 'tt_other_cars', 'SUM');
+      if (t > peak) { peak = t; peakDate = r.reportDate; }
+    });
+    const days = {};
+    recs.forEach(r => { days[r.reportDate] = true; });
+    const dayCount = Object.keys(days).length;
+    return {
+      staff, other, total: staff + other, count: recs.length, dayCount, peak, peakDate,
+      leftLatest: recs.length ? core.agg([recs[0]], 'tt_left_cars', 'SUM') : 0,
+      leftAvg: recs.length ? left / recs.length : 0,
+      leftMax: core.agg(recs, 'tt_left_cars', 'MAX')
+    };
+  }
+  buildParking() {
+    const core = this.core();
+    const id = 'traffic_tt';
+    const recs = this.scopeRecords(id);
+    const pk = this.parkingMetrics(recs);
+    const P = this.seriesPalette(id);
+    const last = recs[0];
+    const g = this.state.dashGranularity;
+    const prevRecs = g === 'week' ? this.prevWeekRecs(id) : g === 'year' ? this.prevYearRecs(id) : this.prevMonthRecs(id);
+    const prev = this.parkingMetrics(prevRecs);
+    const volDelta = (cur, before) => g === 'month' ? this.momDelta(cur, before) : (g === 'day' ? '' : this.pairDelta(cur, before));
+    const share = (n) => pk.total ? Math.round(n / pk.total * 100) + '% ของรถจอดทั้งหมด' : '—';
+
+    const kpis = [
+      { label: 'รถจอดรวม', value: core.fmtNum(pk.total), delta: volDelta(pk.total, prev.total), note: 'เจ้าหน้าที่ + ไม่ใช่เจ้าหน้าที่ · ' + core.fmtNum(recs.length) + ' รายการบันทึก', color: core.COLORS.traffic_tt, formula: 'SUM(tt_staff_cars) + SUM(tt_other_cars)' },
+      { label: 'รถเจ้าหน้าที่ที่เข้ามาจอด', value: core.fmtNum(pk.staff), delta: volDelta(pk.staff, prev.staff), note: share(pk.staff), color: P.trafficCarDay, formula: 'SUM(tt_staff_cars)' },
+      { label: 'รถที่ไม่ใช่เจ้าหน้าที่', value: core.fmtNum(pk.other), delta: volDelta(pk.other, prev.other), note: share(pk.other), color: P.trafficMotoDay, formula: 'SUM(tt_other_cars)' },
+      { label: 'รถตกค้าง (ล่าสุด)', value: core.fmtNum(pk.leftLatest), note: recs.length ? 'เฉลี่ย ' + core.fmtNum(pk.leftAvg) + ' คัน/วัน · สูงสุด ' + core.fmtNum(pk.leftMax) + ' คัน' : '—', color: P.trafficCarNight, formula: 'LATEST(tt_left_cars)' },
+      { label: 'เฉลี่ยรถจอดต่อวัน', value: core.fmtNum(pk.dayCount ? pk.total / pk.dayCount : 0), note: pk.peak ? 'สูงสุด ' + core.fmtNum(pk.peak) + ' คัน (' + core.fmtDateShort(pk.peakDate) + ')' : '—', color: 'var(--muted)', formula: 'SUM(parked) / COUNT(DISTINCT reportDate)' }
+    ];
+
+    const series = (fn, color) => g === 'week' ? this.groupByDateSeries(this.weekRecords(id), fn, color)
+      : g === 'year' ? this.monthlyTrendData(id, fn, color)
+      : this.trendData(id, fn, color);
+    const scoped = g === 'week' ? this.weekRecords(id) : g === 'year' ? this.yearRecords(id) : this.monthRecords(id);
+    const totalOf = (r) => this.parkingMetrics([r]).total;
+    const leftOf = (r) => this.parkingMetrics([r]).leftLatest;
+    const traceOf = ' records → group by reportDate';
+
+    const charts = [
+      this.buildChart({ id: 'tt_mix', block: 'Block 01', title: 'สัดส่วนรถที่เข้ามาจอด',
+        subtitle: 'รถเจ้าหน้าที่ กับ รถที่ไม่ใช่เจ้าหน้าที่ · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
+        family: 'partwhole', fallback: 'donut', centerLabel: 'คันรวม', recordCount: recs.length,
+        data: [
+          { label: 'เจ้าหน้าที่', value: pk.staff, color: P.trafficCarDay },
+          { label: 'ไม่ใช่เจ้าหน้าที่', value: pk.other, color: P.trafficMotoDay }
+        ],
+        trace: 'trace: tt_staff_cars / tt_other_cars → SUM' }),
+      this.buildChart({ id: 'tt_trend', block: 'Block 02', title: g === 'year' ? 'แนวโน้มรถจอดรายเดือน' : 'แนวโน้มรถจอดรายวัน',
+        subtitle: this.periodLabelText() + ' · เจ้าหน้าที่ + ไม่ใช่เจ้าหน้าที่',
+        family: 'timeseries', fallback: 'bar', recordCount: scoped.length,
+        data: series(totalOf, core.COLORS.traffic_tt),
+        lineColor: core.COLORS.traffic_tt, lineFill: 'rgba(184,71,143,0.16)',
+        trace: 'trace: ' + (g === 'week' ? 'week' : g === 'year' ? 'year (by month)' : 'month') + traceOf + ' → SUM(staff + other)' }),
+      this.buildChart({ id: 'tt_left', block: 'Block 03', title: g === 'year' ? 'รถตกค้างรายเดือน' : 'รถตกค้างรายวัน',
+        subtitle: this.periodLabelText() + ' · จำนวนรถที่ตกค้างในลานจอดตามที่บันทึกแต่ละวัน',
+        family: 'timeseries', fallback: 'bar', recordCount: scoped.length,
+        data: series(leftOf, P.trafficCarNight),
+        lineColor: P.trafficCarNight, lineFill: 'rgba(125,49,102,0.16)',
+        trace: 'trace: tt_left_cars' + traceOf })
+    ];
+
+    return {
+      kpis, charts,
+      infoBlocks: [
+        { block: 'Block 04', title: 'ลานจอดทะเลทอง — รายการล่าสุด', rows: last ? [
+          { label: 'วันที่ของข้อมูล', value: core.fmtDate(last.reportDate), color: 'var(--text)' },
+          { label: 'รถเจ้าหน้าที่ที่เข้ามาจอด', value: core.fmtNum(core.agg([last], 'tt_staff_cars', 'SUM')) + ' คัน', color: 'var(--text)' },
+          { label: 'รถที่ไม่ใช่เจ้าหน้าที่', value: core.fmtNum(core.agg([last], 'tt_other_cars', 'SUM')) + ' คัน', color: 'var(--text)' },
+          { label: 'รถจอดรวม', value: core.fmtNum(totalOf(last)) + ' คัน', color: 'var(--text)' },
+          { label: 'รถตกค้าง', value: core.fmtNum(leftOf(last)) + ' คัน', color: 'var(--muted)' }
+        ] : [{ label: 'สถานะ', value: 'ไม่มีรายการในช่วงที่เลือก', color: 'var(--muted)' }] },
+        { block: 'Block 05', title: 'Form Submission', rows: last ? [
+          { label: 'ชื่อผู้กรอก', value: last.submittedBy, color: 'var(--text)' },
+          { label: 'เวลาที่ส่ง', value: core.fmtDate(last.submittedAt) + ' ' + core.fmtTime(last.submittedAt), color: 'var(--text)' },
+          { label: 'Record ID', value: last.id, color: 'var(--dim)' }
+        ] : [{ label: 'สถานะ', value: 'ไม่มีรายการในช่วงที่เลือก', color: 'var(--muted)' }] }
+      ],
+      tableTitle: 'ลานจอดทะเลทอง — บันทึกรายวัน',
+      tableNote: this.state.date ? 'วันที่ ' + core.fmtDate(this.state.date) : this.periodLabelText() + ' · ' + core.fmtNum(recs.length) + ' รายการ',
+      tableColumns: ['วันที่ข้อมูล', 'ผู้กรอก', 'เจ้าหน้าที่', 'ไม่ใช่เจ้าหน้าที่', 'รวมจอด', 'ตกค้าง'],
+      tableRows: recs.map(r => {
+        const one = this.parkingMetrics([r]);
+        return { cells: [
+          { text: core.fmtDateShort(r.reportDate), color: 'var(--text)', wrap: 'nowrap' },
+          { text: r.submittedBy, color: 'var(--muted)', wrap: 'nowrap' },
+          { text: core.fmtNum(one.staff), color: 'var(--text)', wrap: 'nowrap' },
+          { text: core.fmtNum(one.other), color: 'var(--text)', wrap: 'nowrap' },
+          { text: core.fmtNum(one.total), color: 'var(--text)', wrap: 'nowrap' },
+          { text: core.fmtNum(one.leftLatest), color: 'var(--muted)', wrap: 'nowrap' }
         ] };
       }),
       empty: recs.length === 0
@@ -3728,6 +3851,10 @@ class Component extends DCLogic {
       const ids = trafficFieldIds(mod.fieldPrefix || 'traffic');
       return 'เข้า ' + core.sumFields([rec], ids.IN) + ' · ออก ' + core.sumFields([rec], ids.OUT) + ' คัน';
     }
+    if (mod.kind === 'parking') {
+      const pk = this.parkingMetrics([rec]);
+      return 'จอด ' + pk.total + ' คัน (เจ้าหน้าที่ ' + pk.staff + ' · อื่นๆ ' + pk.other + ') · ตกค้าง ' + pk.leftLatest + ' คัน';
+    }
     if (rec.module === 'golf') {
       const off = core.offCount([rec], GOLF_CARTS);
       return core.sumFields([rec], GOLF_CARTS) + ' รอบ' + (off ? ' · OFF ' + off + ' คัน' : '');
@@ -4158,6 +4285,18 @@ class Component extends DCLogic {
           ]) }
       ];
     }
+    if (mod.kind === 'parking') {
+      const pk = this.parkingMetrics(recs);
+      return [
+        { title: 'สัดส่วนรถที่เข้ามาจอด — เจ้าหน้าที่ vs ไม่ใช่เจ้าหน้าที่', kind: 'donut',
+          geo: this.pdfChartGeometry([
+            { label: 'รถเจ้าหน้าที่', value: pk.staff, color: this.pdfSeriesColor(0) },
+            { label: 'รถที่ไม่ใช่เจ้าหน้าที่', value: pk.other, color: this.pdfSeriesColor(1) }
+          ]) },
+        { title: 'รถจอดรวมรายวัน (เจ้าหน้าที่ + ไม่ใช่เจ้าหน้าที่)', kind: 'bar',
+          geo: this.pdfChartGeometry(this.groupByDateSeries(recs, (r) => this.parkingMetrics([r]).total, this.pdfSeriesColor(0)).map(p => ({ label: p.label, value: p.value, color: this.pdfSeriesColor(0) }))) }
+      ];
+    }
     if (m === 'golf') {
       const g = this.golfMetrics(recs);
       return [
@@ -4265,6 +4404,17 @@ class Component extends DCLogic {
         { label: 'ยอดสุทธิ (เข้า−ออก)', value: (t.net >= 0 ? '+' : '') + core.fmtNum(t.net), formula: 'SUM(in) − SUM(out)' }
       ];
     }
+    if (mod.kind === 'parking') {
+      const pk = this.parkingMetrics(recs);
+      return [
+        { label: 'จำนวนรายการบันทึก', value: core.fmtNum(recs.length), formula: 'COUNT(records)' },
+        { label: 'รถเจ้าหน้าที่ที่เข้ามาจอด', value: core.fmtNum(pk.staff), formula: 'SUM(tt_staff_cars)' },
+        { label: 'รถที่ไม่ใช่เจ้าหน้าที่', value: core.fmtNum(pk.other), formula: 'SUM(tt_other_cars)' },
+        { label: 'รถจอดรวม', value: core.fmtNum(pk.total), formula: 'SUM(staff)+SUM(other)' },
+        { label: 'รถตกค้างเฉลี่ย/วัน', value: core.fmtNum(pk.leftAvg), formula: 'AVERAGE(tt_left_cars)' },
+        { label: 'รถตกค้างสูงสุด', value: core.fmtNum(pk.leftMax), formula: 'MAX(tt_left_cars)' }
+      ];
+    }
     if (m === 'golf') {
       const g = this.golfMetrics(recs);
       return [
@@ -4313,10 +4463,11 @@ class Component extends DCLogic {
         })));
     }
     const tr = recs.filter(r => r.module === 'traffic'), trTt = recs.filter(r => r.module === 'traffic_tt'), gf = recs.filter(r => r.module === 'golf'), vs = recs.filter(r => r.module === 'visitors'), el = recs.filter(r => r.module === 'elevator'), cp = recs.filter(r => r.module === 'checkpoint');
-    const tm = this.trafficMetrics(tr, 'traffic'), tmTt = this.trafficMetrics(trTt, 'tt'), gm = this.golfMetrics(gf), vm = this.visitorsMetrics(vs);
+    const tm = this.trafficMetrics(tr, 'traffic'), pkTt = this.parkingMetrics(trTt), gm = this.golfMetrics(gf), vm = this.visitorsMetrics(vs);
     return [
       { label: 'จำนวนรายการทั้งหมด', value: core.fmtNum(recs.length), formula: 'COUNT(records)' },
-      { label: 'ปริมาณรถทั้งหมด (พื้นที่หลัก+ทะเลทอง)', value: core.fmtNum(tm.totalIn + tm.totalOut + tmTt.totalIn + tmTt.totalOut), formula: 'SUM(traffic in+out) รวมทุกพื้นที่' },
+      { label: 'ปริมาณรถเข้า-ออก (พื้นที่หลัก)', value: core.fmtNum(tm.totalIn + tm.totalOut), formula: 'SUM(traffic in+out)' },
+      { label: 'รถจอดทะเลทอง (รวม / ตกค้างเฉลี่ย)', value: core.fmtNum(pkTt.total) + ' / ' + core.fmtNum(pkTt.leftAvg), formula: 'SUM(tt_staff_cars)+SUM(tt_other_cars) / AVERAGE(tt_left_cars)' },
       { label: 'รอบรถกอล์ฟรวม', value: core.fmtNum(gm.total), formula: 'SUM(golf_cart_1..4)' },
       { label: 'Visitor รวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' },
       { label: 'รายงานปุ่มฉุกเฉินลิฟต์รวม', value: core.fmtNum(el.length), formula: 'COUNT(elevator records)' },
@@ -4334,6 +4485,7 @@ class Component extends DCLogic {
   pdfColumnsFor(m) {
     const mod = this.core().module(m) || {};
     if (mod.kind === 'traffic') return ['วันที่ข้อมูล', 'ผู้กรอก', 'เข้า', 'ออก', 'สุทธิ', 'เวลาส่ง'];
+    if (mod.kind === 'parking') return ['วันที่ข้อมูล', 'ผู้กรอก', 'เจ้าหน้าที่', 'ไม่ใช่เจ้าหน้าที่', 'รวมจอด', 'ตกค้าง', 'เวลาส่ง'];
     if (m === 'golf') return ['วันที่ข้อมูล', 'ผู้กรอก', 'รถ1(คืน)', 'รถ2(วัน)', 'รถ3(วัน)', 'รถ4(วัน)', 'รวม'];
     if (mod.kind === 'elevator') return ['วันที่ข้อมูล', 'ลิฟต์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'];
     if (mod.kind === 'checkpoint') return ['วันที่ข้อมูล', 'ชื่อ', 'กะ', 'จุดที่ตรวจ', 'เวลาที่ลงตรวจ', 'ผู้ตรวจสอบ', 'เวลาส่ง'];
@@ -4353,6 +4505,10 @@ class Component extends DCLogic {
         const ids = trafficFieldIds(mod.fieldPrefix || 'traffic');
         const i = core.sumFields([r], ids.IN), o = core.sumFields([r], ids.OUT);
         return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtNum(i), core.fmtNum(o), (i - o >= 0 ? '+' : '') + core.fmtNum(i - o), core.fmtTime(r.submittedAt)];
+      }
+      if (mod.kind === 'parking') {
+        const pk = this.parkingMetrics([r]);
+        return [core.fmtDateShort(r.reportDate), r.submittedBy, core.fmtNum(pk.staff), core.fmtNum(pk.other), core.fmtNum(pk.total), core.fmtNum(pk.leftLatest), core.fmtTime(r.submittedAt)];
       }
       if (m === 'golf') {
         const cv = (id) => core.isOff(d[id]) ? 'OFF' : core.fmtValue(d[id]);
@@ -5282,7 +5438,7 @@ class Component extends DCLogic {
     let data = { kpis: [], charts: [], infoBlocks: [], tableRows: [], tableColumns: [], empty: true, tableTitle: '', tableNote: '' };
     if (page === 'overview') data = this.buildOverview();
     else if (page === 'traffic') data = this.buildTraffic('traffic');
-    else if (page === 'traffic_tt') data = this.buildTraffic('traffic_tt');
+    else if (page === 'traffic_tt') data = this.buildParking();
     else if (page === 'golf') data = this.buildGolf();
     else if (page === 'visitors') data = this.buildVisitors();
     else if (page === 'elevator') data = this.buildElevator();
@@ -6110,6 +6266,7 @@ class Component extends DCLogic {
         { id: 'monthly_inspection_cctv', name: 'ตรวจประจำเดือน — กล้องวงจรปิด' },
         { id: 'monthly_inspection_golf_cart', name: 'ตรวจประจำเดือน — รถกอล์ฟ' },
         { id: 'visitors', name: 'Visitor' },
+        { id: 'traffic_tt', name: 'รถเข้า-ออก ทะเลทอง (ลานจอดทะเลทอง)' },
         /* one toggle for two of our modules: their form asks both in a single submission */
         { id: 'traffic_golf_daily', name: 'รถเข้า-ออก-Traffic Flow + รถกอล์ฟ-Golf Fleet (ฟอร์มรวมของอีกแผนก)' }
       ].map(row => {

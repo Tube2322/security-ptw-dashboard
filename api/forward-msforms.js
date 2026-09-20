@@ -182,7 +182,7 @@ async function attemptFill(form, moduleId, data, dryRun) {
          the Visitor form), but a submission often has only the half that applies: no contractor came,
          so the contractor card number and times are empty. The form refuses an empty answer, so a
          dash says "nothing to report" on every form. */
-      if (form.fields[i].type === 'text' && (value == null || String(value).trim() === '')) value = '-';
+      if (form.fields[i].type === 'text' && (value == null || String(value).trim() === '')) value = form.fields[i].blank != null ? form.fields[i].blank : '-';
       await fillQuestion(items.nth(i), form.fields[i], value);
     }
 
@@ -458,7 +458,20 @@ const FORMS = {
      Their questions 11-14 label carts with a fixed shift ("กะกลางคืน" on cart 1, "กะกลางวัน" on
      2-4); ours are per-cart totals for the whole day, so the mapping stays positional per cart
      and the shift wording in their labels is theirs to interpret. */
-  traffic_golf_daily: {
+  /* ลานจอดทะเลทอง — the Talay Thong parking-lot form: one submission a day, five questions, every one of
+     them a plain text box except the date. Verified against the live form (title "ลานจอดทะเลทอง"): all
+     questions are required except #4, which is marked "(ถ้ามี)" — but a text box for a COUNT is answered
+     with 0, not a dash, when there is nothing to report, hence `blank`. */
+  traffic_tt: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1URTFLSVRPWTNRMDdES0E0VTZXR1U3VEJOTy4u&origin=QRCode',
+    fields: [
+      { id: 'tt_date', type: 'date' },
+      { id: 'tt_name', type: 'text' },
+      { id: 'tt_staff_cars', type: 'text' },
+      { id: 'tt_other_cars', type: 'text', blank: '0' },
+      { id: 'tt_left_cars', type: 'text' }
+    ]
+  },  traffic_golf_daily: {
     url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UMUtZMzdSUTYwUERIR1REMUZCR0dOMEFJNC4u&origin=QRCode',
     fields: [
       { id: 'traffic_date', type: 'date' },

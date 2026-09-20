@@ -45,8 +45,8 @@
       desc: 'บันทึกจำนวนรถเข้า-ออก แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic,
       kind: 'traffic', fieldPrefix: 'traffic', dateField: 'traffic_date', nameField: 'traffic_name', inspectorField: 'traffic_inspector' },
     { id: 'traffic_tt', code: 'TT', name: 'รถเข้า-ออก ทะเลทอง', en: 'Traffic – Talay Thong', formId: 'form_traffic_tt',
-      desc: 'บันทึกจำนวนรถเข้า-ออก พื้นที่ทะเลทอง แยกกะกลางวัน/กลางคืน', color: PALETTE.traffic_tt,
-      kind: 'traffic', fieldPrefix: 'tt', dateField: 'tt_date', nameField: 'tt_name', inspectorField: 'tt_inspector' },
+      desc: 'บันทึกจำนวนรถที่เข้ามาจอดในลานจอดทะเลทองรายวัน (รถเจ้าหน้าที่ / รถอื่น) และรถที่ตกค้าง', color: PALETTE.traffic_tt,
+      kind: 'parking', fieldPrefix: 'tt', dateField: 'tt_date', nameField: 'tt_name', inspectorField: null },
     { id: 'golf', code: 'GF', name: 'รถกอล์ฟ', en: 'Golf Fleet', formId: 'form_golf',
       desc: 'บันทึกจำนวนรอบรถกอล์ฟรายคัน รองรับสถานะ OFF', color: PALETTE.golf,
       kind: 'golf', fieldPrefix: 'golf', dateField: 'golf_date', nameField: 'golf_name', inspectorField: 'golf_inspector' },
@@ -148,15 +148,11 @@
       traffic_tt: [
         f('tt_date', 'วันที่', 'date', { required: true, system: true }),
         f('tt_name', 'ชื่อผู้กรอก', 'select', { required: true, system: true, options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
-        f('tt_car_in_day', 'ทะเลทอง รถยนต์ขาเข้า 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_moto_in_day', 'ทะเลทอง มอเตอร์ไซค์ขาเข้า 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_car_out_day', 'ทะเลทอง รถยนต์ขาออก 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_moto_out_day', 'ทะเลทอง มอเตอร์ไซค์ขาออก 08.00–20.00', 'number', { required: true, group: 'กะกลางวัน 08.00–20.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_car_in_night', 'ทะเลทอง รถยนต์ขาเข้า 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_moto_in_night', 'ทะเลทอง มอเตอร์ไซค์ขาเข้า 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_car_out_night', 'ทะเลทอง รถยนต์ขาออก 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_moto_out_night', 'ทะเลทอง มอเตอร์ไซค์ขาออก 20.00–08.00', 'number', { required: true, group: 'กะกลางคืน 20.00–08.00', placeholder: '0', unit: 'คัน', system: true }),
-        f('tt_inspector', 'ลงชื่อผู้ตรวจสอบ', 'text', { group: 'ผู้ตรวจสอบ', placeholder: 'ชื่อ-นามสกุล', required: true, system: true })
+        /* the same five questions, in the same order, as the other department's live "ลานจอดทะเลทอง"
+           Microsoft Form (forward-msforms.js FORMS.traffic_tt) — the form here is the form there */
+        f('tt_staff_cars', 'จำนวนรถเจ้าหน้าที่ ที่เข้ามาจอด', 'number', { required: true, group: 'จำนวนรถในลานจอด', placeholder: '0', unit: 'คัน', system: true }),
+        f('tt_other_cars', 'จำนวนรถที่ไม่ใช่เจ้าหน้าที่ ที่เข้ามาจอด (ถ้ามี)', 'number', { group: 'จำนวนรถในลานจอด', placeholder: '0', unit: 'คัน', helper: 'ไม่มีให้เว้นว่าง (ระบบส่งเป็น 0)', system: true }),
+        f('tt_left_cars', 'จำนวนรถที่ตกค้าง', 'number', { required: true, group: 'จำนวนรถในลานจอด', placeholder: '0', unit: 'คัน', system: true })
       ],
       golf: [
         f('golf_date', 'วันที่', 'date', { required: true, system: true }),
