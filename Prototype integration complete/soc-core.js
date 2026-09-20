@@ -802,6 +802,21 @@
     /* submissions still waiting to be delivered (ms_forms_jobs), oldest first. The website records every
        submission there before it tries to send it, and a scheduled worker keeps retrying until it is
        sent — so this is "what has not reached the other department yet". Admin-only via RLS. */
+    /* KPI page (kpi-core.js): the hand-entered numerator/denominator per indicator and month. Read by any signed-in
+       user, written by admins only (row level security in kpi_entries). */
+    kpiEntries: function (year) {
+      return sb.from('kpi_entries').select('year,kpi_no,month,numerator,denominator').eq('year', year)
+        .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
+    },
+    /* both values empty = clear that month; otherwise upsert */
+    kpiSave: function (year, kpiNo, month, numerator, denominator) {
+      var key = { year: year, kpi_no: kpiNo, month: month };
+      if (numerator == null && denominator == null) {
+        return sb.from('kpi_entries').delete().match(key).then(function (res) { return res.error ? res.error.message : ''; });
+      }
+      return sb.from('kpi_entries').upsert(Object.assign({ numerator: numerator, denominator: denominator, updated_at: new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 19) }, key), { onConflict: 'year,kpi_no,month' })
+        .then(function (res) { return res.error ? res.error.message : ''; });
+    },
     msFormsHealth: function () {
       return sb.from('ms_forms_health').select('target_form,checked_at,ok,detail')
         .then(function (res) { return res.error ? [] : (res.data || []); });
