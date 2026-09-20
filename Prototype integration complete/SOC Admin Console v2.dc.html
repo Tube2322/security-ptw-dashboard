@@ -5730,7 +5730,9 @@ class Component extends DCLogic {
     if (!core) return {};
     const moduleId = this.moduleOf();
     const pageGroup = core.group(s.page); /* non-null only on a group landing page */
-    const page = s.page;
+    /* the KPI page is for admins only: anyone else who somehow lands on it (a saved page, a typed address) is shown the overview,
+       and the menu entry below is not offered to them at all. kpi_entries is also readable by admins only in the database. */
+    const page = (s.page === 'kpi' && !core.auth.isAdmin()) ? 'overview' : s.page;
     const isDash = page === 'overview' || !!moduleId || !!pageGroup;
     /* covers buildOverview() (which reads core.query() directly, not through scopeRecords())
        and the month/day history sidebar shared by every page below — same scope either way. */
@@ -6045,7 +6047,7 @@ class Component extends DCLogic {
           .concat(core.GROUPS.map(g =>
             navItem(g.id, g.name, g.code, g.color,
               String(core.groupModules(g.id).reduce((n, m) => n + core.recordCount(m.id), 0)))))
-          .concat([navItem('kpi', 'KPI', 'KPI', '#e0a33c')]) }
+          .concat(core.auth.isAdmin() ? [navItem('kpi', 'KPI', 'KPI', '#e0a33c')] : []) }
       ].concat(
         (pageGroup || modGroup)
           ? [{ title: (pageGroup || modGroup).name, items: core.groupModules((pageGroup || modGroup).id).map(m =>
