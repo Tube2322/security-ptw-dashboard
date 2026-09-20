@@ -20,7 +20,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260920b"></script>
+<script src="./soc-core.js?v=20260920c"></script>
+<script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
@@ -934,6 +935,186 @@
                 </section>
               </div>
             </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ===== KPI (KPI_Template sheet of PTW-FM-02-QMD-008) ===== -->
+        <sc-if value="{{ isKpi }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 15px; min-width: 0;">
+
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+              <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px;">
+                <div style="min-width: 0; flex: 1 1 260px;">
+                  <h2 style="margin: 0 0 4px; font-size: 17px; font-weight: 600;">ตัวชี้วัดคุณภาพ (KPI) ปี {{ kpi.yearLabel }}</h2>
+                  <div style="font-size: 12.5px; color: var(--dim); overflow-wrap: anywhere;">หน่วยงานรักษาความปลอดภัย · 12 ตัวชี้วัด · ตัวตั้ง/ตัวหารกรอกรายเดือน ระบบคำนวณผลและเทียบเป้าหมายให้</div>
+                </div>
+                <select value="{{ kpi.year }}" onChange="{{ setKpiYear }}" style="min-height: 40px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13px;">
+                  <sc-for list="{{ kpi.yearOptions }}" as="yo" hint-placeholder-count="3">
+                    <option value="{{ yo.value }}">{{ yo.label }}</option>
+                  </sc-for>
+                </select>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 12.5px; color: var(--muted);">
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--ok);"></span>ผ่านเป้าหมาย</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; background: var(--danger);"></span>ไม่ผ่านเป้าหมาย</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 3px; border: 1px dashed var(--dim);"></span>ยังไม่มีข้อมูล</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 16px; border-top: 2px dashed var(--muted);"></span>เส้นเป้าหมาย</span>
+              </div>
+              <sc-if value="{{ kpi.error }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top: 10px; font-size: 12.5px; color: var(--danger);">{{ kpi.error }}</div>
+              </sc-if>
+            </section>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 12px; min-width: 0;">
+              <sc-for list="{{ kpi.cards }}" as="c" hint-placeholder-count="4">
+                <div style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 14px 15px; min-width: 0; border-left: 3px solid {{ c.color }};">
+                  <div style="font-size: 12.5px; color: var(--muted);">{{ c.label }}</div>
+                  <div style="font-size: 26px; font-weight: 600; margin: 3px 0; color: {{ c.color }};">{{ c.value }}</div>
+                  <div style="font-size: 12px; color: var(--dim); overflow-wrap: anywhere;">{{ c.note }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+              <h2 style="margin: 0 0 3px; font-size: 16px; font-weight: 600;">Total KPI — สัดส่วนตัวชี้วัดที่ผ่านเป้าในแต่ละเดือน</h2>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px;">ผ่านเป้า ÷ 12 ตัวชี้วัด × 100 · ตัวเลขบนแท่งคือ จำนวนที่ผ่าน/12</div>
+              <div style="overflow-x: auto; overflow-y: hidden;">
+                <div style="min-width: 520px; display: flex; align-items: flex-end; gap: 8px; height: 190px; padding-top: 6px; border-bottom: 1px solid var(--line-2);">
+                  <sc-for list="{{ kpi.totalBars }}" as="b" hint-placeholder-count="12">
+                    <div style="flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px;">
+                      <span style="font-size: 11.5px; font-weight: 600; color: {{ b.fg }};">{{ b.pct }}</span>
+                      <span style="font-size: 10.5px; color: var(--dim);">{{ b.count }}</span>
+                      <div style="width: 100%; max-width: 46px; height: {{ b.h }}; background: {{ b.color }}; border-radius: 6px 6px 0 0; transition: height 200ms ease;"></div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="min-width: 520px; display: flex; gap: 8px; padding-top: 6px;">
+                  <sc-for list="{{ kpi.monthLabels }}" as="ml" hint-placeholder-count="12">
+                    <div style="flex: 1; min-width: 0; text-align: center; font-size: 12px; color: var(--muted);">{{ ml.label }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </section>
+
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+              <h2 style="margin: 0 0 3px; font-size: 16px; font-weight: 600;">ตารางตัวชี้วัด</h2>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 12px;">แตะช่องของเดือนใดก็ได้เพื่อดูวิธีคำนวณและแก้ข้อมูลในกล่องด้านล่าง</div>
+              <div style="overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2);">
+                <div style="min-width: 1180px;">
+                  <div style="display: grid; grid-template-columns: 34px minmax(230px, 1.7fr) 104px repeat(12, minmax(50px, 1fr)) 100px; align-items: center; font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--line-2); background: var(--panel-2);">
+                    <div style="padding: 9px 4px; text-align: center;">#</div>
+                    <div style="padding: 9px 8px;">ตัวชี้วัด</div>
+                    <div style="padding: 9px 4px;">เป้าหมาย</div>
+                    <sc-for list="{{ kpi.monthLabels }}" as="ml" hint-placeholder-count="12">
+                      <div style="padding: 9px 2px; text-align: center;">{{ ml.label }}</div>
+                    </sc-for>
+                    <div style="padding: 9px 4px; text-align: center;">รวมทั้งปี (YTD)</div>
+                  </div>
+                  <sc-for list="{{ kpi.rows }}" as="r" hint-placeholder-count="4">
+                    <div style="display: grid; grid-template-columns: 34px minmax(230px, 1.7fr) 104px repeat(12, minmax(50px, 1fr)) 100px; align-items: stretch; font-size: 12.5px; border-bottom: 1px solid var(--line);">
+                      <div style="padding: 8px 4px; text-align: center; color: var(--dim); font-family: 'IBM Plex Mono', monospace;">{{ r.no }}</div>
+                      <div style="padding: 8px; overflow-wrap: anywhere; line-height: 1.4;">{{ r.name }}</div>
+                      <div style="padding: 8px 4px; color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere;">{{ r.targetText }}</div>
+                      <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="12">
+                        <button onClick="{{ c.pick }}" title="{{ c.title }}" style="min-height: 38px; padding: 2px; margin: 3px 2px; border-radius: 7px; cursor: pointer; font-size: 11.5px; font-weight: 500; border: 1px solid {{ c.border }}; background: {{ c.bg }}; color: {{ c.fg }};" style-hover="filter: brightness(0.96);">{{ c.text }}</button>
+                      </sc-for>
+                      <div style="padding: 8px 4px; text-align: center; font-weight: 600; color: {{ r.ytdColor }}; line-height: 1.3;">{{ r.ytdText }}<div style="font-size: 10.5px; font-weight: 400; color: var(--dim);">{{ r.ytdNote }}</div></div>
+                    </div>
+                  </sc-for>
+                  <sc-for list="{{ kpi.totalRows }}" as="r" hint-placeholder-count="3">
+                    <div style="display: grid; grid-template-columns: 34px minmax(230px, 1.7fr) 104px repeat(12, minmax(50px, 1fr)) 100px; align-items: center; font-size: 12.5px; background: var(--panel-2); border-bottom: 1px solid var(--line);">
+                      <div style="padding: 8px 4px;"></div>
+                      <div style="padding: 8px; font-weight: 600;">{{ r.label }}</div>
+                      <div style="padding: 8px 4px; color: var(--dim); font-size: 11.5px;">{{ r.hint }}</div>
+                      <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="12">
+                        <div style="padding: 8px 2px; text-align: center; font-weight: 500; color: {{ c.fg }};">{{ c.text }}</div>
+                      </sc-for>
+                      <div style="padding: 8px 4px; text-align: center; font-weight: 600;">{{ r.ytdText }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </section>
+
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+              <h2 style="margin: 0 0 3px; font-size: 16px; font-weight: 600;">กรอก / แก้ข้อมูลรายเดือน</h2>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 14px;">{{ kpi.editorHint }}</div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px;">
+                <div style="min-width: 0;">
+                  <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">ตัวชี้วัด</label>
+                  <select value="{{ kpi.selKpi }}" onChange="{{ setKpiSel }}" style="width: 100%; min-height: 46px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 13.5px;">
+                    <sc-for list="{{ kpi.kpiOptions }}" as="ko" hint-placeholder-count="4">
+                      <option value="{{ ko.value }}">{{ ko.label }}</option>
+                    </sc-for>
+                  </select>
+                </div>
+                <div style="min-width: 0;">
+                  <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">เดือน</label>
+                  <select value="{{ kpi.selMonth }}" onChange="{{ setKpiMonth }}" style="width: 100%; min-height: 46px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 13.5px;">
+                    <sc-for list="{{ kpi.monthOptions }}" as="mo" hint-placeholder-count="12">
+                      <option value="{{ mo.value }}">{{ mo.label }}</option>
+                    </sc-for>
+                  </select>
+                </div>
+              </div>
+              <div style="margin-top: 12px; padding: 12px 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg-2); font-size: 12.5px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere;">
+                <div style="color: var(--text); font-weight: 500;">{{ kpi.selName }}</div>
+                <div>เป้าหมาย: {{ kpi.selTarget }} · สูตร: {{ kpi.selFormula }}</div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px; margin-top: 12px;">
+                <div style="min-width: 0;">
+                  <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">ตัวตั้ง : {{ kpi.numLabel }}</label>
+                  <input type="text" inputmode="decimal" value="{{ kpi.num }}" onChange="{{ setKpiNum }}" disabled="{{ kpi.readOnly }}" placeholder="0" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 15px;">
+                </div>
+                <sc-if value="{{ kpi.showDen }}" hint-placeholder-val="{{ false }}">
+                  <div style="min-width: 0;">
+                    <label style="display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px;">ตัวหาร : {{ kpi.denLabel }}</label>
+                    <input type="text" inputmode="decimal" value="{{ kpi.den }}" onChange="{{ setKpiDen }}" disabled="{{ kpi.readOnly }}" placeholder="0" style="width: 100%; min-height: 46px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 15px;">
+                  </div>
+                </sc-if>
+              </div>
+              <div style="margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;">
+                <div style="flex: 1 1 260px; min-width: 0; padding: 10px 13px; border-radius: 10px; border: 1px solid {{ kpi.previewBorder }}; background: {{ kpi.previewBg }}; color: {{ kpi.previewColor }}; font-size: 13.5px; font-weight: 500;">{{ kpi.preview }}</div>
+                <sc-if value="{{ kpi.canSave }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ saveKpi }}" disabled="{{ kpi.busy }}" style="min-height: 46px; padding: 0 22px; border-radius: 11px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13.5px; font-weight: 600;">{{ kpi.saveLabel }}</button>
+                </sc-if>
+              </div>
+              <sc-if value="{{ kpi.msg }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top: 10px; font-size: 13px; color: {{ kpi.msgColor }};">{{ kpi.msg }}</div>
+              </sc-if>
+            </section>
+
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+              <h2 style="margin: 0; font-size: 16px; font-weight: 600;">กราฟรายตัวชี้วัด</h2>
+              <span style="font-size: 12.5px; color: var(--dim);">แท่งเขียว = ผ่านเป้า · แดง = ไม่ผ่าน · เส้นประ = เป้าหมาย</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 12px; min-width: 0;">
+              <sc-for list="{{ kpi.charts }}" as="k" hint-placeholder-count="4">
+                <div style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 13px 14px 10px; min-width: 0; border-left: 3px solid {{ k.color }};">
+                  <div style="display: flex; gap: 8px; align-items: flex-start;">
+                    <span style="flex: none; font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--line-2); color: var(--muted);">KPI {{ k.no }}</span>
+                    <span style="min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere;">{{ k.name }}</span>
+                  </div>
+                  <div style="margin: 6px 0 8px; font-size: 12px; color: var(--dim); overflow-wrap: anywhere;">เป้าหมาย {{ k.targetText }} · ทั้งปี <b style="color: {{ k.color }};">{{ k.ytdText }}</b> {{ k.ytdNote }} <span style="color: var(--muted);">{{ k.yearNote }}</span></div>
+                  <div style="position: relative; height: 104px; display: flex; align-items: flex-end; gap: 3px; border-bottom: 1px solid var(--line-2);">
+                    <sc-if value="{{ k.showTarget }}" hint-placeholder-val="{{ false }}">
+                      <div style="position: absolute; left: 0; right: 0; bottom: {{ k.targetBottom }}; border-top: 2px dashed var(--muted); opacity: 0.85; pointer-events: none;"></div>
+                    </sc-if>
+                    <sc-for list="{{ k.bars }}" as="b" hint-placeholder-count="12">
+                      <div style="flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;" title="{{ b.title }}">
+                        <span style="font-size: 9.5px; line-height: 1.3; color: {{ b.fg }};">{{ b.label }}</span>
+                        <div style="width: 100%; height: {{ b.h }}; background: {{ b.color }}; border-radius: 3px 3px 0 0; border: {{ b.border }};"></div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display: flex; gap: 3px; padding-top: 3px;">
+                    <sc-for list="{{ kpi.shortMonths }}" as="ml" hint-placeholder-count="12">
+                      <div style="flex: 1; min-width: 0; text-align: center; font-size: 9.5px; color: var(--dim);">{{ ml.label }}</div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
           </div>
         </sc-if>
 
@@ -1887,6 +2068,7 @@ class Component extends DCLogic {
     editRecord: null, editValues: {}, editErrors: {}, editBanner: '', comboOpenField: null,
     msOutbox: [], /* ms_forms_outbox rows, loaded when the Settings page is first opened */
     msHealth: [], /* ms_forms_health rows: the daily check of each destination form */
+    kpiYear: 2026, kpiRows: [], kpiLoaded: 0, kpiError: '', kpiKpi: 1, kpiMonth: 1, kpiNum: '', kpiDen: '', kpiBusy: false, kpiMsg: '', kpiMsgOk: true, /* KPI page */
     msNow: 0, /* clock for the queue countdown, ticked while the Settings page shows a queue */
     msJobs: [], /* ms_forms_jobs rows not yet sent — the queue the 10-minute worker drains */
     msSendLog: [], /* ms_forms_send_log rows — every attempt, never overwritten (see msFormsOutbox) */
@@ -3290,6 +3472,161 @@ class Component extends DCLogic {
         ] };
       }),
       empty: recs.length === 0
+    };
+  }
+
+  /* ---------- KPI page (definitions and arithmetic live in kpi-core.js, taken from the KPI_Template sheet) ---------- */
+  pickKpi = (kpiNo, month) => {
+    const row = (this.state.kpiRows || []).find(r => r.kpi_no === kpiNo && r.month === month);
+    this.setState({
+      kpiKpi: kpiNo, kpiMonth: month, kpiMsg: '',
+      kpiNum: row && row.numerator != null ? String(row.numerator) : '',
+      kpiDen: row && row.denominator != null ? String(row.denominator) : ''
+    });
+  };
+  setKpiYear = (e) => this.setState({ kpiYear: parseInt(e.target.value, 10), kpiRows: [], kpiLoaded: 0, kpiMsg: '' });
+  setKpiSel = (e) => this.pickKpi(parseInt(e.target.value, 10), this.state.kpiMonth);
+  setKpiMonth = (e) => this.pickKpi(this.state.kpiKpi, parseInt(e.target.value, 10));
+  setKpiNum = (e) => this.setState({ kpiNum: e.target.value, kpiMsg: '' });
+  setKpiDen = (e) => this.setState({ kpiDen: e.target.value, kpiMsg: '' });
+  saveKpi = async () => {
+    const K = window.SOCKPI, s = this.state, core = this.core();
+    const def = K.DEFS.find(d => d.no === s.kpiKpi);
+    if (!def || !core.auth.isAdmin()) return;
+    const rate = def.kind !== 'count';
+    const numText = String(s.kpiNum || '').trim(), denText = String(s.kpiDen || '').trim();
+    const a = numText === '' ? null : K.num(numText);
+    const b = rate && denText !== '' ? K.num(denText) : null;
+    const fail = (msg) => this.setState({ kpiMsg: msg, kpiMsgOk: false });
+    if (numText !== '' && (a == null || a < 0)) return fail('ตัวตั้งต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป');
+    if (rate && denText !== '' && (b == null || b < 0)) return fail('ตัวหารต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป');
+    if (a == null && b != null) return fail('กรอกตัวตั้งด้วย');
+    if (rate && a != null && b == null) return fail('ตัวชี้วัดนี้เป็นอัตราส่วน ต้องกรอกตัวหารด้วย');
+    if (rate && a != null && b != null && a > b) return fail('ตัวตั้งต้องไม่มากกว่าตัวหาร');
+    this.setState({ kpiBusy: true, kpiMsg: '' });
+    const err = await core.kpiSave(s.kpiYear, s.kpiKpi, s.kpiMonth, a, b);
+    if (err) { this.setState({ kpiBusy: false, kpiMsg: 'บันทึกไม่สำเร็จ: ' + err, kpiMsgOk: false }); return; }
+    const fresh = await core.kpiEntries(s.kpiYear);
+    this.setState({ kpiBusy: false, kpiRows: fresh.rows, kpiError: fresh.error, kpiMsg: a == null ? 'ล้างข้อมูลเดือนนี้แล้ว' : 'บันทึกแล้ว', kpiMsgOk: true });
+  };
+  buildKpi() {
+    const K = window.SOCKPI, s = this.state, core = this.core();
+    if (!K) return { year: 2026, yearLabel: '', yearOptions: [], cards: [], totalBars: [], monthLabels: [], shortMonths: [], rows: [], totalRows: [], charts: [], kpiOptions: [], monthOptions: [], selKpi: 1, selMonth: 1, selName: '', selTarget: '', selFormula: '', numLabel: '', denLabel: '', num: '', den: '', showDen: false, readOnly: true, canSave: false, busy: false, saveLabel: '', preview: '', previewBg: 'transparent', previewBorder: 'var(--line)', previewColor: 'var(--muted)', msg: '', msgColor: 'var(--ok)', editorHint: '', error: 'โหลดตัวคำนวณ KPI ไม่สำเร็จ' };
+    const year = s.kpiYear;
+    const byKpi = {};
+    (s.kpiRows || []).forEach(r => { (byKpi[r.kpi_no] = byKpi[r.kpi_no] || {})[r.month] = { numerator: r.numerator, denominator: r.denominator }; });
+    const results = K.DEFS.map(d => K.evalYear(d, byKpi[d.no] || {}));
+    const tot = K.totals(results);
+    const OK = 'var(--ok)', BAD = 'var(--danger)', DIM = 'var(--dim)';
+    const tone = (st) => st === 'ok' || st === 'na'
+      ? { fg: OK, bg: 'rgba(47,168,107,0.13)', border: 'rgba(47,168,107,0.35)', bar: OK }
+      : st === 'fail' ? { fg: BAD, bg: 'rgba(209,72,58,0.13)', border: 'rgba(209,72,58,0.38)', bar: BAD }
+      : { fg: DIM, bg: 'transparent', border: 'var(--line)', bar: 'transparent' };
+    const isAdmin = core.auth.isAdmin();
+    const short = (def, v) => v == null ? '' : def.kind === 'count' ? String(Math.round(v * 100) / 100) : (Math.round(v * 10) / 10).toFixed(1);
+
+    /* summary cards */
+    let last = -1;
+    tot.months.forEach((m, i) => { if (m.has) last = i; });
+    const lastM = last >= 0 ? tot.months[last] : null;
+    const failing = last >= 0 ? results.filter(r => r.months[last].status === 'fail').map((r, i) => r) : [];
+    const failNos = last >= 0 ? K.DEFS.filter((d, i) => results[i].months[last].status === 'fail').map(d => d.no) : [];
+    const allMonthsOk = K.DEFS.filter((d, i) => results[i].ytd.dataMonths > 0 && results[i].ytd.passedMonths === results[i].ytd.dataMonths).length;
+    const cards = [
+      { label: last >= 0 ? 'ตัวชี้วัดที่ผ่านเป้า — เดือน' + K.MONTHS[last] : 'ตัวชี้วัดที่ผ่านเป้า', value: lastM ? lastM.achieved + ' / ' + K.TOTAL : '—', color: lastM && lastM.achieved === K.TOTAL ? OK : 'var(--text)', note: lastM ? Math.round(lastM.pct) + '% ของตัวชี้วัดทั้งหมด' : 'ยังไม่มีข้อมูลในปีนี้' },
+      { label: 'ไม่ผ่านเป้า' + (last >= 0 ? ' — เดือน' + K.MONTHS[last] : ''), value: last >= 0 ? String(failNos.length) : '—', color: failNos.length ? BAD : OK, note: last < 0 ? '—' : failNos.length ? 'KPI ข้อ ' + failNos.join(', ') : 'ผ่านครบทุกตัวชี้วัด' },
+      { label: 'ผ่านเป้าเฉลี่ยทั้งปี', value: tot.ytdPct == null ? '—' : (Math.round(tot.ytdPct * 10) / 10) + '%', color: 'var(--text)', note: tot.reportedMonths ? 'เฉลี่ยจาก ' + tot.reportedMonths + ' เดือนที่มีข้อมูล' : '—' },
+      { label: 'ผ่านเป้าทุกเดือน', value: allMonthsOk + ' / ' + K.TOTAL, color: 'var(--text)', note: 'ตัวชี้วัดที่ไม่มีเดือนใดหลุดเป้าเลย' }
+    ];
+
+    /* Total KPI chart */
+    const totalBars = tot.months.map(m => ({
+      pct: m.has ? Math.round(m.pct) + '%' : '', count: m.has ? m.achieved + '/' + K.TOTAL : '—',
+      h: m.has ? Math.max(3, m.pct) + '%' : '2px', color: m.has ? 'var(--accent)' : 'var(--line)', fg: m.has ? 'var(--text)' : DIM
+    }));
+    const monthLabels = K.MONTHS.map(label => ({ label }));
+    const shortMonths = K.MONTHS.map(label => ({ label }));
+
+    /* the sheet's table */
+    const rows = K.DEFS.map((d, i) => {
+      const res = results[i];
+      const y = res.ytd, yt = tone(y.status);
+      return {
+        no: d.no, name: d.name, targetText: d.targetText,
+        cells: res.months.map((m, mi) => {
+          const t = tone(m.status), pickedNow = s.kpiKpi === d.no && s.kpiMonth === mi + 1;
+          const text = m.status === 'none' ? '·' : m.status === 'na' ? '0/0' : m.display;
+          return { text, fg: t.fg, bg: t.bg, border: pickedNow ? 'var(--accent)' : t.border, title: 'KPI ' + d.no + ' · ' + K.MONTHS[mi] + ' — ' + (m.status === 'none' ? m.note : m.display + ' (' + (m.status === 'fail' ? 'ไม่ผ่าน' : 'ผ่าน') + ') ' + (m.note || '')), pick: () => this.pickKpi(d.no, mi + 1) };
+        }),
+        ytdText: y.status === 'none' ? '—' : y.status === 'na' ? 'ไม่มีเหตุ' : y.display,
+        ytdColor: yt.fg,
+        ytdNote: y.dataMonths ? (d.kind === 'count' && d.target.per !== 'year' ? 'ผ่าน ' + y.passedMonths + '/' + y.dataMonths + ' เดือน' : (y.status === 'ok' || y.status === 'na' ? 'ผ่านเป้า' : 'ไม่ผ่านเป้า')) : ''
+      };
+    });
+    const totalRows = [
+      { label: 'Achieved — ตัวชี้วัดที่ผ่านเป้า', hint: '', cells: tot.months.map(m => ({ text: m.has ? String(m.achieved) : '', fg: 'var(--text)' })), ytdText: tot.reportedMonths ? String(tot.ytdAchieved) : '' },
+      { label: 'Total — ตัวชี้วัดทั้งหมด', hint: '', cells: tot.months.map(m => ({ text: m.has ? String(K.TOTAL) : '', fg: 'var(--muted)' })), ytdText: tot.reportedMonths ? String(K.TOTAL * tot.reportedMonths) : '' },
+      { label: 'Percentage ( % )', hint: 'Achieved ÷ Total × 100', cells: tot.months.map(m => ({ text: m.has ? (Math.round(m.pct * 10) / 10) + '%' : '', fg: 'var(--accent)' })), ytdText: tot.ytdPct == null ? '' : (Math.round(tot.ytdPct * 10) / 10) + '%' }
+    ];
+
+    /* one small chart per indicator */
+    const charts = K.DEFS.map((d, i) => {
+      const res = results[i];
+      const vals = res.months.filter(m => m.value != null).map(m => m.value);
+      const rate = d.kind !== 'count';
+      let lo = 0, hi;
+      if (rate) { lo = Math.max(0, Math.floor(Math.min.apply(null, vals.concat([d.target.value])) - 2)); hi = 100; }
+      else hi = Math.max(1, d.target.value, Math.max.apply(null, vals.concat([0])));
+      const span = hi - lo || 1;
+      const pos = (v) => Math.max(0, Math.min(100, (v - lo) / span * 100));
+      const y = res.ytd, yt = tone(y.status);
+      return {
+        no: d.no, name: d.name, targetText: d.targetText, color: yt.bar === 'transparent' ? DIM : yt.bar,
+        ytdText: y.status === 'none' ? '—' : y.status === 'na' ? 'ไม่มีเหตุการณ์' : y.display,
+        ytdNote: y.dataMonths ? (d.kind === 'count' && d.target.per !== 'year' ? '(ผ่าน ' + y.passedMonths + '/' + y.dataMonths + ' เดือน)' : '') : '',
+        yearNote: d.target.per === 'year' ? 'เป้าหมายรายปี — เกิดเหตุแล้วนับว่าไม่ผ่านต่อเนื่องจนสิ้นปี' : '',
+        showTarget: rate || d.target.value > 0,
+        targetBottom: pos(d.target.value) + '%',
+        bars: res.months.map((m, mi) => {
+          const t = tone(m.status);
+          const has = m.status !== 'none';
+          const v = m.status === 'na' ? (rate ? hi : 0) : m.value;
+          return {
+            label: m.status === 'na' ? '0/0' : has ? short(d, m.value) : '',
+            fg: t.fg, color: has ? t.bar : 'transparent', border: has ? 'none' : '1px dashed var(--line-2)',
+            h: has ? Math.max(rate ? 4 : 3, pos(v)) + '%' : '3px',
+            title: K.MONTHS[mi] + ': ' + (has ? m.display : 'ยังไม่มีข้อมูล')
+          };
+        })
+      };
+    });
+
+    /* editor */
+    const def = K.DEFS.find(d => d.no === s.kpiKpi) || K.DEFS[0];
+    const showDen = def.kind !== 'count';
+    const a = String(s.kpiNum || '').trim() === '' ? null : K.num(s.kpiNum);
+    const b = showDen && String(s.kpiDen || '').trim() !== '' ? K.num(s.kpiDen) : null;
+    /* the same evaluation the table uses, on what is typed right now — including the running count for "per year" targets */
+    const others = (s.kpiRows || []).filter(r => r.kpi_no === def.no && r.month < s.kpiMonth).reduce((n, r) => n + (K.num(r.numerator) || 0), 0);
+    const ev = a == null ? null : K.evalMonth(def, { numerator: a, denominator: b }, others + a);
+    const pv = ev ? tone(ev.status) : null;
+    const preview = !ev ? 'ยังไม่ได้กรอกตัวตั้ง — เดือนนี้จะแสดงเป็นยังไม่มีข้อมูล'
+      : ev.status === 'none' ? ev.note
+      : 'ผลที่คำนวณได้: ' + (ev.status === 'na' ? 'ไม่มีเหตุการณ์' : ev.display) + ' — ' + (ev.status === 'fail' ? 'ไม่ผ่านเป้าหมาย' : 'ผ่านเป้าหมาย') + ' (' + def.targetText + ')';
+    const yearsNow = [year - 1, year, year + 1].filter((v, i, arr) => arr.indexOf(v) === i);
+    return {
+      year, yearLabel: String(year + 543),
+      yearOptions: [2025, 2026, 2027, 2028].concat(yearsNow).filter((v, i, arr) => arr.indexOf(v) === i).sort().map(v => ({ value: v, label: 'พ.ศ. ' + (v + 543) })),
+      error: s.kpiError ? 'โหลดข้อมูล KPI ไม่สำเร็จ: ' + s.kpiError : '',
+      cards, totalBars, monthLabels, shortMonths, rows, totalRows, charts,
+      kpiOptions: K.DEFS.map(d => ({ value: d.no, label: d.no + '. ' + d.name })),
+      monthOptions: K.MONTHS.map((label, i) => ({ value: i + 1, label })),
+      selKpi: s.kpiKpi, selMonth: s.kpiMonth, selName: 'KPI ' + def.no + ' · ' + def.name, selTarget: def.targetText, selFormula: def.formula,
+      numLabel: def.numLabel, denLabel: def.denLabel || '', num: s.kpiNum, den: s.kpiDen, showDen,
+      readOnly: !isAdmin || s.kpiBusy, canSave: isAdmin, busy: s.kpiBusy, saveLabel: s.kpiBusy ? 'กำลังบันทึก…' : 'บันทึก',
+      preview, previewBg: pv ? pv.bg : 'transparent', previewBorder: pv ? pv.border : 'var(--line)', previewColor: pv ? pv.fg : 'var(--muted)',
+      msg: s.kpiMsg, msgColor: s.kpiMsgOk ? 'var(--ok)' : 'var(--danger)',
+      editorHint: isAdmin ? 'เลือกตัวชี้วัดกับเดือน ใส่ตัวตั้ง' + (showDen ? ' และตัวหาร' : '') + ' แล้วกดบันทึก ปล่อยว่างแล้วบันทึกเพื่อล้างข้อมูลเดือนนั้น' : 'บัญชีนี้ดูได้อย่างเดียว — เฉพาะ Admin ที่กรอกหรือแก้ข้อมูลได้'
     };
   }
 
@@ -5409,6 +5746,15 @@ class Component extends DCLogic {
     /* the Microsoft Forms queue's own state — only the Settings page shows it, and it's fetched
        once per visit rather than kept live: a forward that happens while this page is open is
        reflected on the next visit, which is what a status line needs to be. */
+    /* the KPI page reads its own table for the selected year, once per year picked */
+    if (page === 'kpi' && s.kpiLoaded !== s.kpiYear && !this._kpiLoading) {
+      this._kpiLoading = true;
+      const wantYear = s.kpiYear;
+      core.kpiEntries(wantYear).then(res => {
+        this._kpiLoading = false;
+        this.setState({ kpiRows: res.rows, kpiError: res.error, kpiLoaded: wantYear });
+      });
+    }
     if (page === 'settings' && !this._outboxLoaded) {
       this._outboxLoaded = true;
       core.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
@@ -5555,6 +5901,7 @@ class Component extends DCLogic {
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },
       pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน PDF' },
+      kpi: { kicker: 'Key Performance Indicators', title: 'KPI' },
       settings: { kicker: 'System', title: 'ตั้งค่าระบบ' }
     };
     const base = titles[page] || titles.overview;
@@ -5702,7 +6049,8 @@ class Component extends DCLogic {
             navItem(m.id, m.name, m.code, m.color, String(core.recordCount(m.id)))))
           .concat(core.GROUPS.map(g =>
             navItem(g.id, g.name, g.code, g.color,
-              String(core.groupModules(g.id).reduce((n, m) => n + core.recordCount(m.id), 0))))) }
+              String(core.groupModules(g.id).reduce((n, m) => n + core.recordCount(m.id), 0)))))
+          .concat([navItem('kpi', 'KPI', 'KPI', '#e0a33c')]) }
       ].concat(
         (pageGroup || modGroup)
           ? [{ title: (pageGroup || modGroup).name, items: core.groupModules((pageGroup || modGroup).id).map(m =>
@@ -5728,6 +6076,9 @@ class Component extends DCLogic {
       isRecords: page === 'records',
       isPdf: page === 'pdf',
       isSettings: page === 'settings',
+      isKpi: page === 'kpi',
+      kpi: this.buildKpi(),
+      setKpiYear: this.setKpiYear, setKpiSel: this.setKpiSel, setKpiMonth: this.setKpiMonth, setKpiNum: this.setKpiNum, setKpiDen: this.setKpiDen, saveKpi: this.saveKpi,
 
       /* the day/week/month/year dropdown covers every module dashboard plus Overview now —
          only a ตรวจประจำเดือน module (buildDynamic) still shows the plain DATE chip, since
