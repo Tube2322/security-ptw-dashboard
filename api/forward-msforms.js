@@ -244,13 +244,20 @@ async function attemptFill(form, moduleId, data, dryRun) {
        other reason (an error screen, a sign-in wall) shows up as unconfirmed instead of passing silently.
        It is deliberately not a hard requirement — a wording this pattern does not know would otherwise
        turn a real delivery into a "failure" and the retry would file the same answer twice. */
+    /* From this point on the response is already recorded on the other department's form — nothing
+       below may throw and land in the catch below, or the caller sees a failure, retries, and files
+       the same answer a second time. browser.close() failing here (the process already gone, a
+       resource hiccup) is exactly the kind of thing that must not turn a successful delivery into a
+       retried one, so it is swallowed the same way the thank-you check already is. */
     let confirmed = false;
-    for (let i = 0; i < 6 && !confirmed; i++) {
-      const shown = norm(await page.locator('body').textContent().catch(() => ''));
-      confirmed = THANK_YOU.test(shown);
-      if (!confirmed) await page.waitForTimeout(500);
-    }
-    await browser.close();
+    try {
+      for (let i = 0; i < 6 && !confirmed; i++) {
+        const shown = norm(await page.locator('body').textContent().catch(() => ''));
+        confirmed = THANK_YOU.test(shown);
+        if (!confirmed) await page.waitForTimeout(500);
+      }
+    } catch (e) { /* delivered already stands; a confirmation-step error is not a send failure */ }
+    try { await browser.close(); } catch (e) {}
     return { confirmed };
   } catch (err) {
     if (browser) { try { await browser.close(); } catch (e) {} }
