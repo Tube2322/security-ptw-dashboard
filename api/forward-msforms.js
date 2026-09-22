@@ -345,7 +345,10 @@ const FORMS = {
       { id: 'mi_fire_ext_label', type: 'radio' },
       { id: 'mi_fire_ext_checker_name', type: 'text' },
       { id: 'mi_fire_ext_inspector_name', type: 'text' },
-      { id: 'mi_fire_ext_note', type: 'text' }
+      /* question 15 on the live form restricts to a number and is optional (no red asterisk) —
+         the default dash-for-blank convention below would fail its numeric validation, so this
+         field keeps a real blank instead. */
+      { id: 'mi_fire_ext_note', type: 'text', blank: '' }
     ]
   },
   monthly_inspection_fire_exit: {
