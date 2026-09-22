@@ -3994,6 +3994,30 @@ class Component extends DCLogic {
     return this.core().activeFields(moduleId)
       .filter(f => (f.type === 'radio' || f.type === 'select' || f.type === 'checkbox') && (f.options || []).length > 0);
   }
+  /* Sorts a module's records for display when a module has its own natural walking/checking
+     order that differs from entry order — right now just the fire extinguisher tank number.
+     Same day stays grouped together (newest date first, matching every other table), tank
+     number sorts naturally within a day so "7-1, 7-2, 7-10" reads in the right order instead of
+     string order. Anything else passes through untouched. Shared by buildDynamic's on-screen
+     table and pdfBuildBlocks' export table so both agree. */
+  sortForReview(moduleId, recs) {
+    if (moduleId !== 'monthly_inspection_fire_extinguisher') return recs;
+    const tankField = 'mi_fire_ext_tank_no';
+    const natCmp = (a, b) => {
+      const pa = String(a).match(/\d+|\D+/g) || [], pb = String(b).match(/\d+|\D+/g) || [];
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const x = pa[i] || '', y = pb[i] || '';
+        if (/^\d+$/.test(x) && /^\d+$/.test(y)) { const d = Number(x) - Number(y); if (d) return d; }
+        else { const d = x.localeCompare(y, 'th'); if (d) return d; }
+      }
+      return 0;
+    };
+    return recs.slice().sort((a, b) => {
+      if (a.reportDate !== b.reportDate) return a.reportDate < b.reportDate ? 1 : -1;
+      return natCmp((a.data || {})[tankField] || '', (b.data || {})[tankField] || '');
+    });
+  }
+
   buildDynamic(moduleId) {
     const core = this.core();
     const mod = core.module(moduleId) || {};
@@ -4056,24 +4080,9 @@ class Component extends DCLogic {
        the review table should still read 1, 2, 3... so a missing tank jumps out. Sorting only
        this table — not recs itself, so the KPIs/charts/last-report block above stay exactly as
        they were — keeps each day's entries in tank order while different days still sort newest
-       first, same as every other module's table. */
-    let tableRecs = recs;
-    if (moduleId === 'monthly_inspection_fire_extinguisher') {
-      const tankField = 'mi_fire_ext_tank_no';
-      const natCmp = (a, b) => {
-        const pa = String(a).match(/\d+|\D+/g) || [], pb = String(b).match(/\d+|\D+/g) || [];
-        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-          const x = pa[i] || '', y = pb[i] || '';
-          if (/^\d+$/.test(x) && /^\d+$/.test(y)) { const d = Number(x) - Number(y); if (d) return d; }
-          else { const d = x.localeCompare(y, 'th'); if (d) return d; }
-        }
-        return 0;
-      };
-      tableRecs = recs.slice().sort((a, b) => {
-        if (a.reportDate !== b.reportDate) return a.reportDate < b.reportDate ? 1 : -1;
-        return natCmp((a.data || {})[tankField] || '', (b.data || {})[tankField] || '');
-      });
-    }
+       first, same as every other module's table. Same helper backs the PDF export table
+       (pdfBuildBlocks), so both views agree. */
+    const tableRecs = this.sortForReview(moduleId, recs);
 
     return {
       kpis, charts,
@@ -5161,7 +5170,7 @@ class Component extends DCLogic {
         }
         if (inc.history) {
           const columns = this.pdfColumnsFor(m);
-          const rows = this.pdfRowsFor(m, list);
+          const rows = this.pdfRowsFor(m, this.sortForReview(m, list));
           const pages = this.pdfChunk(rows, 18);
           pages.forEach((pageRows, idx) => {
             blocks.push(Object.assign({}, base, {
@@ -5202,7 +5211,7 @@ class Component extends DCLogic {
     let columns = [], tablePages = [];
     if (inc.history) {
       columns = this.pdfColumnsFor(m);
-      tablePages = this.pdfChunk(this.pdfRowsFor(m, list), 18);
+      tablePages = this.pdfChunk(this.pdfRowsFor(m, this.sortForReview(m, list)), 18);
     }
     if (tablePages.length) {
       tablePages.forEach((pageRows, idx) => {
