@@ -4051,6 +4051,30 @@ class Component extends DCLogic {
     const detailFields = core.activeFields(moduleId);
     const tableFields = detailFields.filter(f => f.type !== 'textarea' && f.fieldId !== mod.dateField);
 
+    /* Fire extinguishers get checked in whatever order the guard actually walks past them, not
+       in tank-number order (the tanks' own numbering rarely matches their physical layout), but
+       the review table should still read 1, 2, 3... so a missing tank jumps out. Sorting only
+       this table — not recs itself, so the KPIs/charts/last-report block above stay exactly as
+       they were — keeps each day's entries in tank order while different days still sort newest
+       first, same as every other module's table. */
+    let tableRecs = recs;
+    if (moduleId === 'monthly_inspection_fire_extinguisher') {
+      const tankField = 'mi_fire_ext_tank_no';
+      const natCmp = (a, b) => {
+        const pa = String(a).match(/\d+|\D+/g) || [], pb = String(b).match(/\d+|\D+/g) || [];
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+          const x = pa[i] || '', y = pb[i] || '';
+          if (/^\d+$/.test(x) && /^\d+$/.test(y)) { const d = Number(x) - Number(y); if (d) return d; }
+          else { const d = x.localeCompare(y, 'th'); if (d) return d; }
+        }
+        return 0;
+      };
+      tableRecs = recs.slice().sort((a, b) => {
+        if (a.reportDate !== b.reportDate) return a.reportDate < b.reportDate ? 1 : -1;
+        return natCmp((a.data || {})[tankField] || '', (b.data || {})[tankField] || '');
+      });
+    }
+
     return {
       kpis, charts,
       infoBlocks: [{
@@ -4065,7 +4089,7 @@ class Component extends DCLogic {
       tableTitle: (mod.name || 'รายงาน') + ' — รายการบันทึกในช่วงที่เลือก',
       tableNote: core.fmtNum(recs.length) + ' รายการ',
       tableColumns: ['เดือน/วันที่'].concat(tableFields.map(f => f.label)).concat(['เวลาส่ง']),
-      tableRows: recs.map(r => ({
+      tableRows: tableRecs.map(r => ({
         cells: [{ text: core.fmtDateShort(r.reportDate), color: 'var(--text)', wrap: 'nowrap' }]
           .concat(tableFields.map(f => ({
             text: core.fmtValue((r.data || {})[f.fieldId]),
