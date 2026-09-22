@@ -369,6 +369,17 @@ class Component extends DCLogic {
      separate records, separate dashboards, separate forwards to Microsoft Forms. This is the
      one place that pairs them. */
   comboModuleId(id) { return id === 'traffic' ? 'traffic_tt' : null; }
+  /* Fields the combined form syncs from Traffic Flow instead of asking twice: its own date and,
+     since Talay Thong's "ชื่อผู้กรอก" means the same guard-on-duty as Traffic Flow's own name
+     field, its own name too. Returns [{ own: mainModuleFieldId, combo: comboModuleFieldId }]. */
+  comboSyncedFields(mainId, comboId) {
+    const core = this.core();
+    const mainMod = core.module(mainId) || {}, comboMod = core.module(comboId) || {};
+    return [
+      { own: mainMod.dateField, combo: comboMod.dateField },
+      { own: mainMod.nameField, combo: comboMod.nameField }
+    ].filter(p => p.own && p.combo);
+  }
 
   setValue(id, val) {
     this.setState(s => {
@@ -393,10 +404,11 @@ class Component extends DCLogic {
     let fields = core.activeFields(this.state.module);
     const combo = this.comboModuleId(this.state.module);
     if (combo) {
-      /* tt_date is not shown or typed separately — it is stamped from traffic_date at submit,
-         so validating it here would demand a field the guard never sees */
-      const ttDateField = (core.module(combo) || {}).dateField;
-      fields = fields.concat(core.activeFields(combo).filter(f => f.fieldId !== ttDateField));
+      /* the synced fields (date, name) are not shown or typed separately in the combined form —
+         they're stamped from Traffic Flow's own answers at submit, so validating them here
+         would demand fields the guard never sees */
+      const syncedIds = this.comboSyncedFields(this.state.module, combo).map(p => p.combo);
+      fields = fields.concat(core.activeFields(combo).filter(f => syncedIds.indexOf(f.fieldId) === -1));
     }
     fields.forEach(f => {
       const raw = this.state.values[f.fieldId];
@@ -436,17 +448,18 @@ class Component extends DCLogic {
       if (core.field(this.state.module, 'checkpoint_time')) payload.checkpoint_time = this.nowHHMM();
 
       /* Talay Thong rides along with Traffic Flow's submit but is its own record and its own
-         forward — split into a second payload here (its date stamped from Traffic Flow's own
-         date field rather than asked for twice), and trim Traffic Flow's own payload back down
-         to its own fields so its record doesn't end up carrying Talay Thong's answers too. */
+         forward — split into a second payload here (its date and "ชื่อผู้กรอก" stamped from
+         Traffic Flow's own answers rather than asked for twice), and trim Traffic Flow's own
+         payload back down to its own fields so its record doesn't end up carrying Talay Thong's
+         answers too. */
       const combo = this.comboModuleId(this.state.module);
       let ttRec = null, ttPayload = null;
       if (combo) {
-        const dateField = (core.module(this.state.module) || {}).dateField;
-        const ttDateField = (core.module(combo) || {}).dateField;
+        const synced = this.comboSyncedFields(this.state.module, combo);
+        const syncMap = {}; synced.forEach(p => { syncMap[p.combo] = p.own; });
         ttPayload = {};
         core.activeFields(combo).forEach(f => {
-          ttPayload[f.fieldId] = f.fieldId === ttDateField ? payload[dateField] : this.state.values[f.fieldId];
+          ttPayload[f.fieldId] = syncMap[f.fieldId] ? payload[syncMap[f.fieldId]] : this.state.values[f.fieldId];
         });
         const ownIds = new Set(core.activeFields(this.state.module).map(f => f.fieldId));
         const trimmed = {};
@@ -684,8 +697,9 @@ class Component extends DCLogic {
   }
 
   /* Traffic Flow's own field groups, plus (only for that module) one extra section at the
-     bottom holding every active Talay Thong field except its date, which is stamped from
-     Traffic Flow's own date instead of asked for twice — see comboModuleId. */
+     bottom holding every active Talay Thong field except its date and its "ชื่อผู้กรอก", both of
+     which are stamped from Traffic Flow's own answers instead of asked for twice — see
+     comboSyncedFields. */
   buildGroups() {
     const core = this.core();
     const s = this.state;
@@ -693,8 +707,8 @@ class Component extends DCLogic {
     const base = core.groups(s.module);
     const combo = this.comboModuleId(s.module);
     if (!combo) return base;
-    const ttDateField = (core.module(combo) || {}).dateField;
-    const ttFields = core.activeFields(combo).filter(f => f.fieldId !== ttDateField);
+    const syncedIds = this.comboSyncedFields(s.module, combo).map(p => p.combo);
+    const ttFields = core.activeFields(combo).filter(f => syncedIds.indexOf(f.fieldId) === -1);
     return ttFields.length ? base.concat([{ title: 'รถเข้า-ออก ทะเลทอง', fields: ttFields }]) : base;
   }
 
