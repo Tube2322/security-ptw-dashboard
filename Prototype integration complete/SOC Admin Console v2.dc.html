@@ -133,7 +133,7 @@
   .soc-donut-svg circle.soc-slice, .soc-pie-svg path.soc-wedge { transition: opacity 180ms ease, stroke-width 180ms ease; cursor: default; }
   .soc-donut-svg:hover circle.soc-slice, .soc-pie-svg:hover path.soc-wedge { opacity: 0.42; }
   .soc-line-card { min-width: 0; }
-  .soc-line-card .soc-line-grid { stroke: var(--chart-grid); stroke-dasharray: 3 6; }
+  .soc-line-card .soc-line-grid { stroke: var(--chart-grid); opacity: 0.6; }
   .soc-line-card .soc-pt-visible { fill: var(--bg-2); }
   .soc-donut-svg circle.soc-slice:hover, .soc-pie-svg path.soc-wedge:hover { opacity: 1 !important; }
   .soc-pt-visible { opacity: 0; transition: opacity 160ms ease, r 160ms ease; }
@@ -718,15 +718,6 @@
                             <div style="position: absolute; right: 0; top: calc({{ c.avgLine.pct }}% - 8px); width: 60px; text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; line-height: 1.35; color: var(--chart-muted); pointer-events: none;">{{ c.avgLine.label }}</div>
                           </sc-if>
                           <svg viewBox="0 0 620 220" preserveAspectRatio="none" style="width: 100%; height: 230px; display: block; overflow: visible;">
-                            <defs>
-                              <filter id="chartglow-{{ c.id }}" x="-40%" y="-40%" width="180%" height="180%">
-                                <feGaussianBlur in="SourceGraphic" stdDeviation="3.4" result="blur"></feGaussianBlur>
-                                <feMerge>
-                                  <feMergeNode in="blur"></feMergeNode>
-                                  <feMergeNode in="SourceGraphic"></feMergeNode>
-                                </feMerge>
-                              </filter>
-                            </defs>
                             <sc-for list="{{ c.grid }}" as="g" hint-placeholder-count="4">
                               <line class="soc-line-grid" x1="0" x2="620" y1="{{ g.y }}" y2="{{ g.y }}" stroke-width="1"></line>
                             </sc-for>
@@ -737,15 +728,14 @@
                               <g>
                                 <defs>
                                   <linearGradient id="chartgrad-{{ c.id }}" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="{{ sr.color }}" stop-opacity="0.38"></stop>
+                                    <stop offset="0%" stop-color="{{ sr.color }}" stop-opacity="0.2"></stop>
                                     <stop offset="100%" stop-color="{{ sr.color }}" stop-opacity="0"></stop>
                                   </linearGradient>
                                 </defs>
                                 <sc-if value="{{ c.showArea }}" hint-placeholder-val="{{ false }}">
                                   <path d="{{ sr.area }}" fill="url(#chartgrad-{{ c.id }})" stroke="none"></path>
                                 </sc-if>
-                                <path d="{{ sr.path }}" fill="none" stroke="{{ sr.color }}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" filter="url(#chartglow-{{ c.id }})" opacity="0.9"></path>
-                                <path d="{{ sr.path }}" fill="none" stroke="{{ sr.color }}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path>
+                                <path d="{{ sr.path }}" fill="none" stroke="{{ sr.color }}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
                                 <sc-for list="{{ sr.points }}" as="p" hint-placeholder-count="6">
                                   <g class="soc-pt">
                                     <title>{{ p.tipLabel }}: {{ p.tipValue }}</title>
