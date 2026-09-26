@@ -376,19 +376,21 @@ const FORMS = {
       { id: 'mi_fire_exit_note', type: 'text' }
     ]
   },
+  /* questions 3 and 5-10 on the live form are checkboxes (single tick expected), not radios —
+     mapping them as radios made the pre-submit check find no checked radio and refuse every send. */
   monthly_inspection_acc_door: {
     url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UNUVEMTBYVTNDMk9JQzVWMjNLQVRMRUVHQi4u&origin=QRCode',
     fields: [
       { id: 'mi_acc_date', type: 'date' },
       { id: 'mi_acc_time', type: 'text' },
-      { id: 'mi_acc_reader_status', type: 'radio' },
+      { id: 'mi_acc_reader_status', type: 'checkbox' },
       { id: 'mi_acc_floor', type: 'radio' },
-      { id: 'mi_acc_electric_lock', type: 'radio' },
-      { id: 'mi_acc_magnet', type: 'radio' },
-      { id: 'mi_acc_alarm_light', type: 'radio' },
-      { id: 'mi_acc_lock_status', type: 'radio' },
-      { id: 'mi_acc_sensor_box', type: 'radio' },
-      { id: 'mi_acc_emergency_release', type: 'radio' },
+      { id: 'mi_acc_electric_lock', type: 'checkbox' },
+      { id: 'mi_acc_magnet', type: 'checkbox' },
+      { id: 'mi_acc_alarm_light', type: 'checkbox' },
+      { id: 'mi_acc_lock_status', type: 'checkbox' },
+      { id: 'mi_acc_sensor_box', type: 'checkbox' },
+      { id: 'mi_acc_emergency_release', type: 'checkbox' },
       { id: 'mi_acc_note', type: 'text' },
       { id: 'mi_acc_checker_name', type: 'text' },
       { id: 'mi_acc_inspector_name', type: 'text' }
