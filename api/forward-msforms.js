@@ -100,6 +100,13 @@ async function launchBrowser() {
   return playwright.launch({ args: chromium.args, executablePath: executablePath, headless: true });
 }
 
+/* Whether a question is marked required (the red asterisk) on the live form. */
+async function isRequired(item) {
+  return item.evaluate((el) => !!el.querySelector('[aria-required="true"], [data-automation-id="requiredStar"]')
+    || /\*/.test((el.querySelector('[data-automation-id="questionTitle"]') || el).innerText.split('\n').slice(0, 3).join(' ')))
+    .catch(() => true);
+}
+
 /* Opens the response page and gets past the welcome screen some forms have. */
 async function openForm(browser, form) {
   const page = await browser.newPage();
@@ -182,7 +189,14 @@ async function attemptFill(form, moduleId, data, dryRun) {
          the Visitor form), but a submission often has only the half that applies: no contractor came,
          so the contractor card number and times are empty. The form refuses an empty answer, so a
          dash says "nothing to report" on every form. */
-      if (form.fields[i].type === 'text' && (value == null || String(value).trim() === '')) value = form.fields[i].blank != null ? form.fields[i].blank : '-';
+      /* ...but only where the form actually demands an answer. An optional question left empty
+         stays empty (an empty หมายเหตุ means "nothing wrong"; a dash there reads as a remark). Read
+         from the live form each time, so a question the other department makes optional or
+         required later is handled without touching this file. `blank` still overrides either way. */
+      if (form.fields[i].type === 'text' && (value == null || String(value).trim() === '')) {
+        if (form.fields[i].blank != null) value = form.fields[i].blank;
+        else value = (await isRequired(items.nth(i))) ? '-' : '';
+      }
       await fillQuestion(items.nth(i), form.fields[i], value);
     }
 
