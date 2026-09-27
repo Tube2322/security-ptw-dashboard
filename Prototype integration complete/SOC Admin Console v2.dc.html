@@ -11,6 +11,7 @@
   }
 }catch(e){}})();</script>
 <script src="./support.js"></script>
+<script src="./soc-ux.js?v=1" defer></script>
 </head>
 <body>
 <x-dc>
@@ -20,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260920c"></script>
+<script src="./soc-core.js?v=20260927a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -165,6 +166,58 @@
   .soc-burger:hover .soc-burger-bar:nth-child(2) { width: 18px; }
   .soc-burger:hover .soc-burger-bar:nth-child(1) { transform: translateX(1px); }
   .soc-burger:hover .soc-burger-bar:nth-child(3) { transform: translateX(-1px); }
+  /* ================= UX polish layer =================
+     Everything below only adds states the inline styles can't express (hover/focus/active/
+     disabled, shadows, scrollbars) — it never overrides layout, colours or sizes set inline,
+     so no page changes shape and no handler/data path is touched. */
+  :root { --shadow-sm: 0 1px 2px rgba(0,0,0,0.22); --shadow-md: 0 10px 30px -14px rgba(0,0,0,0.55); --ring: 0 0 0 3px var(--accent-soft); --ease-out: cubic-bezier(0.22,1,0.36,1); }
+  html[data-soc-theme="light"], html[data-soc-theme="green"] { --shadow-sm: 0 1px 2px rgba(16,30,50,0.06); --shadow-md: 0 14px 34px -18px rgba(16,30,50,0.28); }
+
+  /* surfaces get a hairline of depth; cards lift a touch on hover */
+  main section, .soc-kpi-card { box-shadow: var(--shadow-sm); }
+  main section { transition: box-shadow 220ms var(--ease-out), border-color 220ms ease; }
+  main section:hover { box-shadow: var(--shadow-md); }
+  .soc-kpi-card:hover { box-shadow: var(--shadow-md); }
+
+  /* glass header: content scrolls under a softly blurred bar instead of a hard cut */
+  main > header { backdrop-filter: saturate(160%) blur(10px); -webkit-backdrop-filter: saturate(160%) blur(10px); background: color-mix(in srgb, var(--bg) 82%, transparent) !important; }
+
+  /* buttons: consistent press feedback + clear disabled state */
+  button { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 120ms var(--ease-out), box-shadow 160ms ease, opacity 160ms ease; }
+  button:not(:disabled):active { transform: scale(0.97); }
+  button:disabled { opacity: 0.55; cursor: not-allowed !important; }
+
+  /* inputs: visible, smooth focus */
+  input, select, textarea { transition: border-color 160ms ease, box-shadow 180ms ease, background-color 160ms ease; outline: none; }
+  input:hover, select:hover, textarea:hover { border-color: var(--line-2) !important; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent-line) !important; box-shadow: var(--ring); }
+  input[type="checkbox"]:focus, input[type="radio"]:focus { box-shadow: none; }
+
+  /* keyboard users always see where they are */
+  button:focus-visible, a:focus-visible, [onclick]:focus-visible, label:focus-within { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+
+  /* tables: readable rows + hover */
+  table tbody tr { transition: background-color 140ms ease; }
+  table tbody tr:hover { background: var(--panel-2); }
+  table thead th { position: sticky; top: 0; z-index: 1; }
+
+  /* clickable KPI cards and nav hint they're clickable */
+  .soc-kpi-card[style*="cursor: pointer"]:active { transform: translateY(0) scale(0.99) !important; }
+
+  /* skeletons shimmer instead of blinking */
+  @keyframes socPulse { 0%,100% { opacity: 0.45 } 50% { opacity: 0.9 } }
+
+  /* KPI numbers count up the first time they appear (see script at the end of the page) */
+  .soc-kpi-value { transition: color 200ms ease; }
+
+  /* slim themed scrollbars */
+  * { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  *::-webkit-scrollbar { width: 9px; height: 9px; }
+  *::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--dim); background-clip: content-box; }
+
+  ::selection { background: var(--accent-soft); }
+
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   @media print {
     [data-print-hide] { display: none !important; }
@@ -478,7 +531,7 @@
                           </sc-if>
                         </div>
                         <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
-                          <div style="font-family: 'IBM Plex Mono', monospace; font-size: clamp(24px, 4.6vw, 31px); font-weight: 600; line-height: 1; letter-spacing: -1px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;">{{ k.value }}</div>
+                          <div class="soc-kpi-value" style="font-family: 'IBM Plex Mono', monospace; font-size: clamp(24px, 4.6vw, 31px); font-weight: 600; line-height: 1; letter-spacing: -1px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums;">{{ k.value }}</div>
                           <sc-if value="{{ k.delta }}" hint-placeholder-val="{{ '' }}">
                             <span style="display: inline-flex; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; color: {{ k.deltaColor }}; background: {{ k.deltaBg }};">{{ k.delta }}</span>
                           </sc-if>
@@ -2182,8 +2235,7 @@ class Component extends DCLogic {
         { label: 'ปริมาณรถเข้า-ออก (พื้นที่หลัก)', value: tr.totalIn + tr.totalOut, unit: 'คัน' },
         { label: 'รถจอดทะเลทอง', value: pk.total, unit: 'คัน' },
         { label: 'รอบรถกอล์ฟ', value: this.golfMetrics(all.filter(r => r.module === 'golf')).total, unit: 'รอบ' },
-        { label: 'Visitor', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' },
-        { label: 'รายงานลิฟต์', value: this.elevatorMetrics(all.filter(r => r.module === 'elevator')).total, unit: 'ครั้ง' }
+        { label: 'Visitor', value: this.visitorsMetrics(all.filter(r => r.module === 'visitors')).total, unit: 'คน' }
       ];
     }
 
@@ -2250,7 +2302,7 @@ class Component extends DCLogic {
        of that module's colour — the same look as its own dashboard's bars. */
     const cm = this.state.compareModule;
     const metricColors = cm === 'all'
-      ? ['traffic', 'golf', 'visitors', 'elevator'].map(id => core.COLORS[id])
+      ? ['traffic', 'traffic_tt', 'golf', 'visitors'].map(id => core.COLORS[id])
       : (() => {
           const base = core.COLORS[cm] || '#3fbf8f';
           return [
@@ -3127,7 +3179,6 @@ class Component extends DCLogic {
     const trTt = all.filter(r => r.module === 'traffic_tt');
     const gf = all.filter(r => r.module === 'golf');
     const vs = all.filter(r => r.module === 'visitors');
-    const el = all.filter(r => r.module === 'elevator');
     const trMain = this.trafficMetrics(tr, 'traffic');
     /* Talay Thong records how many cars PARKED and were left over, not cars entering/leaving, so it is
        not added into the vehicle traffic total — it has its own card below */
@@ -3135,7 +3186,6 @@ class Component extends DCLogic {
     const vehicles = trMain.totalIn + trMain.totalOut;
     const rounds = this.golfMetrics(gf).total;
     const people = this.visitorsMetrics(vs).total;
-    const em = this.elevatorMetrics(el);
     const latest = all[0];
     /* same day/week/month/year branch every other dashboard uses — day/month call the exact
        same functions as before this dropdown existed. */
@@ -3154,8 +3204,7 @@ class Component extends DCLogic {
       { label: 'ปริมาณรถเข้า-ออก (พื้นที่หลัก)', module: 'traffic', value: core.fmtNum(vehicles), note: core.fmtNum(tr.length) + ' รายการ', color: core.COLORS.traffic, formula: 'SUM(traffic in+out)' },
       { label: 'รถจอดทะเลทอง', module: 'traffic_tt', value: core.fmtNum(parkTt.total), note: core.fmtNum(trTt.length) + ' รายการ · ตกค้างล่าสุด ' + core.fmtNum(parkTt.leftLatest) + ' คัน', color: core.COLORS.traffic_tt, formula: 'SUM(tt_staff_cars)+SUM(tt_other_cars)' },
       { label: 'รอบรถกอล์ฟ', module: 'golf', value: core.fmtNum(rounds), note: core.fmtNum(gf.length) + ' รายการ', color: core.COLORS.golf, formula: 'SUM(golf_cart_1..4)' },
-      { label: 'Visitor/ผู้รับเหมา/ติดต่อ', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' },
-      { label: 'รายงานลิฟต์', module: 'elevator', value: core.fmtNum(em.total), note: em.total ? 'ลิฟต์ที่รายงานบ่อยสุด: ' + em.mostReported.code : 'ยังไม่มีรายงาน', color: core.COLORS.elevator, formula: 'COUNT(elevator records)' }
+      { label: 'Visitor/ผู้รับเหมา/ติดต่อ', module: 'visitors', value: core.fmtNum(people), note: core.fmtNum(vs.length) + ' รายการ', color: core.COLORS.visitors, formula: 'SUM(visitor counts)' }
     ].concat(monthlyGroup ? [
       { label: monthlyGroup.name, value: monthlyDone + '/' + monthlyMembers.length + ' หัวข้อ', note: 'หัวข้อที่มีรายงานในช่วงที่เลือก', color: monthlyGroup.color, formula: 'COUNT(DISTINCT module) ในกลุ่ม ' + monthlyGroup.id }
     ] : []);
@@ -3203,8 +3252,7 @@ class Component extends DCLogic {
           { label: 'รถเข้า-ออก', value: tr.length, color: core.COLORS.traffic, unit: 'รายการ' },
           { label: 'ลานจอดทะเลทอง', value: trTt.length, color: core.COLORS.traffic_tt, unit: 'รายการ' },
           { label: 'รถกอล์ฟ', value: gf.length, color: core.COLORS.golf, unit: 'รายการ' },
-          { label: 'Visitor', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' },
-          { label: 'ลิฟต์', value: el.length, color: core.COLORS.elevator, unit: 'รายการ' }
+          { label: 'Visitor', value: vs.length, color: core.COLORS.visitors, unit: 'รายการ' }
         ].concat(monthlyGroup ? [{ label: monthlyGroup.name, value: monthlyMembers.reduce((n, m) => n + all.filter(r => r.module === m.id).length, 0), color: monthlyGroup.color, unit: 'รายการ' }] : []),
         trace: 'trace: all modules → COUNT(records) per module → category comparison' })
     ];
@@ -4831,7 +4879,7 @@ class Component extends DCLogic {
           formula: 'SUM(' + f.fieldId + ')'
         })));
     }
-    const tr = recs.filter(r => r.module === 'traffic'), trTt = recs.filter(r => r.module === 'traffic_tt'), gf = recs.filter(r => r.module === 'golf'), vs = recs.filter(r => r.module === 'visitors'), el = recs.filter(r => r.module === 'elevator'), cp = recs.filter(r => r.module === 'checkpoint');
+    const tr = recs.filter(r => r.module === 'traffic'), trTt = recs.filter(r => r.module === 'traffic_tt'), gf = recs.filter(r => r.module === 'golf'), vs = recs.filter(r => r.module === 'visitors'), cp = recs.filter(r => r.module === 'checkpoint');
     const tm = this.trafficMetrics(tr, 'traffic'), pkTt = this.parkingMetrics(trTt), gm = this.golfMetrics(gf), vm = this.visitorsMetrics(vs);
     return [
       { label: 'จำนวนรายการทั้งหมด', value: core.fmtNum(recs.length), formula: 'COUNT(records)' },
@@ -4839,7 +4887,6 @@ class Component extends DCLogic {
       { label: 'รถจอดทะเลทอง (รวม / ตกค้างเฉลี่ย)', value: core.fmtNum(pkTt.total) + ' / ' + core.fmtNum(pkTt.leftAvg), formula: 'SUM(tt_staff_cars)+SUM(tt_other_cars) / AVERAGE(tt_left_cars)' },
       { label: 'รอบรถกอล์ฟรวม', value: core.fmtNum(gm.total), formula: 'SUM(golf_cart_1..4)' },
       { label: 'Visitor รวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' },
-      { label: 'รายงานปุ่มฉุกเฉินลิฟต์รวม', value: core.fmtNum(el.length), formula: 'COUNT(elevator records)' },
       { label: 'รายงานการตรวจจุดรวม', value: core.fmtNum(cp.length), formula: 'COUNT(checkpoint records)' }
     ];
   }
@@ -5865,7 +5912,7 @@ class Component extends DCLogic {
       bars: [], series: [], grid: [], xLabels: [], slices: [], wedges: [], legend: [],
 
       moduleChips: [{ id: 'all', label: 'รวมทุกหัวข้อ' }]
-        .concat(['traffic', 'traffic_tt', 'golf', 'visitors', 'elevator'].map(id => ({ id, label: (core.module(id) || {}).name || id })))
+        .concat(['traffic', 'traffic_tt', 'golf', 'visitors'].map(id => ({ id, label: (core.module(id) || {}).name || id })))
         .map(mc => ({
           label: mc.label,
           border: s.compareModule === mc.id ? 'var(--accent-line)' : 'var(--line)',
