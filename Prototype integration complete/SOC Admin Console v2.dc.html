@@ -11,7 +11,7 @@
   }
 }catch(e){}})();</script>
 <script src="./support.js"></script>
-<script src="./soc-ux.js?v=1" defer></script>
+<script src="./soc-ux.js?v=2" defer></script>
 </head>
 <body>
 <x-dc>
@@ -217,6 +217,41 @@
   *::-webkit-scrollbar-thumb:hover { background: var(--dim); background-clip: content-box; }
 
   ::selection { background: var(--accent-soft); }
+
+  /* page transition (class replayed by soc-ux.js on nav click) */
+  @keyframes socPageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  main.soc-page-enter { animation: socPageIn 260ms var(--ease-out); }
+
+  /* collapsible desktop sidebar (toggle injected by soc-ux.js); the narrow-screen drawer is
+     position: fixed and keeps its full width */
+  .soc-collapse-btn { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+  .soc-collapse-btn:hover { background: var(--panel-2); color: var(--text); }
+  aside[style*="position: fixed"] .soc-collapse-btn { display: none; }
+  aside { transition: width 220ms var(--ease-out); }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) { width: 72px !important; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > div:first-child { flex-direction: column; padding: 12px 8px; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > div:first-child > div:nth-child(2) { display: none; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) .soc-collapse-btn { transform: rotate(180deg); }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) nav { padding: 12px 8px; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) nav > * > div > div:first-child { font-size: 0; padding: 6px 0; border-top: 1px solid var(--line); margin-top: 4px; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) nav button { justify-content: center; padding: 0; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) nav button > span:not(:first-child) { display: none; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > a { justify-content: center; padding: 11px 0; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > a > span:not(:first-child) { display: none; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > div:last-child { flex-direction: column; padding: 8px 4px; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > div:last-child > span { display: none; }
+  html.soc-nav-collapsed aside:not([style*="position: fixed"]) > div:last-child > button { padding: 0 4px; font-size: 10.5px; }
+
+  /* phones: data tables become stacked cards (labels copied from the header by soc-ux.js) */
+  @media (max-width: 640px) {
+    main table[data-soc-cards] { min-width: 0 !important; }
+    main table[data-soc-cards] thead { display: none; }
+    main table[data-soc-cards], main table[data-soc-cards] tbody { display: block; }
+    main table[data-soc-cards] tbody tr { display: block; border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; margin-bottom: 10px; background: var(--panel-2); }
+    main table[data-soc-cards] tbody td { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; padding: 7px 0 !important; border-bottom: 1px solid var(--line) !important; white-space: normal !important; text-align: right; }
+    main table[data-soc-cards] tbody td:last-child { border-bottom: 0 !important; }
+    main table[data-soc-cards] tbody td::before { content: attr(data-label); flex: none; max-width: 45%; text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--dim); }
+  }
 
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   @media print {
