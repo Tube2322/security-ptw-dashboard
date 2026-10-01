@@ -820,6 +820,27 @@
       return sb.from('repair_jobs').select('*').order('created_at', { ascending: false }).limit(300)
         .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
     },
+    /* the "broken" answers per field, readable by the portal so it can offer the camera only then */
+    repairRules: function (module) {
+      return sb.from('repair_rules').select('field_id,bad_values').eq('module', module)
+        .then(function (res) { return res.error ? [] : (res.data || []); });
+    },
+    /* uploads one already-compressed JPEG into the private repair-photos bucket; resolves to its path or '' */
+    uploadRepairPhoto: function (blob) {
+      var id = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); }));
+      var path = 'inbox/' + new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10) + '/' + id + '.jpg';
+      return sb.storage.from('repair-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+        .then(function (res) { return res.error ? '' : path; }, function () { return ''; });
+    },
+    /* admin view: storage paths to short-lived signed URLs, same order; unknown entries come back as-is */
+    repairPhotoUrls: function (paths) {
+      var own = paths.filter(function (p) { return /^inbox\//.test(p); });
+      if (!own.length) return Promise.resolve(paths);
+      return sb.storage.from('repair-photos').createSignedUrls(own, 3600).then(function (res) {
+        var map = {}; (res.data || []).forEach(function (d) { if (d.signedUrl) map[d.path] = d.signedUrl; });
+        return paths.map(function (p) { return map[p] || p; });
+      }, function () { return paths; });
+    },
     /* stamps one step into times and records who did it; returns '' or the error text */
     repairJobStep: function (job, status, step) {
       return sb.auth.getUser().then(function (u) {

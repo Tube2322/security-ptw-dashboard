@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261001a"></script>
+<script src="./soc-core.js?v=20261001b"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -5520,7 +5520,16 @@ class Component extends DCLogic {
     return jobs;
   }
   loadRepairs = () => {
-    this.core().repairJobs().then(res => this.setState({ repairRows: res.rows, repairError: res.error, repairLoaded: true }));
+    const core = this.core();
+    core.repairJobs().then(res => {
+      /* photos are private storage paths; swap them for signed URLs so the cards can show them */
+      const all = [].concat(...res.rows.map(r => Array.isArray(r.photos) ? r.photos : []));
+      return core.repairPhotoUrls(all).then(urls => {
+        let i = 0;
+        const rows = res.rows.map(r => Array.isArray(r.photos) ? Object.assign({}, r, { photos: r.photos.map(() => urls[i++]) }) : r);
+        this.setState({ repairRows: rows, repairError: res.error, repairLoaded: true });
+      });
+    });
   }
   repairStep(j, status, step, ok) {
     this.core().repairJobStep(j.row, status, step).then(err => {
