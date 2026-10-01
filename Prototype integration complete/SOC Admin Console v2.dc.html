@@ -147,6 +147,32 @@
   @keyframes socAreaFade { to { opacity: 1; } }
   /* today's/latest point stays marked with a slow pulsing ring so a live-looking dashboard reads
      as "still updating" at a glance, on top of the existing static ring for the same point */
+  /* ---------- ตามงานซ่อม ---------- spring-ish easing, nothing linear or abrupt */
+  .rp-card { animation: rpIn 520ms cubic-bezier(0.22,1,0.36,1) both; transition: transform 260ms cubic-bezier(0.22,1,0.36,1), box-shadow 260ms ease, border-color 260ms ease; }
+  .rp-card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px -18px rgba(0,0,0,0.45); }
+  .rp-card.rp-open { box-shadow: 0 18px 44px -22px rgba(0,0,0,0.5); }
+  @keyframes rpIn { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
+  .rp-expand { display: grid; transition: grid-template-rows 420ms cubic-bezier(0.22,1,0.36,1); }
+  .rp-open .rp-tl { animation: rpTl 480ms cubic-bezier(0.22,1,0.36,1) both; }
+  @keyframes rpTl { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+  .rp-chev { transition: transform 320ms cubic-bezier(0.34,1.56,0.64,1); display: inline-block; }
+  .rp-tabs { scrollbar-width: none; }
+  .rp-tabs::-webkit-scrollbar { display: none; }
+  .rp-tab { transition: background 220ms ease, color 220ms ease, box-shadow 220ms ease, transform 160ms ease; }
+  .rp-tab:active, .rp-chip:active, .rp-btn:active, .rp-cta:active { transform: scale(0.96); }
+  .rp-chip, .rp-btn { transition: background 200ms ease, border-color 200ms ease, color 200ms ease, transform 160ms ease, filter 200ms ease; }
+  .rp-btn:hover, .rp-chip:hover { filter: brightness(1.08); }
+  .rp-cta { transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease; box-shadow: 0 8px 22px -10px rgba(0,0,0,0.5); }
+  .rp-cta:hover { transform: translateY(-1px); }
+  .rp-search { transition: border-color 200ms ease, box-shadow 200ms ease; }
+  .rp-search:focus { outline: none; border-color: var(--accent-line); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .rp-now { animation: rpNow 2.2s ease-in-out infinite; }
+  @keyframes rpNow { 0%,100% { transform: scale(1); } 50% { transform: scale(1.25); } }
+  .rp-blink { animation: rpSoft 2.4s ease-in-out infinite; }
+  @keyframes rpSoft { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  .rp-photo { transition: transform 240ms cubic-bezier(0.22,1,0.36,1); }
+  .rp-photo:hover { transform: scale(1.05); }
+  .rp-empty { animation: rpIn 480ms cubic-bezier(0.22,1,0.36,1) both; }
   .soc-pt-pulse { transform-box: fill-box; transform-origin: center; animation: socPtPulse 1.8s ease-out infinite; }
   @keyframes socPtPulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.8); opacity: 0; } }
   .soc-donut-svg circle.soc-slice:hover, .soc-pie-svg path.soc-wedge:hover { opacity: 1 !important; }
@@ -1315,6 +1341,131 @@
             <sc-if value="{{ isViewerRole }}" hint-placeholder-val="{{ false }}">
               <div style="padding: 13px 0; font-size: 12.5px; color: var(--dim);">{{ builderStatus }} · สิทธิ์ผู้ชม แก้ไขไม่ได้</div>
             </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ===== REPAIRS (ตามงานซ่อม) — UI demo on sample data, not wired to the database yet ===== -->
+        <sc-if value="{{ isRepairs }}" hint-placeholder-val="{{ false }}">
+          <div class="rp-page" style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(224,163,60,0.08); font-size: 12px; color: var(--warn);"><span>●</span>เดโม่ — ข้อมูลสมมติ ยังไม่เชื่อมฐานข้อมูลหรือเว็บช่าง</div>
+
+            <!-- what needs doing now -->
+            <div class="rp-hero" style="border-radius: 18px; padding: 18px 20px; border: 1px solid var(--line); background: linear-gradient(135deg, {{ repairs.heroTint }} 0%, transparent 70%), var(--panel); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+              <div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 12px; color: var(--muted); letter-spacing: 0.3px;">สิ่งที่ต้องทำตอนนี้</div>
+                <div style="font-size: clamp(18px, 4vw, 22px); font-weight: 600; line-height: 1.3;">{{ repairs.heroTitle }}</div>
+                <div style="font-size: 13px; color: var(--muted);">{{ repairs.heroSub }}</div>
+              </div>
+              <sc-if value="{{ repairs.heroAction }}" hint-placeholder-val="{{ false }}">
+                <button class="rp-cta" onClick="{{ repairs.heroAction.run }}" style="flex: none; min-height: 44px; padding: 0 18px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; background: {{ repairs.heroAction.bg }}; color: #fff;">{{ repairs.heroAction.label }} →</button>
+              </sc-if>
+            </div>
+
+            <!-- status tabs -->
+            <div class="rp-tabs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line);">
+              <sc-for list="{{ repairs.stats }}" as="st" hint-placeholder-count="6">
+                <button class="rp-tab" onClick="{{ st.pick }}" style="min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: none; cursor: pointer; font-size: 13px; white-space: nowrap; background: {{ st.bg }}; color: {{ st.fg }}; box-shadow: {{ st.shadow }};">
+                  <span style="display: flex; align-items: center; gap: 7px; min-width: 0;"><span style="flex: none; width: 7px; height: 7px; border-radius: 99px; background: {{ st.dot }};"></span><span style="overflow: hidden; text-overflow: ellipsis;">{{ st.label }}</span></span>
+                  <span style="min-width: 22px; padding: 1px 7px; border-radius: 99px; font-size: 11.5px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; background: {{ st.countBg }}; color: {{ st.countFg }};">{{ st.value }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+              <div style="min-width: 0; position: relative;">
+                <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dim); font-size: 14px; pointer-events: none;">⌕</span>
+                <input class="rp-search" type="search" value="{{ repairs.search }}" onChange="{{ repairs.setSearch }}" placeholder="ค้นหาเลขงาน เลขใบงานช่าง หรือจุด" style="width: 100%; min-height: 42px; padding: 0 12px 0 32px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 13.5px;">
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; min-width: 0;">
+              <sc-for list="{{ repairs.topics }}" as="tp" hint-placeholder-count="4">
+                <button class="rp-chip" onClick="{{ tp.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 12.5px; border: 1px solid {{ tp.border }}; background: {{ tp.bg }}; color: {{ tp.fg }};">{{ tp.label }}</button>
+              </sc-for>
+              </div>
+            </div>
+
+            <sc-if value="{{ repairs.empty }}" hint-placeholder-val="{{ false }}">
+              <div class="rp-empty" style="padding: 44px 16px; text-align: center; border: 1px dashed var(--line-2); border-radius: 16px; display: flex; flex-direction: column; gap: 6px; align-items: center;">
+                <div style="font-size: 30px;">{{ repairs.emptyIcon }}</div>
+                <div style="font-size: 14.5px; font-weight: 500;">{{ repairs.emptyTitle }}</div>
+                <div style="font-size: 12.5px; color: var(--muted);">{{ repairs.emptySub }}</div>
+              </div>
+            </sc-if>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ repairs.cards }}" as="j" hint-placeholder-count="3">
+                <div class="rp-card {{ j.cls }}" style="animation-delay: {{ j.delay }}; border-radius: 16px; border: 1px solid {{ j.border }}; background: var(--panel); overflow: hidden; min-width: 0; position: relative;">
+                  <span style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: {{ j.accent }};"></span>
+                  <button onClick="{{ j.toggle }}" style="all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; gap: 14px; padding: 15px 16px 14px 20px; align-items: flex-start; min-width: 0;">
+                    <div style="flex: none; width: 50px; height: 50px; border-radius: 13px; background: {{ j.iconBg }}; display: grid; place-items: center; font-size: 23px;">{{ j.icon }}</div>
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
+                      <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                        <span style="padding: 2px 10px; border-radius: 99px; font-size: 11.5px; font-weight: 600; background: {{ j.statusBg }}; color: color-mix(in srgb, {{ j.statusFg }} 72%, var(--text));">{{ j.statusLabel }}</span>
+                        <sc-if value="{{ j.dup }}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 10px; border-radius: 99px; font-size: 11.5px; background: rgba(224,163,60,0.14); color: var(--warn);">อาจซ้ำ</span></sc-if>
+                        <sc-if value="{{ j.overdue }}" hint-placeholder-val="{{ false }}"><span class="rp-blink" style="padding: 2px 10px; border-radius: 99px; font-size: 11.5px; background: rgba(209,72,58,0.12); color: var(--danger);">เกินกำหนด</span></sc-if>
+                      </div>
+                      <div style="font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere;">{{ j.title }}</div>
+                      <div style="font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere;">{{ j.place }}</div>
+                      <div style="display: flex; align-items: center; gap: 0; margin: 6px 4px 0 2px; min-width: 0;">
+                        <sc-for list="{{ j.steps }}" as="sp" hint-placeholder-count="7">
+                          <div style="flex: {{ sp.flex }}; display: flex; align-items: center; min-width: 0; overflow: visible;" title="{{ sp.label }}">
+                            <span class="{{ sp.dotCls }}" style="flex: none; width: {{ sp.size }}; height: {{ sp.size }}; border-radius: 99px; background: {{ sp.dot }}; box-shadow: 0 0 0 3px {{ sp.halo }};"></span>
+                            <span style="flex: 1; height: 2px; background: {{ sp.line }}; margin: 0 3px; border-radius: 2px;"></span>
+                          </div>
+                        </sc-for>
+                      </div>
+                      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; font-size: 11.5px; color: var(--dim); min-width: 0;">
+                        <span style="min-width: 0; overflow-wrap: anywhere;">{{ j.stepText }}</span>
+                        <span style="display: flex; flex-wrap: wrap; gap: 0 8px; font-family: 'IBM Plex Mono', monospace;"><span style="white-space: nowrap;">{{ j.code }}</span><span style="white-space: nowrap;">{{ j.extCode }}</span></span>
+                      </div>
+                    </div>
+                    <div style="flex: none; width: 52px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                      <div style="text-align: right; line-height: 1.1;">
+                        <div style="font-size: 20px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: {{ j.ageFg }};">{{ j.ageNum }}</div>
+                        <div style="font-size: 10.5px; color: var(--dim);">{{ j.ageUnit }}</div>
+                      </div>
+                      <span class="rp-chev" style="font-size: 13px; color: var(--dim); transform: rotate({{ j.chevRot }});">▾</span>
+                    </div>
+                  </button>
+
+                  <div class="rp-expand" style="grid-template-rows: {{ j.rows }};">
+                    <div style="overflow: hidden; min-height: 0;">
+                      <div style="border-top: 1px solid var(--line); padding: 16px 16px 16px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap: 18px;">
+                        <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+                          <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel-2); font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere;">{{ j.detail }}</div>
+                          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <sc-for list="{{ j.photos }}" as="ph" hint-placeholder-count="2">
+                              <div class="rp-photo" style="width: 82px; height: 82px; border-radius: 12px; background: {{ ph.bg }}; display: grid; place-items: center; font-size: 11px; color: var(--muted); border: 1px solid var(--line);">{{ ph.label }}</div>
+                            </sc-for>
+                            <sc-if value="{{ j.noPhoto }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: var(--dim);">ไม่มีรูป</div></sc-if>
+                          </div>
+                          <div style="font-size: 12px; color: var(--muted);">📋 {{ j.source }}</div>
+                          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px;">
+                            <sc-for list="{{ j.actions }}" as="ac" hint-placeholder-count="2">
+                              <button class="rp-btn" onClick="{{ ac.run }}" style="min-height: 40px; padding: 0 16px; border-radius: 11px; cursor: pointer; font-size: 13px; font-weight: 600; border: 1px solid {{ ac.border }}; background: {{ ac.bg }}; color: {{ ac.fg }};">{{ ac.label }}</button>
+                            </sc-for>
+                          </div>
+                        </div>
+                        <div style="min-width: 0;">
+                          <div style="font-size: 12px; color: var(--muted); margin-bottom: 10px;">ความคืบหน้า</div>
+                          <sc-for list="{{ j.timeline }}" as="tl" hint-placeholder-count="4">
+                            <div class="rp-tl" style="display: flex; gap: 12px; min-width: 0; animation-delay: {{ tl.delay }};">
+                              <div style="flex: none; display: flex; flex-direction: column; align-items: center; width: 14px;">
+                                <span style="width: 12px; height: 12px; border-radius: 99px; margin-top: 3px; background: {{ tl.dot }}; border: 2px solid {{ tl.ring }};"></span>
+                                <span style="flex: 1; width: 2px; min-height: 18px; background: {{ tl.line }};"></span>
+                              </div>
+                              <div style="padding-bottom: 12px; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: 500; color: {{ tl.fg }};">{{ tl.label }}</div>
+                                <div style="font-size: 11.5px; color: var(--dim);">{{ tl.time }}</div>
+                              </div>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
           </div>
         </sc-if>
 
@@ -5315,6 +5466,130 @@ class Component extends DCLogic {
     }
     return blocks;
   }
+  /* ---------- ตามงานซ่อม (repair tracking) — UI demo ----------
+     Sample jobs only, held in code, so the page can be judged before the repair_jobs table and the
+     repair-site status lookup exist. Every action here only changes this tab's view. */
+  repairDemoJobs() {
+    if (this._repairDemo) return this._repairDemo;
+    this._repairDemo = [
+      { id: 'RP-2569-0014', ext: '', status: 'pending', topic: 'ACC', icon: '🚪', title: 'กลอนไฟฟ้าไม่ล็อก', place: 'ประตู ACC · อาคารโรงพยาบาล ชั้น 3', detail: 'ข้อ 5 กลอนไฟฟ้าตอบ "ไม่ปกติ" — หมายเหตุ: ปิดประตูแล้วกลอนไม่ดีด ต้องดันซ้ำ', source: 'ตรวจประตู ACC 30 ก.ย. 2569 · เทพภกรณ์', photos: 2, dup: false, t: { found: '30 ก.ย. 2569 09:12' }, days: 1 },
+      { id: 'RP-2569-0013', ext: '', status: 'pending', topic: 'ถังดับเพลิง', icon: '🧯', title: 'เกจวัดไม่อยู่ในเกณฑ์ (สีแดง)', place: 'ถังดับเพลิง · ชั้น 7 · ถัง 7-2', detail: 'ข้อ 7 เกจวัด "ไม่อยู่ในเกจวัด (สีแดง)"', source: 'ตรวจถังดับเพลิง 29 ก.ย. 2569 · เทพภกรณ์', photos: 1, dup: true, t: { found: '29 ก.ย. 2569 17:40' }, days: 2 },
+      { id: 'RP-2569-0011', ext: 'PTW-0928-031', status: 'sent', topic: 'ประตูหนีไฟ', icon: '🚨', title: 'กดเปิดประตูหนีไฟไม่ได้', place: 'ประตูหนีไฟ ST 4 · ชั้น 3', detail: 'ข้อ 6 กดเปิดได้ "ไม่ได้"', source: 'ตรวจประตูหนีไฟ 22 ก.ย. 2569 · เทพภกรณ์', photos: 2, dup: false, t: { found: '22 ก.ย. 2569 05:24', approved: '22 ก.ย. 2569 08:10', sent: '22 ก.ย. 2569 08:11' }, days: 9 },
+      { id: 'RP-2569-0010', ext: 'PTW-0925-014', status: 'repairing', topic: 'ACC', icon: '🚪', title: 'เครื่องอ่านบัตรไม่ตอบสนอง', place: 'ประตู ACC · อาคารบริการ ชั้น 1', detail: 'ข้อ 3 เครื่องอ่านบัตร "ผิดปกติ" — แตะบัตรแล้วไม่มีเสียง', source: 'ตรวจประตู ACC 22 ก.ย. 2569 · เทพภกรณ์', photos: 1, dup: false, t: { found: '22 ก.ย. 2569 04:10', approved: '22 ก.ย. 2569 08:05', sent: '22 ก.ย. 2569 08:06', accepted: '22 ก.ย. 2569 10:30', repairing: '23 ก.ย. 2569 09:00' }, days: 9 },
+      { id: 'RP-2569-0008', ext: 'PTW-0920-007', status: 'done', topic: 'ถังดับเพลิง', icon: '🧯', title: 'สายฉีดแข็งกรอบ', place: 'ถังดับเพลิง · ชั้น 5 · ถัง 5-1', detail: 'ข้อ 10 สายฉีด "แข็ง"', source: 'ตรวจถังดับเพลิง 20 ก.ย. 2569 · เทพภกรณ์', photos: 1, dup: false, t: { found: '20 ก.ย. 2569 16:05', approved: '20 ก.ย. 2569 17:00', sent: '20 ก.ย. 2569 17:01', accepted: '21 ก.ย. 2569 08:20', repairing: '21 ก.ย. 2569 13:00', done: '24 ก.ย. 2569 11:15' }, days: 4 },
+      { id: 'RP-2569-0005', ext: 'PTW-0912-022', status: 'closed', topic: 'ประตูหนีไฟ', icon: '🚨', title: 'ป้ายทางออกหลุด', place: 'ประตูหนีไฟ ST 6 · ชั้น 4', detail: 'ข้อ 9 ป้าย "ไม่มี"', source: 'ตรวจประตูหนีไฟ 8 ก.ย. 2569 · หนน.เอ็ม', photos: 1, dup: false, t: { found: '8 ก.ย. 2569 12:07', approved: '8 ก.ย. 2569 13:00', sent: '8 ก.ย. 2569 13:02', accepted: '9 ก.ย. 2569 08:00', repairing: '9 ก.ย. 2569 10:00', done: '10 ก.ย. 2569 15:00', closed: '11 ก.ย. 2569 09:00' }, days: 3 },
+      { id: 'RP-2569-0004', ext: '', status: 'rejected', topic: 'ACC', icon: '🚪', title: 'ไฟแจ้งเตือนกระพริบ', place: 'ประตู ACC · อาคารโรงพยาบาล ชั้น 2', detail: 'หมายเหตุ: ไฟกระพริบช่วงสั้นๆ — ตรวจซ้ำแล้วปกติ', source: 'ตรวจประตู ACC 5 ก.ย. 2569 · หนน.เอ็ม', photos: 0, dup: false, t: { found: '5 ก.ย. 2569 10:00', rejected: '5 ก.ย. 2569 14:00' }, days: 0 }
+    ];
+    return this._repairDemo;
+  }
+  repairDemoSet(id, patch) {
+    this._repairDemo = this.repairDemoJobs().map(j => j.id === id ? Object.assign({}, j, patch, { t: Object.assign({}, j.t, patch.t || {}) }) : j);
+    this.setState(s => ({ rev: (s.rev || 0) + 1 }));
+  }
+  buildRepairs() {
+    const s = this.state;
+    const jobs = this.repairDemoJobs();
+    const filter = s.repairFilter || 'open', topic = s.repairTopic || 'all', q = String(s.repairSearch || '').trim().toLowerCase();
+    /* days a job may sit in each step before it is flagged overdue */
+    const OVERDUE = { pending: 1, sent: 2, accepted: 3, repairing: 7 };
+    const overdue = (j) => OVERDUE[j.status] != null && j.days > OVERDUE[j.status];
+    const open = (j) => j.status !== 'closed' && j.status !== 'rejected';
+    const STATUS = {
+      pending: { label: 'รออนุมัติ', c: '#e0a33c' }, sent: { label: 'ส่งช่างแล้ว · รอรับงาน', c: '#7c8cff' },
+      accepted: { label: 'ช่างรับงานแล้ว', c: '#3fbf8f' }, repairing: { label: 'กำลังซ่อม', c: '#3fbf8f' },
+      done: { label: 'ซ่อมเสร็จ', c: '#2fa89a' }, closed: { label: 'ปิดงานแล้ว', c: '#8b95a6' }, rejected: { label: 'ไม่ต้องซ่อม', c: '#8b95a6' }
+    };
+    const soft = (c, a) => c.charAt(0) === '#' ? c + Math.round(a * 255).toString(16).padStart(2, '0') : c;
+    const groups = {
+      open: { label: 'ทั้งหมดที่ค้าง', test: open, dot: 'var(--accent)' },
+      pending: { label: 'รออนุมัติ', test: j => j.status === 'pending', dot: '#e0a33c' },
+      waiting: { label: 'รอช่างรับ', test: j => j.status === 'sent', dot: '#7c8cff' },
+      repairing: { label: 'กำลังซ่อม', test: j => j.status === 'accepted' || j.status === 'repairing' || j.status === 'done', dot: '#3fbf8f' },
+      overdue: { label: 'เกินกำหนด', test: overdue, dot: 'var(--danger)' },
+      closed: { label: 'ปิดแล้ว', test: j => !open(j), dot: '#8b95a6' }
+    };
+    const stats = Object.keys(groups).map(k => {
+      const on = filter === k, n = jobs.filter(groups[k].test).length;
+      return { label: groups[k].label, value: String(n), dot: groups[k].dot,
+        bg: on ? 'var(--bg-2)' : 'transparent', fg: on ? 'var(--text)' : 'var(--muted)',
+        shadow: on ? '0 2px 10px -4px rgba(0,0,0,0.35), 0 0 0 1px var(--line)' : 'none',
+        countBg: k === 'overdue' && n ? 'rgba(209,72,58,0.14)' : (on ? 'var(--accent-soft)' : 'var(--panel-2)'),
+        countFg: k === 'overdue' && n ? 'var(--danger)' : (on ? 'var(--accent)' : 'var(--muted)'),
+        pick: () => this.setState({ repairFilter: k, repairOpen: null }) };
+    });
+
+    /* the hero line says what to do next, in that order: approvals waiting on us, then overdue */
+    const nPending = jobs.filter(groups.pending.test).length, nOver = jobs.filter(overdue).length, nOpen = jobs.filter(open).length;
+    let heroTitle, heroSub, heroAction = null, heroTint;
+    if (nPending) {
+      heroTitle = 'มี ' + nPending + ' งานรอคุณอนุมัติ'; heroSub = 'ตรวจรายละเอียดและรูป แล้วกดอนุมัติเพื่อส่งให้ช่าง' + (nOver ? ' · เกินกำหนดอีก ' + nOver + ' งาน' : '');
+      heroAction = { label: 'ดูงานรออนุมัติ', bg: '#e0a33c', run: () => this.setState({ repairFilter: 'pending', repairOpen: null }) }; heroTint = 'rgba(224,163,60,0.16)';
+    } else if (nOver) {
+      heroTitle = nOver + ' งานค้างนานเกินกำหนด'; heroSub = 'ระบบตามสถานะจากเว็บช่างให้อยู่ — ถ้าค้างนาน ลองโทรตามช่าง';
+      heroAction = { label: 'ดูงานเกินกำหนด', bg: '#d1483a', run: () => this.setState({ repairFilter: 'overdue', repairOpen: null }) }; heroTint = 'rgba(209,72,58,0.14)';
+    } else {
+      heroTitle = nOpen ? 'ทุกอย่างเดินตามกำหนด' : 'ไม่มีงานซ่อมค้าง'; heroSub = nOpen ? nOpen + ' งานกำลังดำเนินการ ระบบอัปเดตสถานะให้อัตโนมัติ' : 'งานใหม่จะขึ้นที่นี่เมื่อรายการตรวจพบสิ่งผิดปกติ'; heroTint = 'rgba(63,191,143,0.14)';
+    }
+
+    const topics = ['all', 'ACC', 'ถังดับเพลิง', 'ประตูหนีไฟ'].map(t => ({ label: t === 'all' ? 'ทุกหัวข้อ' : t,
+      border: topic === t ? 'var(--accent-line)' : 'var(--line)', bg: topic === t ? 'var(--accent-soft)' : 'transparent', fg: topic === t ? 'var(--accent)' : 'var(--muted)',
+      pick: () => this.setState({ repairTopic: t }) }));
+    const STEPS = [['found', 'ตรวจพบ'], ['approved', 'อนุมัติ'], ['sent', 'ส่งช่าง'], ['accepted', 'ช่างรับงาน'], ['repairing', 'กำลังซ่อม'], ['done', 'ซ่อมเสร็จ'], ['closed', 'ปิดงาน']];
+    const ORDER = { pending: 0, sent: 2, accepted: 3, repairing: 4, done: 5, closed: 6, rejected: 0 };
+    /* overdue first, then whatever is waiting on us, then by how long it has been open */
+    const rank = (j) => (overdue(j) ? 0 : j.status === 'pending' ? 1 : open(j) ? 2 : 3);
+    const list = jobs.filter(groups[filter].test).filter(j => topic === 'all' || j.topic === topic)
+      .filter(j => !q || (j.id + ' ' + j.ext + ' ' + j.title + ' ' + j.place).toLowerCase().includes(q))
+      .slice().sort((a, b) => rank(a) - rank(b) || b.days - a.days);
+    const cards = list.map((j, idx) => {
+      const isOpen = s.repairOpen === j.id, od = overdue(j), st = STATUS[j.status], c = st.c, reached = ORDER[j.status];
+      const rejected = j.status === 'rejected', closed = !open(j);
+      const steps = STEPS.map((sp, i) => {
+        const done = !rejected && i < reached, cur = !rejected && !closed && i === reached, last = i === STEPS.length - 1;
+        return { label: sp[1], flex: last ? '0 0 auto' : '1 1 0',
+          size: cur ? '11px' : '8px', dot: done || cur || (closed && !rejected) ? c : 'var(--line-2)',
+          halo: cur ? soft(c, 0.22) : 'transparent', dotCls: cur ? 'rp-now' : '',
+          line: last ? 'transparent' : (done || (closed && !rejected) ? c : 'var(--line)') };
+      });
+      const actions = [];
+      const btn = (label, kind, run) => actions.push({ label, run,
+        border: kind === 'primary' ? c : kind === 'danger' ? 'rgba(209,72,58,0.4)' : 'var(--line)',
+        bg: kind === 'primary' ? c : 'transparent', fg: kind === 'primary' ? '#fff' : kind === 'danger' ? 'var(--danger)' : 'var(--text)' });
+      const now = 'เมื่อสักครู่ (เดโม่)';
+      if (j.status === 'pending') {
+        btn('✓ อนุมัติและส่งช่าง', 'primary', () => { this.repairDemoSet(j.id, { status: 'sent', ext: 'PTW-DEMO-' + j.id.slice(-2), days: 0, t: { approved: now, sent: now } }); this.flash('อนุมัติแล้ว — ระบบจะส่งเข้าเว็บช่างและเก็บเลขใบงานให้ (เดโม่)', 'var(--ok)'); });
+        btn('แก้ไข', '', () => this.flash('เดโม่: เปิดฟอร์มแก้รายละเอียด / สถานที่ / รูป', 'var(--muted)'));
+        btn('ไม่ต้องซ่อม', 'danger', () => { this.repairDemoSet(j.id, { status: 'rejected', t: { rejected: now } }); this.flash('ปิดงานโดยไม่ส่งช่าง (เดโม่)', 'var(--muted)'); });
+      }
+      if (j.ext) btn('เปิดในเว็บช่าง ↗', '', () => window.open('https://ptw.pypl-engineering.online/?track=' + encodeURIComponent(j.ext), '_blank'));
+      const tlSteps = rejected ? [['found', 'ตรวจพบ'], ['rejected', 'ไม่ต้องซ่อม']] : STEPS;
+      const timeline = tlSteps.map((sp, i) => {
+        const done = !!j.t[sp[0]], next = tlSteps[i + 1];
+        return { label: sp[1], time: j.t[sp[0]] || 'รอ…', fg: done ? 'var(--text)' : 'var(--dim)', delay: (i * 55) + 'ms',
+          dot: done ? c : 'transparent', ring: done ? c : 'var(--line-2)',
+          line: !next ? 'transparent' : (done && j.t[next[0]] ? c : 'var(--line)') };
+      });
+      return {
+        cls: isOpen ? 'rp-open' : '', delay: Math.min(idx, 8) * 45 + 'ms',
+        icon: j.icon, iconBg: soft(c, 0.14), accent: c, title: j.title, place: j.place, dup: j.dup, overdue: od,
+        statusLabel: st.label, statusBg: soft(c, 0.15), statusFg: c,
+        steps, stepText: rejected ? 'ปิดโดยไม่ส่งช่าง' : (closed ? 'เสร็จสมบูรณ์' : 'ตอนนี้: ' + STEPS[reached][1] + (j.ext ? ' · ซิงก์จากเว็บช่าง 10 นาทีก่อน' : '')),
+        code: j.id, extCode: j.ext ? 'ช่าง ' + j.ext : '',
+        ageNum: closed ? (rejected ? '—' : String(j.days)) : String(j.days), ageUnit: closed ? (rejected ? '' : 'วันที่ใช้') : 'วันที่ค้าง',
+        ageFg: od ? 'var(--danger)' : 'var(--text)',
+        border: od ? 'rgba(209,72,58,0.4)' : (isOpen ? 'var(--line-2)' : 'var(--line)'),
+        rows: isOpen ? '1fr' : '0fr', chevRot: isOpen ? '180deg' : '0deg',
+        toggle: () => this.setState({ repairOpen: isOpen ? null : j.id }),
+        detail: j.detail, source: j.source, noPhoto: !j.photos,
+        photos: Array.from({ length: j.photos }, (_, i) => ({ label: 'รูป ' + (i + 1), bg: 'var(--panel-2)' })),
+        actions, timeline
+      };
+    });
+    const emptyMsg = filter === 'pending' ? ['✨', 'ไม่มีงานรออนุมัติ', 'อนุมัติครบหมดแล้ว'] : filter === 'overdue' ? ['👍', 'ไม่มีงานเกินกำหนด', 'ทุกงานยังอยู่ในเวลา'] : ['🔍', 'ไม่พบงานที่ตรงเงื่อนไข', 'ลองเปลี่ยนตัวกรองหรือคำค้น'];
+    return { stats, topics, cards, empty: !cards.length, emptyIcon: emptyMsg[0], emptyTitle: emptyMsg[1], emptySub: emptyMsg[2],
+      heroTitle, heroSub, heroAction, heroTint,
+      search: s.repairSearch || '', setSearch: (e) => this.setState({ repairSearch: e.target.value }) };
+  }
   /* ---------- QR user entry portal settings ---------- */
   portalDraft() { return this.state.portalDraft || this.core().getPortal(); }
   patchPortal(p) { this.setState({ portalDraft: Object.assign({}, this.portalDraft(), p) }); }
@@ -6021,6 +6296,7 @@ class Component extends DCLogic {
       checkpoint: { kicker: 'Checkpoint Module', title: 'รายงานการตรวจจุด' },
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },
+      repairs: { kicker: 'Repair Tracking', title: 'ตามงานซ่อม' },
       pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน PDF' },
       kpi: { kicker: 'Key Performance Indicators', title: 'KPI' },
       settings: { kicker: 'System', title: 'ตั้งค่าระบบ' }
@@ -6181,6 +6457,7 @@ class Component extends DCLogic {
         { title: 'Data', items: [
           navItem('builder', 'Form Builder', 'FB', 'var(--muted)'),
           navItem('records', 'Records', 'RC', 'var(--muted)', String(core.MODULES.reduce((n, m) => n + core.recordCount(m.id), 0))),
+          navItem('repairs', 'ตามงานซ่อม', 'RP', '#e0763f', String(this.repairDemoJobs().filter(j => j.status !== 'closed' && j.status !== 'rejected').length)),
           navItem('pdf', 'Export PDF', 'PD', 'var(--muted)')
         ] },
         { title: 'System', items: [navItem('settings', 'ตั้งค่า', 'ST', 'var(--muted)')] }
@@ -6195,6 +6472,8 @@ class Component extends DCLogic {
       isDashboard: isDash,
       isBuilder: page === 'builder',
       isRecords: page === 'records',
+      isRepairs: page === 'repairs',
+      repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null },
       isPdf: page === 'pdf',
       isSettings: page === 'settings',
       isKpi: page === 'kpi',
