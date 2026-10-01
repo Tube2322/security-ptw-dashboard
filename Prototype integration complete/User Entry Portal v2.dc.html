@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20260927a"></script>
+<script src="./soc-core.js?v=20261001b"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -231,6 +231,29 @@
               </section>
             </sc-for>
 
+            <sc-if value="{{ showPhotos }}" hint-placeholder-val="{{ false }}">
+              <section style="min-width: 0; padding: 16px; border-radius: 14px; border: 1px solid rgba(224,163,60,0.45); background: rgba(224,163,60,0.08);">
+                <div style="font-size: 15.5px; font-weight: 600;">📷 ถ่ายรูปจุดที่พบปัญหา <span style="font-weight: 400; color: var(--muted); font-size: 13px;">(ไม่บังคับ)</span></div>
+                <div style="margin-top: 4px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere;">พบ: {{ photoFaults }} · รูปช่วยให้ช่างเห็นปัญหาและส่งงานซ่อมได้</div>
+                <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px;">
+                  <sc-for list="{{ photoList }}" as="ph" hint-placeholder-count="0">
+                    <div style="position: relative; width: 84px; height: 84px; border-radius: 12px; background: {{ ph.bg }}; border: 1px solid var(--line); overflow: hidden;">
+                      <sc-if value="{{ ph.noteShow }}" hint-placeholder-val="{{ false }}">
+                        <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 4px; font-size: 10.5px; text-align: center; color: #fff; background: rgba(0,0,0,0.55);">{{ ph.note }}</div>
+                      </sc-if>
+                      <button type="button" onClick="{{ ph.remove }}" aria-label="ลบรูป" style="position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 99px; border: none; background: rgba(0,0,0,0.55); color: #fff; font-size: 14px; line-height: 1; cursor: pointer;">×</button>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ canAddPhoto }}" hint-placeholder-val="{{ true }}">
+                    <label style="width: 84px; height: 84px; border-radius: 12px; border: 1px dashed var(--line-2); background: var(--panel); display: grid; place-items: center; text-align: center; font-size: 12px; color: var(--muted); cursor: pointer;">
+                      <span>＋<br>ถ่าย/เลือกรูป</span>
+                      <input type="file" accept="image/*" capture="environment" multiple="{{ true }}" onChange="{{ addPhotos }}" style="display: none;">
+                    </label>
+                  </sc-if>
+                </div>
+              </section>
+            </sc-if>
+
             <sc-if value="{{ errorBanner }}" hint-placeholder-val="{{ false }}">
               <div style="padding: 13px 15px; border-radius: 12px; border: 1px solid rgba(209,72,58,0.42); background: rgba(209,72,58,0.1); font-size: 14px; color: #a3291d;">{{ errorBanner }}</div>
             </sc-if>
@@ -355,7 +378,11 @@ class Component extends DCLogic {
     const values = {};
     if (dateField) values[dateField] = today;
     if (core && core.field(id, 'checkpoint_time')) values.checkpoint_time = this.nowHHMM();
-    this.setState({ view: 'form', module: id, phase: 'loading', values, errors: {}, banner: '' });
+    this.setState({ view: 'form', module: id, phase: 'loading', values, errors: {}, banner: '', repairRules: null, photos: [], photoBusy: 0 });
+    /* only monthly inspections can open a repair job; their "broken" answers decide when the camera shows */
+    if (core && (core.module(id) || {}).kind === 'monthly') {
+      core.repairRules(id).then(rules => { if (this.state.module === id) this.setState({ repairRules: rules }); });
+    }
     if (this._t) clearTimeout(this._t);
     this._t = setTimeout(() => {
       const has = core && core.activeFields(id).length > 0;
@@ -447,6 +474,7 @@ class Component extends DCLogic {
 
   submit = () => {
     if (this.state.submitting) return;
+    if (this.state.photoBusy) { this.setState({ banner: 'รูปกำลังอัปโหลด รอสักครู่แล้วกดบันทึกอีกครั้ง' }); return; }
     const core = this.core();
     const errors = this.validate();
     const bad = Object.keys(errors);
@@ -463,6 +491,9 @@ class Component extends DCLogic {
       /* stamped again right here rather than trusting whatever sat in state while the guard was
          still filling out the rest of the form — this is the actual moment of submission */
       if (core.field(this.state.module, 'checkpoint_time')) payload.checkpoint_time = this.nowHHMM();
+      /* photos ride on the record only when something was marked broken; the repair_jobs trigger reads them */
+      const shots = (this.state.photos || []).map(p => p.path).filter(Boolean);
+      if (shots.length && this.faultsPicked().length) payload.repair_photos = shots;
 
       /* Talay Thong rides along with Traffic Flow's submit but is its own record and its own
          forward — split into a second payload here (its date and "ชื่อผู้กรอก" stamped from
@@ -487,7 +518,7 @@ class Component extends DCLogic {
       if (combo) ttRec = core.addRecord(combo, ttPayload);
 
       this.setState({
-        submitting: false, view: 'done', values: {}, errors: {}, banner: '',
+        submitting: false, view: 'done', values: {}, errors: {}, banner: '', photos: [], photoBusy: 0,
         done: rec, doneTt: ttRec,
         msForwardStatus: null, msForwardPayload: null, msForwardStatus2: null, msForwardPayload2: null
       });
@@ -829,9 +860,48 @@ class Component extends DCLogic {
     return base;
   }
 
+  /* the broken answers currently picked, as field labels; empty means the form is all normal */
+  faultsPicked() {
+    const rules = this.state.repairRules || [], v = this.state.values, core = this.core();
+    return rules.filter(r => {
+      const val = v[r.field_id];
+      const vals = Array.isArray(val) ? val : (val == null ? [] : [val]);
+      return vals.some(x => (r.bad_values || []).indexOf(x) !== -1);
+    }).map(r => (core.field(this.state.module, r.field_id) || {}).label || r.field_id);
+  }
+  /* shrinks to at most 1600px on the long side as JPEG before upload: phone photos are 3-8MB */
+  compressPhoto(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(b => b ? resolve(b) : reject(new Error('encode')), 'image/jpeg', 0.8);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+      img.src = url;
+    });
+  }
+  addPhotos = (e) => {
+    const files = Array.from(e.target.files || []).slice(0, Math.max(0, 4 - this.state.photos.length));
+    e.target.value = '';
+    files.forEach(file => {
+      const key = Math.random().toString(36).slice(2), preview = URL.createObjectURL(file);
+      this.setState(s => ({ photos: s.photos.concat([{ key, preview, path: '', failed: false }]), photoBusy: s.photoBusy + 1 }));
+      this.compressPhoto(file).then(b => this.core().uploadRepairPhoto(b)).catch(() => '').then(path => {
+        this.setState(s => ({ photoBusy: s.photoBusy - 1, photos: s.photos.map(p => p.key === key ? Object.assign({}, p, { path, failed: !path }) : p) }));
+      });
+    });
+  };
+  removePhoto(key) { this.setState(s => ({ photos: s.photos.filter(p => p.key !== key) })); }
+
   renderVals() {
     const s = this.state;
     const core = this.core();
+    const faults = s.view === 'form' && s.phase === 'ready' ? this.faultsPicked() : [];
     const hidden = core ? (core.getPortal().hiddenModules || []) : [];
     /* Talay Thong has no tile of its own here — it rides along under Traffic Flow's form
        instead (see comboModuleId/submit) — so it never shows up twice as an entry point. It
@@ -904,6 +974,13 @@ class Component extends DCLogic {
         fields: g.fields.map(f => this.buildField(f))
       })),
 
+      showPhotos: faults.length > 0,
+      photoFaults: faults.join(' · '),
+      photoList: (s.photos || []).map(p => ({ bg: 'center/cover no-repeat url("' + p.preview + '")',
+        note: p.failed ? 'อัปโหลดไม่สำเร็จ' : (p.path ? '' : 'กำลังอัปโหลด…'), noteShow: p.failed || !p.path,
+        remove: () => this.removePhoto(p.key) })),
+      canAddPhoto: (s.photos || []).length < 4,
+      addPhotos: this.addPhotos,
       errorBanner: s.banner,
       submitting: s.submitting,
       submitLabel: s.submitting ? 'กำลังบันทึก…' : 'บันทึกข้อมูล',
