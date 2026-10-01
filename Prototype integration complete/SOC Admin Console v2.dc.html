@@ -1344,12 +1344,9 @@
           </div>
         </sc-if>
 
-        <!-- ===== REPAIRS (ตามงานซ่อม) — UI demo on sample data, not wired to the database yet ===== -->
+        <!-- ===== REPAIRS (ตามงานซ่อม) — jobs from repair_jobs ===== -->
         <sc-if value="{{ isRepairs }}" hint-placeholder-val="{{ false }}">
           <div class="rp-page" style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
-            <sc-if value="{{ repairs.demo }}">
-            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(224,163,60,0.08); font-size: 12px; color: var(--warn);"><span>●</span>ข้อมูลตัวอย่าง — ยังไม่มีงานซ่อมจริงในระบบ (ระบบสร้างงานยังปิดอยู่)</div>
-            </sc-if>
 
             <!-- what needs doing now -->
             <div class="rp-hero" style="border-radius: 18px; padding: 18px 20px; border: 1px solid var(--line); background: linear-gradient(135deg, {{ repairs.heroTint }} 0%, transparent 70%), var(--panel); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
@@ -5468,31 +5465,10 @@ class Component extends DCLogic {
     }
     return blocks;
   }
-  /* ---------- ตามงานซ่อม (repair tracking) — UI demo ----------
-     Sample jobs only, held in code, so the page can be judged before the repair_jobs table and the
-     repair-site status lookup exist. Every action here only changes this tab's view. */
-  repairDemoJobs() {
-    if (this._repairDemo) return this._repairDemo;
-    this._repairDemo = [
-      { id: 'RP-2569-0014', ext: '', status: 'pending', topic: 'ACC', icon: '🚪', title: 'กลอนไฟฟ้าไม่ล็อก', place: 'ประตู ACC · อาคารโรงพยาบาล ชั้น 3', detail: 'ข้อ 5 กลอนไฟฟ้าตอบ "ไม่ปกติ" — หมายเหตุ: ปิดประตูแล้วกลอนไม่ดีด ต้องดันซ้ำ', source: 'ตรวจประตู ACC 30 ก.ย. 2569 · เทพภกรณ์', photos: 2, dup: false, t: { found: '30 ก.ย. 2569 09:12' }, days: 1 },
-      { id: 'RP-2569-0013', ext: '', status: 'pending', topic: 'ถังดับเพลิง', icon: '🧯', title: 'เกจวัดไม่อยู่ในเกณฑ์ (สีแดง)', place: 'ถังดับเพลิง · ชั้น 7 · ถัง 7-2', detail: 'ข้อ 7 เกจวัด "ไม่อยู่ในเกจวัด (สีแดง)"', source: 'ตรวจถังดับเพลิง 29 ก.ย. 2569 · เทพภกรณ์', photos: 1, dup: true, t: { found: '29 ก.ย. 2569 17:40' }, days: 2 },
-      { id: 'RP-2569-0011', ext: 'PTW-0928-031', status: 'sent', topic: 'ประตูหนีไฟ', icon: '🚨', title: 'กดเปิดประตูหนีไฟไม่ได้', place: 'ประตูหนีไฟ ST 4 · ชั้น 3', detail: 'ข้อ 6 กดเปิดได้ "ไม่ได้"', source: 'ตรวจประตูหนีไฟ 22 ก.ย. 2569 · เทพภกรณ์', photos: 2, dup: false, t: { found: '22 ก.ย. 2569 05:24', approved: '22 ก.ย. 2569 08:10', sent: '22 ก.ย. 2569 08:11' }, days: 9 },
-      { id: 'RP-2569-0010', ext: 'PTW-0925-014', status: 'repairing', topic: 'ACC', icon: '🚪', title: 'เครื่องอ่านบัตรไม่ตอบสนอง', place: 'ประตู ACC · อาคารบริการ ชั้น 1', detail: 'ข้อ 3 เครื่องอ่านบัตร "ผิดปกติ" — แตะบัตรแล้วไม่มีเสียง', source: 'ตรวจประตู ACC 22 ก.ย. 2569 · เทพภกรณ์', photos: 1, dup: false, t: { found: '22 ก.ย. 2569 04:10', approved: '22 ก.ย. 2569 08:05', sent: '22 ก.ย. 2569 08:06', accepted: '22 ก.ย. 2569 10:30', repairing: '23 ก.ย. 2569 09:00' }, days: 9 },
-      { id: 'RP-2569-0008', ext: 'PTW-0920-007', status: 'done', topic: 'ถังดับเพลิง', icon: '🧯', title: 'สายฉีดแข็งกรอบ', place: 'ถังดับเพลิง · ชั้น 5 · ถัง 5-1', detail: 'ข้อ 10 สายฉีด "แข็ง"', source: 'ตรวจถังดับเพลิง 20 ก.ย. 2569 · เทพภกรณ์', photos: 1, dup: false, t: { found: '20 ก.ย. 2569 16:05', approved: '20 ก.ย. 2569 17:00', sent: '20 ก.ย. 2569 17:01', accepted: '21 ก.ย. 2569 08:20', repairing: '21 ก.ย. 2569 13:00', done: '24 ก.ย. 2569 11:15' }, days: 4 },
-      { id: 'RP-2569-0005', ext: 'PTW-0912-022', status: 'closed', topic: 'ประตูหนีไฟ', icon: '🚨', title: 'ป้ายทางออกหลุด', place: 'ประตูหนีไฟ ST 6 · ชั้น 4', detail: 'ข้อ 9 ป้าย "ไม่มี"', source: 'ตรวจประตูหนีไฟ 8 ก.ย. 2569 · หนน.เอ็ม', photos: 1, dup: false, t: { found: '8 ก.ย. 2569 12:07', approved: '8 ก.ย. 2569 13:00', sent: '8 ก.ย. 2569 13:02', accepted: '9 ก.ย. 2569 08:00', repairing: '9 ก.ย. 2569 10:00', done: '10 ก.ย. 2569 15:00', closed: '11 ก.ย. 2569 09:00' }, days: 3 },
-      { id: 'RP-2569-0004', ext: '', status: 'rejected', topic: 'ACC', icon: '🚪', title: 'ไฟแจ้งเตือนกระพริบ', place: 'ประตู ACC · อาคารโรงพยาบาล ชั้น 2', detail: 'หมายเหตุ: ไฟกระพริบช่วงสั้นๆ — ตรวจซ้ำแล้วปกติ', source: 'ตรวจประตู ACC 5 ก.ย. 2569 · หนน.เอ็ม', photos: 0, dup: false, t: { found: '5 ก.ย. 2569 10:00', rejected: '5 ก.ย. 2569 14:00' }, days: 0 }
-    ];
-    return this._repairDemo;
-  }
-  repairDemoSet(id, patch) {
-    this._repairDemo = this.repairDemoJobs().map(j => j.id === id ? Object.assign({}, j, patch, { t: Object.assign({}, j.t, patch.t || {}) }) : j);
-    this.setState(s => ({ rev: (s.rev || 0) + 1 }));
-  }
-  /* Real jobs from repair_jobs once any exist; the sample set only fills an empty table so the page
-     can still be judged before the feature is switched on. */
+  /* ---------- ตามงานซ่อม (repair tracking) ---------- */
   repairJobs() {
     const rows = this.state.repairRows;
-    if (!rows || !rows.length) return this.repairDemoJobs();
+    if (!rows || !rows.length) return [];
     if (this._repairMapped && this._repairMapped.src === rows) return this._repairMapped.jobs;
     const ICON = { 'ACC': '🚪', 'ถังดับเพลิง': '🧯', 'ประตูหนีไฟ': '🚨', 'CCTV': '📹', 'รถกอล์ฟ': '🛺' };
     const at = (t) => t ? new Date(String(t).replace(' ', 'T') + (/[zZ+]/.test(String(t).slice(10)) ? '' : 'Z')) : null;
@@ -5513,7 +5489,7 @@ class Component extends DCLogic {
         detail: faults.map(f => '• ' + short(f.label) + ': ' + f.value).join('\n') + (r.detail ? '\nหมายเหตุ: ' + r.detail : ''),
         source: 'ตรวจพบ ' + fmt(r.created_at) + (r.dup_count ? ' · ตรวจพบซ้ำอีก ' + r.dup_count + ' ครั้ง' : ''),
         photos: Array.isArray(r.photos) ? r.photos.length : 0, photoUrls: Array.isArray(r.photos) ? r.photos : [],
-        dup: r.dup_count > 0, t, days: start && end ? Math.max(0, Math.floor((end - start) / DAY)) : 0, real: true
+        dup: r.dup_count > 0, t, days: start && end ? Math.max(0, Math.floor((end - start) / DAY)) : 0
       };
     });
     this._repairMapped = { src: rows, jobs };
@@ -5541,7 +5517,6 @@ class Component extends DCLogic {
   buildRepairs() {
     const s = this.state;
     const jobs = this.repairJobs();
-    const demo = !jobs.length || !jobs[0].real;
     const filter = s.repairFilter || 'open', topic = s.repairTopic || 'all', q = String(s.repairSearch || '').trim().toLowerCase();
     /* days a job may sit in each step before it is flagged overdue */
     const OVERDUE = { pending: 1, approved: 1, sent: 2, accepted: 3, repairing: 7 };
@@ -5608,18 +5583,11 @@ class Component extends DCLogic {
       const btn = (label, kind, run) => actions.push({ label, run,
         border: kind === 'primary' ? c : kind === 'danger' ? 'rgba(209,72,58,0.4)' : 'var(--line)',
         bg: kind === 'primary' ? c : 'transparent', fg: kind === 'primary' ? '#fff' : kind === 'danger' ? 'var(--danger)' : 'var(--text)' });
-      const now = 'เมื่อสักครู่ (เดโม่)';
-      if (j.real) {
-        if (j.status === 'pending') {
-          btn('✓ อนุมัติ', 'primary', () => this.repairStep(j, 'pending', 'approved', 'อนุมัติแล้ว · ยังไม่ส่งเข้าเว็บช่างจนกว่าจะเปิดระบบส่ง'));
-        }
-        if (j.status === 'pending' || j.status === 'approved') {
-          btn('ไม่ต้องซ่อม', 'danger', () => this.repairStep(j, 'rejected', 'rejected', 'ปิดงานโดยไม่ส่งช่าง'));
-        }
-      } else if (j.status === 'pending') {
-        btn('✓ อนุมัติและส่งช่าง', 'primary', () => { this.repairDemoSet(j.id, { status: 'sent', ext: 'PTW-DEMO-' + j.id.slice(-2), days: 0, t: { approved: now, sent: now } }); this.flash('อนุมัติแล้ว — ระบบจะส่งเข้าเว็บช่างและเก็บเลขใบงานให้ (เดโม่)', 'var(--ok)'); });
-        btn('แก้ไข', '', () => this.flash('เดโม่: เปิดฟอร์มแก้รายละเอียด / สถานที่ / รูป', 'var(--muted)'));
-        btn('ไม่ต้องซ่อม', 'danger', () => { this.repairDemoSet(j.id, { status: 'rejected', t: { rejected: now } }); this.flash('ปิดงานโดยไม่ส่งช่าง (เดโม่)', 'var(--muted)'); });
+      if (j.status === 'pending') {
+        btn('✓ อนุมัติ', 'primary', () => this.repairStep(j, 'pending', 'approved', 'อนุมัติแล้ว · ยังไม่ส่งเข้าเว็บช่างจนกว่าจะเปิดระบบส่ง'));
+      }
+      if (j.status === 'pending' || j.status === 'approved') {
+        btn('ไม่ต้องซ่อม', 'danger', () => this.repairStep(j, 'rejected', 'rejected', 'ปิดงานโดยไม่ส่งช่าง'));
       }
       if (j.ext) btn('เปิดในเว็บช่าง ↗', '', () => window.open('https://ptw.pypl-engineering.online/?track=' + encodeURIComponent(j.ext), '_blank'));
       const tlSteps = rejected ? [['found', 'ตรวจพบ'], ['rejected', 'ไม่ต้องซ่อม']] : STEPS;
@@ -5645,9 +5613,9 @@ class Component extends DCLogic {
         actions, timeline
       };
     });
-    const emptyMsg = filter === 'pending' ? ['✨', 'ไม่มีงานรออนุมัติ', 'อนุมัติครบหมดแล้ว'] : filter === 'overdue' ? ['👍', 'ไม่มีงานเกินกำหนด', 'ทุกงานยังอยู่ในเวลา'] : ['🔍', 'ไม่พบงานที่ตรงเงื่อนไข', 'ลองเปลี่ยนตัวกรองหรือคำค้น'];
+    const emptyMsg = !jobs.length ? ['🛠️', 'ยังไม่มีงานซ่อม', 'งานใหม่จะขึ้นที่นี่เมื่อการตรวจประจำเดือนพบปัญหา'] : filter === 'pending' ? ['✨', 'ไม่มีงานรออนุมัติ', 'อนุมัติครบหมดแล้ว'] : filter === 'overdue' ? ['👍', 'ไม่มีงานเกินกำหนด', 'ทุกงานยังอยู่ในเวลา'] : ['🔍', 'ไม่พบงานที่ตรงเงื่อนไข', 'ลองเปลี่ยนตัวกรองหรือคำค้น'];
     return { stats, topics, cards, empty: !cards.length, emptyIcon: emptyMsg[0], emptyTitle: emptyMsg[1], emptySub: emptyMsg[2],
-      heroTitle, heroSub, heroAction, heroTint, demo,
+      heroTitle, heroSub, heroAction, heroTint,
       search: s.repairSearch || '', setSearch: (e) => this.setState({ repairSearch: e.target.value }) };
   }
   /* ---------- QR user entry portal settings ---------- */
