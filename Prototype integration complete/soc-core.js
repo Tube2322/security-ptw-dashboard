@@ -814,6 +814,23 @@
       return sb.from('kpi_entries').upsert(Object.assign({ numerator: numerator, denominator: denominator, updated_at: new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 19) }, key), { onConflict: 'year,kpi_no,month' })
         .then(function (res) { return res.error ? res.error.message : ''; });
     },
+    /* repair_jobs (supabase/repair_tracking.sql): jobs opened by the records trigger from monthly
+       inspections. Admin-only via RLS. Nothing here talks to the technicians' site. */
+    repairJobs: function () {
+      return sb.from('repair_jobs').select('*').order('created_at', { ascending: false }).limit(300)
+        .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
+    },
+    /* stamps one step into times and records who did it; returns '' or the error text */
+    repairJobStep: function (job, status, step) {
+      return sb.auth.getUser().then(function (u) {
+        var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+        var times = Object.assign({}, job.times || {}); times[step] = stamp;
+        var patch = { status: status, times: times, updated_at: new Date().toISOString().slice(0, 19) };
+        if (step === 'approved') patch.approved_by = (u && u.data && u.data.user && u.data.user.email) || '';
+        return sb.from('repair_jobs').update(patch).eq('id', job.id).eq('status', job.status)
+          .then(function (res) { return res.error ? res.error.message : ''; });
+      });
+    },
     msFormsHealth: function () {
       return sb.from('ms_forms_health').select('target_form,checked_at,ok,detail')
         .then(function (res) { return res.error ? [] : (res.data || []); });
