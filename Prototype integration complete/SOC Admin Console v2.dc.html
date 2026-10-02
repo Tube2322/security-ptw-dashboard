@@ -5698,7 +5698,7 @@ class Component extends DCLogic {
         sent: ['ช่างรับงานแล้ว', 'accepted', 'accepted', 'บันทึกแล้ว: ช่างรับงาน'],
         accepted: ['เริ่มซ่อม', 'repairing', 'repairing', 'บันทึกแล้ว: กำลังซ่อม'],
         repairing: ['ซ่อมเสร็จ', 'done', 'done', 'บันทึกแล้ว: ซ่อมเสร็จ'],
-        done: ['✓ ปิดงาน', 'closed', 'closed', 'ปิดงานแล้ว']
+        done: ['✓ รับทราบ · ปิดงาน', 'closed', 'closed', 'รับทราบแล้ว · ปิดงาน']
       }[j.status];
       if (NEXT) btn(NEXT[0], 'primary', () => {
         let extra = null;
