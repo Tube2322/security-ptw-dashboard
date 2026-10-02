@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261001b"></script>
+<script src="./soc-core.js?v=20261002a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -1359,6 +1359,51 @@
                 <button class="rp-cta" onClick="{{ repairs.heroAction.run }}" style="flex: none; min-height: 44px; padding: 0 18px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; background: {{ repairs.heroAction.bg }}; color: #fff;">{{ repairs.heroAction.label }} →</button>
               </sc-if>
             </div>
+
+            <!-- open a job by hand -->
+            <sc-if value="{{ !repairs.form }}" hint-placeholder-val="{{ true }}">
+              <button class="rp-btn" onClick="{{ repairs.openNew }}" style="align-self: flex-start; min-height: 42px; padding: 0 18px; border-radius: 12px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: 1px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent);">＋ สร้างงานซ่อมเอง</button>
+            </sc-if>
+            <sc-if value="{{ repairs.form }}" hint-placeholder-val="{{ false }}">
+              <div class="rp-empty" style="border-radius: 16px; border: 1px solid var(--accent-line); background: var(--panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 600;">สร้างงานซ่อมเอง</div>
+                <div style="font-size: 12.5px; color: var(--muted); margin-top: -8px;">ใช้เมื่อมีรูปและรายละเอียดอยู่แล้ว · งานจะเริ่มที่ "อนุมัติแล้ว · รอส่งช่าง"</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 10px;">
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted); min-width: 0;">หัวข้อ
+                    <select value="{{ repairs.form.topic }}" onChange="{{ repairs.form.setTopic }}" style="min-height: 42px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;">
+                      <sc-for list="{{ repairs.form.topics }}" as="t" hint-placeholder-count="3"><option value="{{ t }}">{{ t }}</option></sc-for>
+                    </select>
+                  </label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted); min-width: 0;">เรื่องที่ต้องซ่อม *
+                    <input type="text" value="{{ repairs.form.title }}" onChange="{{ repairs.form.setTitle }}" placeholder="เช่น กลอนประตูไม่ล็อก" style="min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px; min-width: 0;">
+                  </label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted); min-width: 0;">สถานที่ *
+                    <input type="text" value="{{ repairs.form.place }}" onChange="{{ repairs.form.setPlace }}" placeholder="เช่น อาคารบริการ ชั้น 2 ประตูหลัง" style="min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px; min-width: 0;">
+                  </label>
+                </div>
+                <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">รายละเอียด
+                  <textarea rows="{{ 3 }}" value="{{ repairs.form.detail }}" onChange="{{ repairs.form.setDetail }}" placeholder="อาการ / สิ่งที่พบ" style="padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px; line-height: 1.5; resize: vertical;"></textarea>
+                </label>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                  <sc-for list="{{ repairs.form.photos }}" as="ph" hint-placeholder-count="0">
+                    <div style="position: relative; width: 82px; height: 82px; border-radius: 12px; background: {{ ph.bg }}; border: 1px solid var(--line); overflow: hidden;">
+                      <sc-if value="{{ ph.noteShow }}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 3px; font-size: 10.5px; text-align: center; color: #fff; background: rgba(0,0,0,0.55);">{{ ph.note }}</div></sc-if>
+                      <button type="button" onClick="{{ ph.remove }}" aria-label="ลบรูป" style="position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 99px; border: none; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer;">×</button>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ repairs.form.canAdd }}" hint-placeholder-val="{{ true }}">
+                    <label style="width: 82px; height: 82px; border-radius: 12px; border: 1px dashed var(--line-2); background: var(--panel-2); display: grid; place-items: center; text-align: center; font-size: 11.5px; color: var(--muted); cursor: pointer;">
+                      <span>＋<br>เพิ่มรูป</span>
+                      <input type="file" accept="image/*" multiple="{{ true }}" onChange="{{ repairs.form.addPhotos }}" style="display: none;">
+                    </label>
+                  </sc-if>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button class="rp-btn" onClick="{{ repairs.form.save }}" style="min-height: 42px; padding: 0 18px; border-radius: 11px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: none; background: var(--accent); color: #fff;">{{ repairs.form.saveLabel }}</button>
+                  <button class="rp-btn" onClick="{{ repairs.form.cancel }}" style="min-height: 42px; padding: 0 16px; border-radius: 11px; cursor: pointer; font-size: 13.5px; border: 1px solid var(--line); background: transparent; color: var(--text);">ยกเลิก</button>
+                </div>
+              </div>
+            </sc-if>
 
             <!-- status tabs -->
             <div class="rp-tabs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line);">
@@ -5484,10 +5529,13 @@ class Component extends DCLogic {
       const t = {}; Object.keys(times).forEach(k => { t[k] = fmt(times[k]); });
       return {
         id: r.code, rowId: r.id, row: r, ext: r.ext_code || '', status, topic: r.topic, icon: ICON[r.topic] || '🔧',
-        title: faults.length ? short(faults[0].label) + ': ' + faults[0].value + (faults.length > 1 ? ' +' + (faults.length - 1) + ' ข้อ' : '') : 'พบสิ่งผิดปกติ',
+        manual: r.module === 'manual',
+        title: r.module === 'manual' && faults[0] ? faults[0].label : faults.length ? short(faults[0].label) + ': ' + faults[0].value + (faults.length > 1 ? ' +' + (faults.length - 1) + ' ข้อ' : '') : 'พบสิ่งผิดปกติ',
         place: r.topic + ' · ' + r.place,
-        detail: faults.map(f => '• ' + short(f.label) + ': ' + f.value).join('\n') + (r.detail ? '\nหมายเหตุ: ' + r.detail : ''),
-        source: 'ตรวจพบ ' + fmt(r.created_at) + (r.dup_count ? ' · ตรวจพบซ้ำอีก ' + r.dup_count + ' ครั้ง' : ''),
+        detail: r.module === 'manual' ? (r.detail || 'ไม่มีรายละเอียดเพิ่มเติม')
+          : faults.map(f => '• ' + short(f.label) + ': ' + f.value).join('\n') + (r.detail ? '\nหมายเหตุ: ' + r.detail : ''),
+        source: r.module === 'manual' ? 'แจ้งเองโดย ' + (r.approved_by || 'แอดมิน') + ' · ' + fmt(r.created_at)
+          : 'ตรวจพบ ' + fmt(r.created_at) + (r.dup_count ? ' · ตรวจพบซ้ำอีก ' + r.dup_count + ' ครั้ง' : ''),
         photos: Array.isArray(r.photos) ? r.photos.length : 0, photoUrls: Array.isArray(r.photos) ? r.photos : [],
         dup: r.dup_count > 0, t, days: start && end ? Math.max(0, Math.floor((end - start) / DAY)) : 0
       };
@@ -5507,12 +5555,70 @@ class Component extends DCLogic {
       });
     });
   }
-  repairStep(j, status, step, ok) {
-    this.core().repairJobStep(j.row, status, step).then(err => {
+  repairStep(j, status, step, ok, extra) {
+    this.core().repairJobStep(j.row, status, step, extra).then(err => {
       if (err) this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)');
       else this.flash(ok, 'var(--ok)');
       this.loadRepairs();
     });
+  }
+  /* ---- open a repair job by hand ---- */
+  openRepairNew = () => this.setState({ repairNew: { topic: 'ACC', title: '', place: '', detail: '', photos: [], busy: 0, saving: false } });
+  closeRepairNew = () => this.setState({ repairNew: null });
+  patchRepairNew(p) { this.setState(s => ({ repairNew: s.repairNew ? Object.assign({}, s.repairNew, typeof p === 'function' ? p(s.repairNew) : p) : null })); }
+  /* same shrink-then-upload as the inspection form: at most 1600px, JPEG, private bucket */
+  addRepairPhotos = (e) => {
+    const cur = this.state.repairNew; if (!cur) return;
+    const files = Array.from(e.target.files || []).slice(0, Math.max(0, 4 - cur.photos.length));
+    e.target.value = '';
+    files.forEach(file => {
+      const key = Math.random().toString(36).slice(2), preview = URL.createObjectURL(file);
+      this.patchRepairNew(n => ({ photos: n.photos.concat([{ key, preview, path: '', failed: false }]), busy: n.busy + 1 }));
+      new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file), img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+          c.toBlob(b => b ? resolve(b) : reject(new Error('encode')), 'image/jpeg', 0.8);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+        img.src = url;
+      }).then(b => this.core().uploadRepairPhoto(b)).catch(() => '').then(path => {
+        this.patchRepairNew(n => ({ busy: n.busy - 1, photos: n.photos.map(ph => ph.key === key ? Object.assign({}, ph, { path, failed: !path }) : ph) }));
+      });
+    });
+  };
+  saveRepairNew = () => {
+    const n = this.state.repairNew; if (!n || n.saving) return;
+    if (n.busy) { this.flash('รูปกำลังอัปโหลด รอสักครู่', 'var(--warn)'); return; }
+    if (!n.title.trim() || !n.place.trim()) { this.flash('กรอกเรื่องที่ต้องซ่อมและสถานที่', 'var(--danger)'); return; }
+    this.patchRepairNew({ saving: true });
+    this.core().repairJobCreate({ topic: n.topic, title: n.title.trim(), place: n.place.trim(), detail: n.detail.trim(),
+      photos: n.photos.map(ph => ph.path).filter(Boolean) }).then(res => {
+      if (res.error) { this.patchRepairNew({ saving: false }); this.flash('สร้างงานไม่สำเร็จ: ' + res.error, 'var(--danger)'); return; }
+      this.setState({ repairNew: null, repairFilter: 'open', repairOpen: null });
+      this.flash('สร้างงาน ' + res.code + ' แล้ว', 'var(--ok)');
+      this.loadRepairs();
+    });
+  };
+  buildRepairNew() {
+    const n = this.state.repairNew;
+    if (!n) return null;
+    return {
+      topics: ['ACC', 'ถังดับเพลิง', 'ประตูหนีไฟ', 'CCTV', 'รถกอล์ฟ', 'อื่นๆ'],
+      topic: n.topic, title: n.title, place: n.place, detail: n.detail,
+      setTopic: (e) => this.patchRepairNew({ topic: e.target.value }),
+      setTitle: (e) => this.patchRepairNew({ title: e.target.value }),
+      setPlace: (e) => this.patchRepairNew({ place: e.target.value }),
+      setDetail: (e) => this.patchRepairNew({ detail: e.target.value }),
+      photos: n.photos.map(ph => ({ bg: 'center/cover no-repeat url("' + ph.preview + '"), var(--panel-2)',
+        note: ph.failed ? 'อัปโหลดไม่สำเร็จ' : (ph.path ? '' : 'กำลังอัปโหลด…'), noteShow: ph.failed || !ph.path,
+        remove: () => this.patchRepairNew(m => ({ photos: m.photos.filter(x => x.key !== ph.key) })) })),
+      canAdd: n.photos.length < 4, addPhotos: this.addRepairPhotos,
+      saveLabel: n.saving ? 'กำลังบันทึก…' : (n.busy ? 'รออัปโหลดรูป…' : 'สร้างงานซ่อม'),
+      save: this.saveRepairNew, cancel: this.closeRepairNew
+    };
   }
   buildRepairs() {
     const s = this.state;
@@ -5553,10 +5659,10 @@ class Component extends DCLogic {
       heroTitle = 'มี ' + nPending + ' งานรอคุณอนุมัติ'; heroSub = 'ตรวจรายละเอียดและรูป แล้วกดอนุมัติเพื่อส่งให้ช่าง' + (nOver ? ' · เกินกำหนดอีก ' + nOver + ' งาน' : '');
       heroAction = { label: 'ดูงานรออนุมัติ', bg: '#e0a33c', run: () => this.setState({ repairFilter: 'pending', repairOpen: null }) }; heroTint = 'rgba(224,163,60,0.16)';
     } else if (nOver) {
-      heroTitle = nOver + ' งานค้างนานเกินกำหนด'; heroSub = 'ระบบตามสถานะจากเว็บช่างให้อยู่ — ถ้าค้างนาน ลองโทรตามช่าง';
+      heroTitle = nOver + ' งานค้างนานเกินกำหนด'; heroSub = 'ถ้าค้างนาน ลองโทรตามช่าง แล้วกดอัปเดตสถานะในการ์ดงาน';
       heroAction = { label: 'ดูงานเกินกำหนด', bg: '#d1483a', run: () => this.setState({ repairFilter: 'overdue', repairOpen: null }) }; heroTint = 'rgba(209,72,58,0.14)';
     } else {
-      heroTitle = nOpen ? 'ทุกอย่างเดินตามกำหนด' : 'ไม่มีงานซ่อมค้าง'; heroSub = nOpen ? nOpen + ' งานกำลังดำเนินการ ระบบอัปเดตสถานะให้อัตโนมัติ' : 'งานใหม่จะขึ้นที่นี่เมื่อรายการตรวจพบสิ่งผิดปกติ'; heroTint = 'rgba(63,191,143,0.14)';
+      heroTitle = nOpen ? 'ทุกอย่างเดินตามกำหนด' : 'ไม่มีงานซ่อมค้าง'; heroSub = nOpen ? nOpen + ' งานกำลังดำเนินการ · กดอัปเดตสถานะในการ์ดงานเมื่อมีความคืบหน้า' : 'งานใหม่จะขึ้นที่นี่เมื่อรายการตรวจพบสิ่งผิดปกติ'; heroTint = 'rgba(63,191,143,0.14)';
     }
 
     const topics = ['all'].concat([...new Set(jobs.map(j => j.topic))]).map(t => ({ label: t === 'all' ? 'ทุกหัวข้อ' : t,
@@ -5586,6 +5692,23 @@ class Component extends DCLogic {
       if (j.status === 'pending') {
         btn('✓ อนุมัติ', 'primary', () => this.repairStep(j, 'pending', 'approved', 'อนุมัติแล้ว · ยังไม่ส่งเข้าเว็บช่างจนกว่าจะเปิดระบบส่ง'));
       }
+      /* moved forward by hand for now; once the technicians' site is wired these steps come from there */
+      const NEXT = {
+        approved: ['📤 แจ้งช่างแล้ว', 'sent', 'sent', 'บันทึกแล้ว: แจ้งช่างแล้ว'],
+        sent: ['ช่างรับงานแล้ว', 'accepted', 'accepted', 'บันทึกแล้ว: ช่างรับงาน'],
+        accepted: ['เริ่มซ่อม', 'repairing', 'repairing', 'บันทึกแล้ว: กำลังซ่อม'],
+        repairing: ['ซ่อมเสร็จ', 'done', 'done', 'บันทึกแล้ว: ซ่อมเสร็จ'],
+        done: ['✓ ปิดงาน', 'closed', 'closed', 'ปิดงานแล้ว']
+      }[j.status];
+      if (NEXT) btn(NEXT[0], 'primary', () => {
+        let extra = null;
+        if (NEXT[1] === 'sent') {
+          const ext = window.prompt('เลขใบงานจากเว็บช่าง (ถ้ามี — เว้นว่างได้)', '');
+          if (ext === null) return;
+          if (ext.trim()) extra = { ext_code: ext.trim() };
+        }
+        this.repairStep(j, NEXT[1], NEXT[2], NEXT[3], extra);
+      });
       if (j.status === 'pending' || j.status === 'approved') {
         btn('ไม่ต้องซ่อม', 'danger', () => this.repairStep(j, 'rejected', 'rejected', 'ปิดงานโดยไม่ส่งช่าง'));
       }
@@ -5601,7 +5724,7 @@ class Component extends DCLogic {
         cls: isOpen ? 'rp-open' : '', delay: Math.min(idx, 8) * 45 + 'ms',
         icon: j.icon, iconBg: soft(c, 0.14), accent: c, title: j.title, place: j.place, dup: j.dup, overdue: od,
         statusLabel: st.label, statusBg: soft(c, 0.15), statusFg: c,
-        steps, stepText: rejected ? 'ปิดโดยไม่ส่งช่าง' : (closed ? 'เสร็จสมบูรณ์' : 'ตอนนี้: ' + STEPS[reached][1] + (j.ext ? ' · ซิงก์จากเว็บช่าง 10 นาทีก่อน' : '')),
+        steps, stepText: rejected ? 'ปิดโดยไม่ส่งช่าง' : (closed ? 'เสร็จสมบูรณ์' : 'ตอนนี้: ' + STEPS[reached][1]),
         code: j.id, extCode: j.ext ? 'ช่าง ' + j.ext : '',
         ageNum: closed ? (rejected ? '—' : String(j.days)) : String(j.days), ageUnit: closed ? (rejected ? '' : 'วันที่ใช้') : 'วันที่ค้าง',
         ageFg: od ? 'var(--danger)' : 'var(--text)',
@@ -5616,6 +5739,7 @@ class Component extends DCLogic {
     const emptyMsg = !jobs.length ? ['🛠️', 'ยังไม่มีงานซ่อม', 'งานใหม่จะขึ้นที่นี่เมื่อการตรวจประจำเดือนพบปัญหา'] : filter === 'pending' ? ['✨', 'ไม่มีงานรออนุมัติ', 'อนุมัติครบหมดแล้ว'] : filter === 'overdue' ? ['👍', 'ไม่มีงานเกินกำหนด', 'ทุกงานยังอยู่ในเวลา'] : ['🔍', 'ไม่พบงานที่ตรงเงื่อนไข', 'ลองเปลี่ยนตัวกรองหรือคำค้น'];
     return { stats, topics, cards, empty: !cards.length, emptyIcon: emptyMsg[0], emptyTitle: emptyMsg[1], emptySub: emptyMsg[2],
       heroTitle, heroSub, heroAction, heroTint,
+      form: this.buildRepairNew(), openNew: this.openRepairNew,
       search: s.repairSearch || '', setSearch: (e) => this.setState({ repairSearch: e.target.value }) };
   }
   /* ---------- QR user entry portal settings ---------- */
@@ -6505,7 +6629,7 @@ class Component extends DCLogic {
       isBuilder: page === 'builder',
       isRecords: page === 'records',
       isRepairs: page === 'repairs',
-      repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null },
+      repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null, form: null, openNew: null },
       isPdf: page === 'pdf',
       isSettings: page === 'settings',
       isKpi: page === 'kpi',
