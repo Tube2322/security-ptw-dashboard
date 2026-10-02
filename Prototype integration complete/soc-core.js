@@ -841,12 +841,41 @@
         return paths.map(function (p) { return map[p] || p; });
       }, function () { return paths; });
     },
+    /* A job an admin opens by hand (photo already in hand, no inspection behind it). Codes use their
+       own RM- series so they can never collide with the trigger's RP- sequence. Opening it is the
+       approval, so it starts as approved-waiting-to-send. Resolves to { code } or { error }. */
+    repairJobCreate: function (job) {
+      var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      var year = new Date(Date.now() + 7 * 3600000).getUTCFullYear() + 543;
+      var prefix = 'RM-' + year + '-';
+      var attempt = function (tries) {
+        return sb.from('repair_jobs').select('code').like('code', prefix + '%').order('code', { ascending: false }).limit(1)
+          .then(function (res) {
+            var last = res.data && res.data[0] ? parseInt(res.data[0].code.slice(prefix.length), 10) || 0 : 0;
+            return sb.auth.getUser().then(function (u) {
+              var code = prefix + String(last + 1).padStart(4, '0');
+              return sb.from('repair_jobs').insert({
+                code: code, module: 'manual', topic: job.topic, spot_key: 'manual:' + code, place: job.place,
+                faults: [{ field_id: 'manual', label: job.title, value: '' }], photos: job.photos || [], record_ids: [],
+                detail: job.detail || null, times: { found: stamp, approved: stamp },
+                approved_by: (u && u.data && u.data.user && u.data.user.email) || ''
+              }).then(function (ins) {
+                if (!ins.error) return { code: code };
+                if (ins.error.code === '23505' && tries > 0) return attempt(tries - 1);
+                return { error: ins.error.message };
+              });
+            });
+          });
+      };
+      return attempt(2);
+    },
     /* stamps one step into times and records who did it; returns '' or the error text */
-    repairJobStep: function (job, status, step) {
+    repairJobStep: function (job, status, step, extra) {
       return sb.auth.getUser().then(function (u) {
         var stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
         var times = Object.assign({}, job.times || {}); times[step] = stamp;
         var patch = { status: status, times: times, updated_at: new Date().toISOString().slice(0, 19) };
+        if (extra) Object.assign(patch, extra);
         if (step === 'approved') patch.approved_by = (u && u.data && u.data.user && u.data.user.email) || '';
         return sb.from('repair_jobs').update(patch).eq('id', job.id).eq('status', job.status)
           .then(function (res) { return res.error ? res.error.message : ''; });
