@@ -881,6 +881,46 @@
           .then(function (res) { return res.error ? res.error.message : ''; });
       });
     },
+    /* Duty roster (supabase/roster.sql), admin-only. One month at a time: staff, their day codes, targets. */
+    rosterLoad: function (year, month) {
+      var from = year + '-' + String(month).padStart(2, '0') + '-01';
+      var to = year + '-' + String(month).padStart(2, '0') + '-' + String(new Date(year, month, 0).getDate()).padStart(2, '0');
+      return Promise.all([
+        sb.from('roster_staff').select('*').eq('active', true).order('sort').order('created_at'),
+        sb.from('roster_days').select('staff_id,day,code,ot,note').gte('day', from).lte('day', to),
+        sb.from('roster_months').select('*').eq('year', year).eq('month', month).maybeSingle()
+      ]).then(function (r) {
+        var err = (r[0].error || r[1].error || r[2].error || {}).message || '';
+        return { error: err, staff: r[0].data || [], days: r[1].data || [], month: r[2].data || null };
+      });
+    },
+    rosterSetDay: function (staffId, day, code, ot) {
+      return sb.from('roster_days').upsert({ staff_id: staffId, day: day, code: code, ot: !!ot, updated_at: new Date().toISOString().slice(0, 19) }, { onConflict: 'staff_id,day' })
+        .then(function (res) { return res.error ? res.error.message : ''; });
+    },
+    rosterClearDay: function (staffId, day) {
+      return sb.from('roster_days').delete().match({ staff_id: staffId, day: day })
+        .then(function (res) { return res.error ? res.error.message : ''; });
+    },
+    /* copies one staff member's codes from the previous month onto the same day numbers (OT not carried) */
+    rosterCopyPrev: function (staffId, year, month) {
+      var py = month === 1 ? year - 1 : year, pm = month === 1 ? 12 : month - 1;
+      var days = new Date(year, month, 0).getDate();
+      return this.rosterLoad(py, pm).then(function (prev) {
+        var rows = prev.days.filter(function (d) { return d.staff_id === staffId && +d.day.slice(8) <= days; }).map(function (d) {
+          return { staff_id: staffId, day: year + '-' + String(month).padStart(2, '0') + d.day.slice(7), code: d.code, ot: false };
+        });
+        if (!rows.length) return 'เดือนก่อนไม่มีข้อมูลเวร';
+        return sb.from('roster_days').upsert(rows, { onConflict: 'staff_id,day' }).then(function (res) { return res.error ? res.error.message : ''; });
+      });
+    },
+    rosterSaveStaff: function (staff) {
+      var q = staff.id ? sb.from('roster_staff').update(staff).eq('id', staff.id) : sb.from('roster_staff').insert(staff);
+      return q.then(function (res) { return res.error ? res.error.message : ''; });
+    },
+    rosterSaveMonth: function (m) {
+      return sb.from('roster_months').upsert(m, { onConflict: 'year,month' }).then(function (res) { return res.error ? res.error.message : ''; });
+    },
     msFormsHealth: function () {
       return sb.from('ms_forms_health').select('target_form,checked_at,ok,detail')
         .then(function (res) { return res.error ? [] : (res.data || []); });
