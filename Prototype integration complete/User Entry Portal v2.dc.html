@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261004a"></script>
+<script src="./soc-core.js?v=20261004b"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -728,9 +728,6 @@ class Component extends DCLogic {
     if (mod.kind === 'elevator') {
       const lift = String(d.elevator_lift || '').split(' — ')[0];
       return 'ลิฟต์ ' + lift + ' · ' + (d.elevator_remark || '—') + ' · ' + (d.elevator_user_type || '—');
-    }
-    if (mod.kind === 'checkpoint') {
-      return (d.checkpoint_point || '—') + ' · ' + (d.checkpoint_shift || '—');
     }
     /* form-driven modules name no fixed field, so echo back whichever number questions the
        form currently has — stays correct after the admin reshapes the form */

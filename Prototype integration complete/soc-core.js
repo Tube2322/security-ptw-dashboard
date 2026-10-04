@@ -28,7 +28,7 @@
   /* traffic and traffic_tt match seriesPalette()'s trafficCarDay per module in the Admin
      Console — same pink family, different hue angle (rose vs orchid) so the two traffic pages
      are tellable apart by color, not just by name. */
-  var PALETTE = { traffic: '#d6558a', traffic_tt: '#b8478f', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', checkpoint: '#2fa89a', monthly: '#c2739c' };
+  var PALETTE = { traffic: '#d6558a', traffic_tt: '#b8478f', golf: '#3fbf8f', visitors: '#a874e8', elevator: '#e0763f', monthly: '#c2739c' };
 
   /* A group is a *folder* of modules, not a module itself — it owns no fields and no records.
      Its only job is that both the Admin nav and the Entry Portal require one tap into the
@@ -53,9 +53,6 @@
     { id: 'visitors', code: 'VS', name: 'Visitor', en: 'Visitors', formId: 'form_visitors',
       desc: 'บันทึก Visitor ทั่วไปและผู้รับเหมา', color: PALETTE.visitors,
       kind: 'visitors', fieldPrefix: 'visitor', dateField: 'visitor_date', nameField: 'visitor_name', inspectorField: 'visitor_inspector' },
-    { id: 'checkpoint', code: 'CP', name: 'รายงานการตรวจจุด', en: 'Checkpoint Inspection', formId: 'form_checkpoint',
-      desc: 'บันทึกการลงตรวจจุดตรวจการณ์ประจำกะ', color: PALETTE.checkpoint,
-      kind: 'checkpoint', fieldPrefix: 'checkpoint', dateField: 'checkpoint_date', nameField: 'checkpoint_employee_name', inspectorField: 'checkpoint_inspector_name' },
 
     /* ---- ตรวจประจำเดือน (group: monthly) ----
        One record = one month's summary for that category, so these stay sparse (~12/year
@@ -197,15 +194,6 @@
         f('elevator_lift', 'ลิฟต์ตัวที่', 'radio', { required: true, system: true, options: ['PL01 — ลิฟต์ตัวที่ 1', 'PL02 — ลิฟต์ตัวที่ 2', 'PL03 — ลิฟต์ตัวที่ 3', 'PL04 — ลิฟต์ตัวที่ 4', 'CL01 — ลิฟต์ตัวที่ 5', 'CL02 — ลิฟต์ตัวที่ 6', 'SL03 — ลิฟต์ตัวที่ 7', 'SL04 — ลิฟต์ตัวที่ 8'] }),
         f('elevator_remark', 'หมายเหตุ', 'radio', { required: true, system: true, options: ['กดผิด', 'ยืนพิง', 'อื่นๆ'], allowCustom: true }),
         f('elevator_user_type', 'ประเภทผู้ใช้', 'radio', { required: true, system: true, options: ['พนักงาน', 'ลูกค้า', 'ผู้รับเหมา'] })
-      ],
-      checkpoint: [
-        f('checkpoint_employee_name', 'ชื่อ', 'text', { required: true, system: true, group: 'ข้อมูลผู้บันทึก', placeholder: 'ใส่ชื่อ' }),
-        f('checkpoint_date', 'วันที่', 'date', { required: true, system: true, group: 'ข้อมูลผู้บันทึก' }),
-        f('checkpoint_shift', 'กะกลางวัน/กะกลางคืน', 'radio', { required: true, system: true, group: 'ข้อมูลผู้บันทึก', options: ['กะกลางวัน 08.00-20.00', 'กะกลางคืน 20.00-08.00'] }),
-        f('checkpoint_point', 'จุดที่ตรวจ', 'radio', { required: true, system: true, group: 'จุดที่ตรวจ', options: ['จุดที่1', 'จุดที่2', 'จุดที่3', 'จุดที่4'] }),
-        f('checkpoint_time', 'เวลาที่ลงตรวจ', 'time', { required: true, system: true, group: 'จุดที่ตรวจ', placeholder: 'ตัวอย่าง 09:30' }),
-        f('checkpoint_inspector_name', 'ชื่อผู้ตรวจสอบ', 'text', { group: 'จุดที่ตรวจ', placeholder: 'ใส่ชื่อผู้ตรวจสอบ' }),
-        f('checkpoint_remark', 'หมายเหตุ', 'textarea', { group: 'จุดที่ตรวจ', placeholder: 'เหตุการณ์ผิดปกติ (ถ้ามี)' })
       ],
 
       /* ---- ตรวจประจำเดือน — the four categories with a real question set (as typed out by
