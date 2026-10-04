@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261002a"></script>
+<script src="./soc-core.js?v=20261004a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -1344,6 +1344,111 @@
           </div>
         </sc-if>
 
+        <!-- ===== ROSTER (ตารางเวร) ===== -->
+        <sc-if value="{{ isRoster }}" hint-placeholder-val="{{ false }}">
+          <div class="rp-page" style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <sc-for list="{{ roster.staffChips }}" as="sc" hint-placeholder-count="1">
+                <button class="rp-chip" onClick="{{ sc.pick }}" style="display: flex; align-items: center; gap: 9px; padding: 5px 14px 5px 5px; border-radius: 99px; cursor: pointer; border: {{ sc.border }}; background: {{ sc.bg }}; color: var(--text); min-width: 0;">
+                  <span style="flex: none; width: 34px; height: 34px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 12.5px; font-weight: 600;">{{ sc.initials }}</span>
+                  <span style="text-align: left; line-height: 1.25; min-width: 0;"><span style="display: block; font-size: 13px; font-weight: 600;">{{ sc.name }}</span><span style="display: block; font-size: 11px; color: var(--muted);">{{ sc.sub }}</span></span>
+                </button>
+              </sc-for>
+              <button class="rp-btn" onClick="{{ roster.addStaff }}" style="min-height: 40px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px dashed var(--line-2); background: transparent; color: var(--muted);">＋ เพิ่มพนักงาน</button>
+              <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+                <button class="rp-btn" onClick="{{ roster.prev }}" aria-label="เดือนก่อน" style="width: 38px; height: 38px; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text);">‹</button>
+                <div style="min-width: 118px; text-align: center; font-size: 15px; font-weight: 600;">{{ roster.monthLabel }}</div>
+                <button class="rp-btn" onClick="{{ roster.next }}" aria-label="เดือนถัดไป" style="width: 38px; height: 38px; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text);">›</button>
+              </div>
+            </div>
+
+            <sc-if value="{{ roster.form }}" hint-placeholder-val="{{ false }}">
+              <div class="rp-empty" style="border-radius: 16px; border: 1px solid var(--accent-line); background: var(--panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-size: 15px; font-weight: 600;">{{ roster.form.title }}</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 10px;">
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">ชื่อ-สกุล *<input type="text" value="{{ roster.form.name }}" onChange="{{ roster.form.set_name }}" placeholder="เทพภกรณ์ ศรีเมือง" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">ชื่อเล่น<input type="text" value="{{ roster.form.nickname }}" onChange="{{ roster.form.set_nickname }}" placeholder="โอ๊ต" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">รหัสพนักงาน<input type="text" value="{{ roster.form.emp_code }}" onChange="{{ roster.form.set_emp_code }}" placeholder="626986" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">ตำแหน่ง<input type="text" value="{{ roster.form.position }}" onChange="{{ roster.form.set_position }}" placeholder="CCTV" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">เบอร์โทร<input type="tel" value="{{ roster.form.phone }}" onChange="{{ roster.form.set_phone }}" placeholder="08x-xxx-xxxx" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="rp-btn" onClick="{{ roster.form.save }}" style="min-height: 40px; padding: 0 18px; border-radius: 11px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: none; background: var(--accent); color: #fff;">บันทึก</button>
+                  <button class="rp-btn" onClick="{{ roster.form.cancel }}" style="min-height: 40px; padding: 0 16px; border-radius: 11px; cursor: pointer; font-size: 13.5px; border: 1px solid var(--line); background: transparent; color: var(--text);">ยกเลิก</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ roster.loading }}" hint-placeholder-val="{{ false }}"><div style="padding: 30px; text-align: center; color: var(--muted); font-size: 13px;">กำลังโหลดตารางเวร…</div></sc-if>
+            <sc-if value="{{ roster.error }}" hint-placeholder-val="{{ false }}"><div style="padding: 12px 14px; border-radius: 12px; background: rgba(209,72,58,0.1); color: var(--danger); font-size: 13px;">โหลดไม่สำเร็จ: {{ roster.error }}</div></sc-if>
+            <sc-if value="{{ roster.noStaff }}" hint-placeholder-val="{{ false }}"><div class="rp-empty" style="padding: 40px 16px; text-align: center; border: 1px dashed var(--line-2); border-radius: 16px; color: var(--muted); font-size: 13.5px;">ยังไม่มีพนักงาน · กด "＋ เพิ่มพนักงาน" เพื่อเริ่ม</div></sc-if>
+
+            <sc-if value="{{ roster.hasStaff }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+                <sc-if value="{{ roster.todayText }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding: 12px 16px; border-radius: 14px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 14px; font-weight: 500; overflow-wrap: anywhere;">{{ roster.todayText }}</div>
+                </sc-if>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+                  <sc-for list="{{ roster.metrics }}" as="mt" hint-placeholder-count="4">
+                    <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); min-width: 0;">
+                      <div style="font-size: 12px; color: var(--muted);">{{ mt.label }}</div>
+                      <div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; margin-top: 2px;">{{ mt.value }}</div>
+                      <div style="font-size: 11.5px; color: var(--dim); min-height: 15px;">{{ mt.sub }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div>
+                  <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 5px;"><span>{{ roster.hoursText }}</span><span>{{ roster.reqText }}</span></div>
+                  <div style="height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;"><div style="width: {{ roster.barReq }}; background: #2fa89a; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div><div style="width: {{ roster.barOT }}; background: #d85a30; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div></div>
+                </div>
+                <sc-if value="{{ roster.otWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--warn);">⚠ {{ roster.otWarn }}</div></sc-if>
+                <sc-if value="{{ roster.emptyWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--muted);">● {{ roster.emptyWarn }}</div></sc-if>
+
+                <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;">
+                  <div style="font-size: 12px; color: var(--muted); text-align: center;">จ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">อ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">พ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">พฤ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">ศ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">ส</div><div style="font-size: 12px; color: var(--muted); text-align: center;">อา</div>
+                  <sc-for list="{{ roster.cells }}" as="c" hint-placeholder-count="31">
+                    <sc-if value="{{ c.blank }}" hint-placeholder-val="{{ false }}"><div></div></sc-if>
+                    <sc-if value="{{ !c.blank }}" hint-placeholder-val="{{ true }}">
+                      <button class="rp-btn" onClick="{{ c.pick }}" style="min-width: 0; min-height: 66px; padding: 6px; border-radius: 10px; cursor: pointer; border: {{ c.border }}; background: {{ c.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left;">
+                        <span style="font-size: 11.5px; color: var(--muted);">{{ c.num }}</span>
+                        <span style="border-radius: 6px; padding: 2px 0; text-align: center; font-size: 13px; font-weight: 700; background: {{ c.cbg }}; color: {{ c.cfg }};">{{ c.label }}</span>
+                        <sc-if value="{{ c.ot }}" hint-placeholder-val="{{ false }}"><span style="border-radius: 6px; text-align: center; font-size: 10.5px; font-weight: 600; background: rgba(216,90,48,0.14); color: color-mix(in srgb, #d85a30 80%, var(--text));">OT</span></sc-if>
+                      </button>
+                    </sc-if>
+                  </sc-for>
+                </div>
+
+                <sc-if value="{{ roster.editor }}" hint-placeholder-val="{{ false }}">
+                  <div class="rp-empty" style="border-radius: 14px; border: 1px solid var(--accent-line); background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><div style="font-size: 14px; font-weight: 600;">{{ roster.editor.title }}</div><button class="rp-btn" onClick="{{ roster.editor.close }}" aria-label="ปิด" style="width: 32px; height: 32px; border-radius: 8px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--muted);">×</button></div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                      <sc-for list="{{ roster.editor.options }}" as="op" hint-placeholder-count="5">
+                        <button class="rp-chip" onClick="{{ op.pick }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; cursor: pointer; font-size: 13.5px; border: 1px solid {{ op.border }}; background: {{ op.bg }}; color: var(--text);">{{ op.label }}</button>
+                      </sc-for>
+                      <sc-if value="{{ roster.editor.otCan }}" hint-placeholder-val="{{ false }}">
+                        <button class="rp-chip" onClick="{{ roster.editor.toggleOt }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; cursor: pointer; font-size: 13.5px; border: 1px solid {{ roster.editor.otBorder }}; background: {{ roster.editor.otBg }}; color: var(--text);">{{ roster.editor.otLabel }}</button>
+                      </sc-if>
+                      <button class="rp-chip" onClick="{{ roster.editor.clear }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid var(--line); background: transparent; color: var(--muted);">ล้าง</button>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted);">
+                  <sc-for list="{{ roster.legend }}" as="lg" hint-placeholder-count="5"><span><span style="display: inline-block; min-width: 26px; text-align: center; border-radius: 6px; padding: 1px 6px; font-weight: 700; background: {{ lg.bg }}; color: {{ lg.fg }};">{{ lg.label }}</span> {{ lg.name }}</span></sc-for>
+                  <span><span style="display: inline-block; border-radius: 6px; padding: 1px 6px; font-weight: 600; background: rgba(216,90,48,0.14); color: color-mix(in srgb, #d85a30 80%, var(--text));">OT</span> โอที</span>
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding-top: 12px; border-top: 1px solid var(--line);">
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted);">วันหยุดตามกำหนด (วัน)<input type="number" min="0" value="{{ roster.settings.holidays }}" onBlur="{{ roster.settings.saveHolidays }}" style="width: 130px; min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px;"></label>
+                  <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted);">เวรที่กำหนด (เวร)<input type="number" min="0" value="{{ roster.settings.required }}" onBlur="{{ roster.settings.saveRequired }}" style="width: 130px; min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px;"></label>
+                  <button class="rp-btn" onClick="{{ roster.copyPrev }}" style="min-height: 38px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">คัดลอกเวรจากเดือนก่อน</button>
+                  <button class="rp-btn" onClick="{{ roster.editStaff }}" style="min-height: 38px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--text);">แก้ข้อมูลพนักงาน</button>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
         <!-- ===== REPAIRS (ตามงานซ่อม) — jobs from repair_jobs ===== -->
         <sc-if value="{{ isRepairs }}" hint-placeholder-val="{{ false }}">
           <div class="rp-page" style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
@@ -1362,11 +1467,11 @@
 
             <!-- open a job by hand -->
             <sc-if value="{{ !repairs.form }}" hint-placeholder-val="{{ true }}">
-              <button class="rp-btn" onClick="{{ repairs.openNew }}" style="align-self: flex-start; min-height: 42px; padding: 0 18px; border-radius: 12px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: 1px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent);">＋ สร้างงานซ่อมเอง</button>
+              <button class="rp-btn" onClick="{{ repairs.openNew }}" style="align-self: flex-start; min-height: 42px; padding: 0 18px; border-radius: 12px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: 1px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent);">＋ แจ้งซ่อมเอง</button>
             </sc-if>
             <sc-if value="{{ repairs.form }}" hint-placeholder-val="{{ false }}">
               <div class="rp-empty" style="border-radius: 16px; border: 1px solid var(--accent-line); background: var(--panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
-                <div style="font-size: 15px; font-weight: 600;">สร้างงานซ่อมเอง</div>
+                <div style="font-size: 15px; font-weight: 600;">แจ้งซ่อมเอง</div>
                 <div style="font-size: 12.5px; color: var(--muted); margin-top: -8px;">ใช้เมื่อมีรูปและรายละเอียดอยู่แล้ว · งานจะเริ่มที่ "อนุมัติแล้ว · รอส่งช่าง"</div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 10px;">
                   <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted); min-width: 0;">หัวข้อ
@@ -5510,6 +5615,148 @@ class Component extends DCLogic {
     }
     return blocks;
   }
+  /* ---------- ตารางเวร (duty roster) ---------- */
+  rosterYM() {
+    const s = this.state;
+    if (s.rosterY) return [s.rosterY, s.rosterM];
+    const now = new Date(Date.now() + 7 * 3600000);
+    return [now.getUTCFullYear(), now.getUTCMonth() + 1];
+  }
+  loadRoster = () => {
+    const [y, m] = this.rosterYM();
+    this._rosterKey = y + '-' + m;
+    this.core().rosterLoad(y, m).then(res => {
+      if (this._rosterKey !== y + '-' + m) return;
+      this.setState(s => ({ rosterData: res, rosterStaff: s.rosterStaff && res.staff.some(x => x.id === s.rosterStaff) ? s.rosterStaff : (res.staff[0] || {}).id || null }));
+    });
+  }
+  rosterShift(delta) {
+    let [y, m] = this.rosterYM(); m += delta;
+    if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
+    this.setState({ rosterY: y, rosterM: m, rosterSel: null, rosterData: null }, this.loadRoster);
+  }
+  rosterPut(staffId, day, code, ot) {
+    /* optimistic: the grid answers at once, the save follows; a failed save reloads the truth */
+    this.setState(s => {
+      const d = s.rosterData; if (!d) return null;
+      const rest = d.days.filter(x => !(x.staff_id === staffId && x.day === day));
+      return { rosterData: Object.assign({}, d, { days: code ? rest.concat([{ staff_id: staffId, day, code, ot }]) : rest }) };
+    });
+    const c = this.core();
+    (code ? c.rosterSetDay(staffId, day, code, ot) : c.rosterClearDay(staffId, day)).then(err => {
+      if (err) { this.flash('บันทึกเวรไม่สำเร็จ: ' + err, 'var(--danger)'); this.loadRoster(); }
+    });
+  }
+  buildRoster() {
+    const s = this.state, d = s.rosterData, [y, m] = this.rosterYM();
+    const TH = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const CODES = {
+      D: { label: 'D', name: 'กลางวัน', bg: 'rgba(224,163,60,0.18)', fg: 'color-mix(in srgb, #b7791f 80%, var(--text))', work: true },
+      N: { label: 'N', name: 'กลางคืน', bg: 'rgba(91,124,250,0.18)', fg: 'color-mix(in srgb, #4c63d2 80%, var(--text))', work: true },
+      W: { label: 'ช', name: 'วันทำงาน', bg: 'rgba(63,191,143,0.16)', fg: 'color-mix(in srgb, #23966c 80%, var(--text))', work: true },
+      X: { label: 'X', name: 'หยุด', bg: 'var(--panel-2)', fg: 'var(--muted)', work: false },
+      L: { label: 'ลา', name: 'ลา', bg: 'rgba(155,120,230,0.18)', fg: 'color-mix(in srgb, #7a5ad0 80%, var(--text))', work: false }
+    };
+    const base = { loading: !d, error: d && d.error ? d.error : '', monthLabel: TH[m] + ' ' + (y + 543),
+      prev: () => this.rosterShift(-1), next: () => this.rosterShift(1), staffChips: [], hasStaff: false, noStaff: false,
+      addStaff: () => this.setState({ rosterForm: { name: '', nickname: '', emp_code: '', position: 'CCTV', phone: '' } }),
+      form: null, legend: Object.keys(CODES).map(k => ({ label: CODES[k].label, name: CODES[k].name, bg: CODES[k].bg, fg: CODES[k].fg })) };
+    const f = s.rosterForm;
+    if (f) base.form = {
+      title: f.id ? 'แก้ข้อมูลพนักงาน' : 'เพิ่มพนักงาน', name: f.name, nickname: f.nickname || '', emp_code: f.emp_code || '', position: f.position || '', phone: f.phone || '',
+      set_name: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { name: e.target.value }) })),
+      set_nickname: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { nickname: e.target.value }) })),
+      set_emp_code: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { emp_code: e.target.value }) })),
+      set_position: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { position: e.target.value }) })),
+      set_phone: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { phone: e.target.value }) })),
+      cancel: () => this.setState({ rosterForm: null }),
+      save: () => {
+        const v = this.state.rosterForm; if (!v.name.trim()) { this.flash('กรอกชื่อ-สกุล', 'var(--danger)'); return; }
+        const row = { name: v.name.trim(), nickname: (v.nickname || '').trim() || null, emp_code: (v.emp_code || '').trim() || null, position: (v.position || '').trim() || null, phone: (v.phone || '').trim() || null };
+        if (v.id) row.id = v.id; else row.sort = (d ? d.staff.length : 0) + 1;
+        this.core().rosterSaveStaff(row).then(err => {
+          if (err) { this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); return; }
+          this.setState({ rosterForm: null }); this.flash('บันทึกข้อมูลพนักงานแล้ว', 'var(--ok)'); this.loadRoster();
+        });
+      }
+    };
+    if (!d || d.error) return base;
+    base.hasStaff = d.staff.length > 0; base.noStaff = !base.hasStaff;
+    const cur = d.staff.find(x => x.id === s.rosterStaff) || d.staff[0];
+    base.staffChips = d.staff.map(x => {
+      const on = cur && x.id === cur.id;
+      return { initials: x.nickname || x.name.slice(0, 2), name: x.name, sub: [x.emp_code, x.position].filter(Boolean).join(' · '),
+        border: on ? '2px solid var(--accent-line)' : '1px solid var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--panel)',
+        pick: () => this.setState({ rosterStaff: x.id, rosterSel: null }) };
+    });
+    if (!cur) return base;
+    const mm = String(m).padStart(2, '0'), nDays = new Date(y, m, 0).getDate();
+    const byDay = {}; d.days.filter(x => x.staff_id === cur.id).forEach(x => { byDay[x.day] = x; });
+    const todayIso = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
+    const cells = [];
+    const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+    for (let i = 0; i < lead; i++) cells.push({ blank: true });
+    let work = 0, nD = 0, nN = 0, nW = 0, nX = 0, nL = 0, nOT = 0, empty = 0;
+    for (let i = 1; i <= nDays; i++) {
+      const iso = y + '-' + mm + '-' + String(i).padStart(2, '0'), r = byDay[iso], c = r ? CODES[r.code] : null;
+      const dow = (lead + i - 1) % 7;
+      if (r) { if (c.work) work++; ({ D: () => nD++, N: () => nN++, W: () => nW++, X: () => nX++, L: () => nL++ })[r.code](); if (r.ot) nOT++; } else empty++;
+      const sel = s.rosterSel === iso;
+      cells.push({ blank: false, num: String(i), has: !!r, label: c ? c.label : '·', cbg: c ? c.bg : 'transparent', cfg: c ? c.fg : 'var(--dim)', ot: !!(r && r.ot),
+        bg: dow >= 5 ? 'var(--panel-2)' : 'var(--panel)',
+        border: sel ? '2px solid var(--accent)' : (iso === todayIso ? '1.5px solid var(--accent-line)' : '1px solid var(--line)'),
+        today: iso === todayIso,
+        pick: () => this.setState({ rosterSel: sel ? null : iso }) });
+    }
+    const mo = d.month || { holidays: 0, required_shifts: 0, hours_per_shift: 11 };
+    const hps = Number(mo.hours_per_shift) || 11, req = Number(mo.required_shifts) || 0;
+    const hours = work * hps, reqH = req * hps, over = Math.max(0, work - req);
+    base.metrics = [
+      { label: 'เวรที่ทำ', value: String(work), sub: req ? '/ ' + req + ' ที่กำหนด' : 'ยังไม่ตั้งเวรที่กำหนด' },
+      { label: 'กลางวัน · กลางคืน', value: nD + ' · ' + nN, sub: nW ? 'วันทำงาน (ช) ' + nW : '' },
+      { label: 'หยุด · ลา', value: nX + ' · ' + nL, sub: mo.holidays ? 'วันหยุดตามกำหนด ' + mo.holidays : '' },
+      { label: 'โอที', value: nOT + ' วัน', sub: (nOT * hps) + ' ชม.' }
+    ];
+    base.hoursText = 'ชั่วโมงทำงาน ' + hours + ' ชม.'; base.reqText = reqH ? 'ที่กำหนด ' + reqH + ' ชม.' : '';
+    const top = Math.max(hours, reqH, 1);
+    base.barReq = Math.round(Math.min(hours, reqH || hours) / top * 100) + '%';
+    base.barOT = Math.round((reqH ? Math.max(0, hours - reqH) : 0) / top * 100) + '%';
+    /* the paper marks OT by hand; flag when the ticks don't add up to the shifts over target */
+    base.otWarn = req && nOT !== over ? 'ติ๊กโอทีไว้ ' + nOT + ' วัน แต่เวรเกินที่กำหนด ' + over + ' เวร' : '';
+    base.emptyWarn = empty ? 'ยังไม่ได้ลงเวร ' + empty + ' วัน' : '';
+    base.cells = cells;
+    base.staffName = cur.name + (cur.nickname ? ' (' + cur.nickname + ')' : '');
+    base.editStaff = () => this.setState({ rosterForm: Object.assign({}, cur) });
+    base.copyPrev = () => {
+      if (Object.keys(byDay).length && !window.confirm('เดือนนี้ลงเวรไว้แล้วบางวัน — คัดลอกทับวันที่ตรงกันจากเดือนก่อน?')) return;
+      this.core().rosterCopyPrev(cur.id, y, m).then(err => { if (err) this.flash(err, 'var(--warn)'); else { this.flash('คัดลอกเวรจากเดือนก่อนแล้ว · ติ๊กโอทีใหม่เอง', 'var(--ok)'); this.loadRoster(); } });
+    };
+    const t = byDay[todayIso];
+    base.todayText = todayIso.slice(0, 7) === y + '-' + mm ? 'วันนี้: ' + (t ? CODES[t.code].name + (t.ot ? ' · โอที' : '') : 'ยังไม่ได้ลงเวร') + (cur.phone ? ' · โทร ' + cur.phone : '') : '';
+    const saveMonth = (k, e) => {
+      const v = parseInt(e.target.value, 10) || 0;
+      if (v === (Number(mo[k]) || 0)) return;
+      const row = { year: y, month: m, holidays: mo.holidays || 0, required_shifts: mo.required_shifts || 0, hours_per_shift: hps };
+      row[k] = v;
+      this.core().rosterSaveMonth(row).then(err => { if (err) this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); this.loadRoster(); });
+    };
+    base.settings = { holidays: String(mo.holidays || ''), required: String(mo.required_shifts || ''),
+      saveHolidays: (e) => saveMonth('holidays', e), saveRequired: (e) => saveMonth('required_shifts', e) };
+    const selR = s.rosterSel ? byDay[s.rosterSel] : null;
+    base.editor = s.rosterSel ? {
+      title: 'วันที่ ' + (+s.rosterSel.slice(8)) + ' ' + TH[m] + ' ' + (y + 543),
+      options: Object.keys(CODES).map(k => ({ label: CODES[k].name, on: !!(selR && selR.code === k),
+        border: selR && selR.code === k ? 'var(--accent-line)' : 'var(--line)', bg: selR && selR.code === k ? 'var(--accent-soft)' : 'transparent',
+        pick: () => this.rosterPut(cur.id, s.rosterSel, k, CODES[k].work ? !!(selR && selR.ot) : false) })),
+      otOn: !!(selR && selR.ot), otCan: !!(selR && CODES[selR.code].work),
+      otLabel: selR && selR.ot ? '✓ โอที' : '＋ โอที',
+      otBorder: selR && selR.ot ? 'rgba(216,90,48,0.55)' : 'var(--line)', otBg: selR && selR.ot ? 'rgba(216,90,48,0.12)' : 'transparent',
+      toggleOt: () => { if (selR && CODES[selR.code].work) this.rosterPut(cur.id, s.rosterSel, selR.code, !selR.ot); },
+      clear: () => this.rosterPut(cur.id, s.rosterSel, null),
+      close: () => this.setState({ rosterSel: null })
+    } : null;
+    return base;
+  }
   /* ---------- ตามงานซ่อม (repair tracking) ---------- */
   repairJobs() {
     const rows = this.state.repairRows;
@@ -5616,7 +5863,7 @@ class Component extends DCLogic {
         note: ph.failed ? 'อัปโหลดไม่สำเร็จ' : (ph.path ? '' : 'กำลังอัปโหลด…'), noteShow: ph.failed || !ph.path,
         remove: () => this.patchRepairNew(m => ({ photos: m.photos.filter(x => x.key !== ph.key) })) })),
       canAdd: n.photos.length < 4, addPhotos: this.addRepairPhotos,
-      saveLabel: n.saving ? 'กำลังบันทึก…' : (n.busy ? 'รออัปโหลดรูป…' : 'สร้างงานซ่อม'),
+      saveLabel: n.saving ? 'กำลังบันทึก…' : (n.busy ? 'รออัปโหลดรูป…' : 'แจ้งซ่อม'),
       save: this.saveRepairNew, cancel: this.closeRepairNew
     };
   }
@@ -6303,6 +6550,10 @@ class Component extends DCLogic {
         this.setState({ kpiRows: res.rows, kpiError: res.error, kpiLoaded: wantYear });
       });
     }
+    if (page === 'roster' && !this._rosterLoadStarted) {
+      this._rosterLoadStarted = true;
+      this.loadRoster();
+    }
     if (page === 'repairs' && !this._repairLoadStarted) {
       this._repairLoadStarted = true;
       this.loadRepairs();
@@ -6453,6 +6704,7 @@ class Component extends DCLogic {
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },
       repairs: { kicker: 'Repair Tracking', title: 'ตามงานซ่อม' },
+      roster: { kicker: 'Duty Roster', title: 'ตารางเวร' },
       pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน PDF' },
       kpi: { kicker: 'Key Performance Indicators', title: 'KPI' },
       settings: { kicker: 'System', title: 'ตั้งค่าระบบ' }
@@ -6613,6 +6865,7 @@ class Component extends DCLogic {
         { title: 'Data', items: [
           navItem('builder', 'Form Builder', 'FB', 'var(--muted)'),
           navItem('records', 'Records', 'RC', 'var(--muted)', String(core.MODULES.reduce((n, m) => n + core.recordCount(m.id), 0))),
+          navItem('roster', 'ตารางเวร', 'SH', '#5b7cfa', ''),
           navItem('repairs', 'ตามงานซ่อม', 'RP', '#e0763f', String(this.repairJobs().filter(j => j.status !== 'closed' && j.status !== 'rejected').length)),
           navItem('pdf', 'Export PDF', 'PD', 'var(--muted)')
         ] },
@@ -6628,6 +6881,8 @@ class Component extends DCLogic {
       isDashboard: isDash,
       isBuilder: page === 'builder',
       isRecords: page === 'records',
+      isRoster: page === 'roster',
+      roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {} },
       isRepairs: page === 'repairs',
       repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null, form: null, openNew: null },
       isPdf: page === 'pdf',
