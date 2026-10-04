@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261004a"></script>
+<script src="./soc-core.js?v=20261004b"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -2441,9 +2441,6 @@ const ELEVATOR_REMARKS = ['กดผิด', 'ยืนพิง', 'อื่น
 const ELEVATOR_USER_TYPES = ['พนักงาน', 'ลูกค้า', 'ผู้รับเหมา'];
 function liftCode(v) { return String(v == null ? '' : v).split(' — ')[0]; }
 
-const CHECKPOINT_SHIFTS = ['กะกลางวัน 08.00-20.00', 'กะกลางคืน 20.00-08.00'];
-const CHECKPOINT_POINTS = ['จุดที่1', 'จุดที่2', 'จุดที่3', 'จุดที่4'];
-
 const PDF_THEMES = [
   { id: 'modern-blue', label: 'Modern Blue', bg: '#ffffff', text: '#0f172a', muted: '#5b6577', primary: '#2563eb', chart: ['#2563eb', '#60a5fa', '#1e40af', '#93c5fd'] },
   { id: 'midnight-dark', label: 'Midnight Dark', bg: '#0b1220', text: '#e6ebf5', muted: '#9aa7bd', primary: '#38bdf8', chart: ['#38bdf8', '#818cf8', '#0ea5e9', '#a5b4fc'] },
@@ -2595,7 +2592,7 @@ class Component extends DCLogic {
   }
   /* One period -> the row values for whatever module is currently selected in the comparison
      table. Every number here is read off the same *Metrics() functions each module's own
-     dashboard already uses (trafficMetrics/golfMetrics/visitorsMetrics/checkpointMetrics/
+     dashboard already uses (trafficMetrics/golfMetrics/visitorsMetrics/
      elevatorMetrics) — no parallel aggregation logic, just re-presented as table rows. */
   compareRows(period) {
     const core = this.core();
@@ -3523,22 +3520,6 @@ class Component extends DCLogic {
       employeeCount, customerCount, contractorCount, recordCount: recs.length
     };
   }
-  /* Single source of truth for checkpoint-inspection numbers — used by buildCheckpoint()
-     (dashboard) and the checkpoint PDF branch. */
-  checkpointMetrics(recs) {
-    const shiftCounts = CHECKPOINT_SHIFTS.map(opt => ({
-      label: opt, value: recs.filter(r => (r.data || {}).checkpoint_shift === opt).length
-    }));
-    const pointCounts = CHECKPOINT_POINTS.map(opt => ({
-      label: opt, value: recs.filter(r => (r.data || {}).checkpoint_point === opt).length
-    }));
-    let mostVisited = pointCounts[0];
-    pointCounts.forEach(p => { if (p.value > mostVisited.value) mostVisited = p; });
-    return {
-      total: recs.length, shiftCounts, pointCounts, mostVisited,
-      dayCount: shiftCounts[0].value, nightCount: shiftCounts[1].value, recordCount: recs.length
-    };
-  }
 
   /* ---------- page builders ---------- */
   buildOverview() {
@@ -4316,79 +4297,6 @@ class Component extends DCLogic {
     };
   }
 
-  buildCheckpoint() {
-    const core = this.core();
-    const recs = this.scopeRecords('checkpoint');
-    const cm = this.checkpointMetrics(recs);
-    const last = recs[0];
-    const g = this.state.dashGranularity;
-    const prevRecs = g === 'week' ? this.prevWeekRecs('checkpoint') : g === 'year' ? this.prevYearRecs('checkpoint') : this.prevMonthRecs('checkpoint');
-    const prevTotal = this.checkpointMetrics(prevRecs).total;
-    const volDelta = (cur, prev) => g === 'month' ? this.momDelta(cur, prev) : (g === 'day' ? '' : this.pairDelta(cur, prev));
-
-    const kpis = [
-      { label: 'Total Reports', value: core.fmtNum(cm.total), delta: volDelta(cm.total, prevTotal), note: 'ในช่วงที่เลือก', color: core.COLORS.checkpoint, formula: 'COUNT(records)' },
-      { label: 'Most Visited Point', value: cm.total ? cm.mostVisited.label : '—', note: cm.total ? cm.mostVisited.value + ' รายการ' : 'ยังไม่มีรายงาน', color: core.COLORS.checkpoint, formula: 'MAX(count by checkpoint)' },
-      { label: 'กะกลางวัน', value: core.fmtNum(cm.dayCount), note: '08.00–20.00', color: 'var(--ok)', formula: "COUNT(shift='กะกลางวัน')" },
-      { label: 'กะกลางคืน', value: core.fmtNum(cm.nightCount), note: '20.00–08.00', color: 'var(--dim)', formula: "COUNT(shift='กะกลางคืน')" }
-    ];
-
-    const charts = [
-      this.buildChart({ id: 'cp_point', block: 'Block 01', title: 'รายงานแยกตามจุดตรวจ',
-        subtitle: 'จำนวนรายงานต่อจุดตรวจแต่ละจุด · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
-        family: 'category', fallback: 'bar', recordCount: recs.length,
-        data: cm.pointCounts.map(p => ({ label: p.label, value: p.value, color: core.COLORS.checkpoint })),
-        trace: 'trace: checkpoint_point → COUNT → category comparison' }),
-      this.buildChart({ id: 'cp_shift', block: 'Block 02', title: 'สัดส่วนกะที่ตรวจ',
-        subtitle: 'สัดส่วนรายงานแยกตามกะ · อ้างอิงจาก ' + core.fmtNum(recs.length) + ' รายการบันทึก',
-        family: 'partwhole', fallback: 'donut', centerLabel: 'รายงานรวม', recordCount: recs.length,
-        data: cm.shiftCounts.map((s, i) => ({ label: s.label, value: s.value, color: i === 0 ? core.COLORS.checkpoint : 'var(--dim)' })),
-        trace: 'trace: checkpoint_shift → COUNT → part-to-whole' }),
-      this.buildChart({ id: 'cp_trend', block: 'Block 03', title: g === 'year' ? 'แนวโน้มรายงานรายเดือน' : 'แนวโน้มรายงานตามเวลา',
-        subtitle: this.periodLabelText() + ' — ทุกวันที่มีข้อมูล',
-        family: 'timeseries', fallback: 'area',
-        recordCount: g === 'week' ? this.weekRecords('checkpoint').length : g === 'year' ? this.yearRecords('checkpoint').length : this.monthRecords('checkpoint').length,
-        data: g === 'week' ? this.groupByDateSeries(this.weekRecords('checkpoint'), () => 1, core.COLORS.checkpoint)
-          : g === 'year' ? this.monthlyTrendData('checkpoint', () => 1, core.COLORS.checkpoint)
-          : this.trendData('checkpoint', () => 1, core.COLORS.checkpoint),
-        lineColor: core.COLORS.checkpoint, lineFill: 'rgba(47,168,154,0.16)',
-        trace: 'trace: ' + (g === 'week' ? 'week' : g === 'year' ? 'year (by month)' : 'month') + ' records → group by reportDate → COUNT' })
-    ];
-
-    return {
-      kpis, charts,
-      infoBlocks: [{
-        block: 'Block 04', title: 'ข้อมูลการบันทึก',
-        rows: last ? [
-          { label: 'ชื่อ', value: core.fmtValue((last.data || {}).checkpoint_employee_name), color: 'var(--text)' },
-          { label: 'กะ', value: core.fmtValue((last.data || {}).checkpoint_shift), color: 'var(--text)' },
-          { label: 'จุดที่ตรวจ', value: core.fmtValue((last.data || {}).checkpoint_point), color: 'var(--text)' },
-          { label: 'เวลาที่ลงตรวจ', value: core.fmtValue((last.data || {}).checkpoint_time), color: 'var(--text)' },
-          { label: 'ชื่อผู้ตรวจสอบ', value: core.fmtValue((last.data || {}).checkpoint_inspector_name), color: 'var(--text)' },
-          { label: 'วันที่ของข้อมูล', value: core.fmtDate(last.reportDate), color: 'var(--text)' },
-          { label: 'เวลาที่ส่ง', value: core.fmtDate(last.submittedAt) + ' ' + core.fmtTime(last.submittedAt), color: 'var(--text)' },
-          { label: 'Record ID', value: last.id, color: 'var(--dim)' }
-        ] : [{ label: 'สถานะ', value: 'ไม่มีรายการในช่วงที่เลือก', color: 'var(--muted)' }]
-      }],
-      tableTitle: ((core.module('checkpoint') || {}).name || 'รายงานการตรวจจุด') + ' — รายการบันทึกในช่วงที่เลือก',
-      tableNote: core.fmtNum(recs.length) + ' รายการ',
-      tableColumns: ['วันที่ข้อมูล', 'ชื่อ', 'กะ', 'จุดที่ตรวจ', 'เวลาที่ลงตรวจ', 'ผู้ตรวจสอบ', 'เวลาส่ง'],
-      tableRows: recs.map(r => {
-        const d = r.data || {};
-        return { cells: [
-          { text: core.fmtDateShort(r.reportDate), color: 'var(--text)', wrap: 'nowrap' },
-          { text: core.fmtValue(d.checkpoint_employee_name), color: 'var(--text)', wrap: 'normal' },
-          { text: core.fmtValue(d.checkpoint_shift), color: 'var(--muted)', wrap: 'nowrap' },
-          { text: core.fmtValue(d.checkpoint_point), color: 'var(--muted)', wrap: 'nowrap' },
-          { text: core.fmtValue(d.checkpoint_time), color: 'var(--muted)', wrap: 'nowrap' },
-          { text: core.fmtValue(d.checkpoint_inspector_name), color: 'var(--muted)', wrap: 'normal' },
-          { text: core.fmtTime(r.submittedAt), color: 'var(--dim)', wrap: 'nowrap' }
-        ] };
-      }),
-      empty: recs.length === 0
-    };
-  }
-
   /* ---------- generic, form-driven dashboard ----------
      Every dashboard above reads specific fieldIds, which is fine for the daily modules whose
      questions are locked (`system: true`). The monthly-inspection modules are the opposite:
@@ -4655,10 +4563,6 @@ class Component extends DCLogic {
     if (mod.kind === 'elevator') {
       const d = rec.data || {};
       return liftCode(d.elevator_lift) + ' · ' + core.fmtValue(d.elevator_remark) + ' · ' + core.fmtValue(d.elevator_user_type);
-    }
-    if (mod.kind === 'checkpoint') {
-      const d = rec.data || {};
-      return core.fmtValue(d.checkpoint_point) + ' · ' + core.fmtValue(d.checkpoint_shift);
     }
     /* form-driven modules have no fixed fields to name, so summarise with whatever number
        questions currently exist — falls back to the record count when there are none left */
@@ -5144,15 +5048,6 @@ class Component extends DCLogic {
           geo: this.pdfChartGeometry(em.userTypeCounts.map((u, i) => ({ label: u.label, value: u.value, color: this.pdfSeriesColor(i) }))) }
       ];
     }
-    if (mod.kind === 'checkpoint') {
-      const cm = this.checkpointMetrics(recs);
-      return [
-        { title: 'รายงานแยกตามจุดตรวจ', kind: 'bar',
-          geo: this.pdfChartGeometry(cm.pointCounts.map((p, i) => ({ label: p.label, value: p.value, color: this.pdfSeriesColor(i % 4) }))) },
-        { title: 'สัดส่วนกะที่ตรวจ', kind: 'donut',
-          geo: this.pdfChartGeometry(cm.shiftCounts.map((sc, i) => ({ label: sc.label, value: sc.value, color: this.pdfSeriesColor(i) }))) }
-      ];
-    }
     /* form-driven modules: same derivation buildDynamic() uses on screen, so the exported
        charts track whatever questions currently exist rather than a frozen set */
     if (mod.kind === 'monthly') {
@@ -5236,15 +5131,6 @@ class Component extends DCLogic {
         { label: 'Customer Reports', value: core.fmtNum(em.customerCount), formula: "COUNT(user_type='ลูกค้า')" }
       ];
     }
-    if (mod.kind === 'checkpoint') {
-      const cm = this.checkpointMetrics(recs);
-      return [
-        { label: 'Total Reports', value: core.fmtNum(cm.total), formula: 'COUNT(records)' },
-        { label: 'Most Visited Point', value: cm.total ? cm.mostVisited.label + ' — ' + cm.mostVisited.value + ' รายการ' : '—', formula: 'MAX(count by checkpoint)' },
-        { label: 'กะกลางวัน', value: core.fmtNum(cm.dayCount), formula: "COUNT(shift='กะกลางวัน')" },
-        { label: 'กะกลางคืน', value: core.fmtNum(cm.nightCount), formula: "COUNT(shift='กะกลางคืน')" }
-      ];
-    }
     /* must come before the all-operations fallback below — without an explicit branch a
        form-driven module would silently fall through and print cross-module totals */
     if (mod.kind === 'monthly') {
@@ -5255,15 +5141,14 @@ class Component extends DCLogic {
           formula: 'SUM(' + f.fieldId + ')'
         })));
     }
-    const tr = recs.filter(r => r.module === 'traffic'), trTt = recs.filter(r => r.module === 'traffic_tt'), gf = recs.filter(r => r.module === 'golf'), vs = recs.filter(r => r.module === 'visitors'), cp = recs.filter(r => r.module === 'checkpoint');
+    const tr = recs.filter(r => r.module === 'traffic'), trTt = recs.filter(r => r.module === 'traffic_tt'), gf = recs.filter(r => r.module === 'golf'), vs = recs.filter(r => r.module === 'visitors');
     const tm = this.trafficMetrics(tr, 'traffic'), pkTt = this.parkingMetrics(trTt), gm = this.golfMetrics(gf), vm = this.visitorsMetrics(vs);
     return [
       { label: 'จำนวนรายการทั้งหมด', value: core.fmtNum(recs.length), formula: 'COUNT(records)' },
       { label: 'ปริมาณรถเข้า-ออก (พื้นที่หลัก)', value: core.fmtNum(tm.totalIn + tm.totalOut), formula: 'SUM(traffic in+out)' },
       { label: 'รถจอดทะเลทอง (รวม / ตกค้างเฉลี่ย)', value: core.fmtNum(pkTt.total) + ' / ' + core.fmtNum(pkTt.leftAvg), formula: 'SUM(tt_staff_cars)+SUM(tt_other_cars) / AVERAGE(tt_left_cars)' },
       { label: 'รอบรถกอล์ฟรวม', value: core.fmtNum(gm.total), formula: 'SUM(golf_cart_1..4)' },
-      { label: 'Visitor รวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' },
-      { label: 'รายงานการตรวจจุดรวม', value: core.fmtNum(cp.length), formula: 'COUNT(checkpoint records)' }
+      { label: 'Visitor รวม', value: core.fmtNum(vm.total), formula: 'SUM(visitor counts)' }
     ];
   }
   pdfSummary(recs) { return this.pdfSummaryFor(this.state.pdfModule, recs); }
@@ -5280,7 +5165,6 @@ class Component extends DCLogic {
     if (mod.kind === 'parking') return ['วันที่ข้อมูล', 'ผู้กรอก', 'เจ้าหน้าที่', 'ไม่ใช่เจ้าหน้าที่', 'รวมจอด', 'ตกค้าง', 'เวลาส่ง'];
     if (m === 'golf') return ['วันที่ข้อมูล', 'ผู้กรอก', 'รถ1(คืน)', 'รถ2(วัน)', 'รถ3(วัน)', 'รถ4(วัน)', 'รวม'];
     if (mod.kind === 'elevator') return ['วันที่ข้อมูล', 'ลิฟต์', 'หมายเหตุ', 'ประเภทผู้ใช้', 'เวลาส่ง'];
-    if (mod.kind === 'checkpoint') return ['วันที่ข้อมูล', 'ชื่อ', 'กะ', 'จุดที่ตรวจ', 'เวลาที่ลงตรวจ', 'ผู้ตรวจสอบ', 'เวลาส่ง'];
     /* explicit branch for the same reason as pdfSummaryFor — the fallback below is the
        visitors layout, which would mislabel every column for a form-driven module */
     if (mod.kind === 'monthly') {
@@ -5308,9 +5192,6 @@ class Component extends DCLogic {
       }
       if (mod.kind === 'elevator') {
         return [core.fmtDateShort(r.reportDate), liftCode(d.elevator_lift), core.fmtValue(d.elevator_remark), core.fmtValue(d.elevator_user_type), core.fmtTime(r.submittedAt)];
-      }
-      if (mod.kind === 'checkpoint') {
-        return [core.fmtDateShort(r.reportDate), core.fmtValue(d.checkpoint_employee_name), core.fmtValue(d.checkpoint_shift), core.fmtValue(d.checkpoint_point), core.fmtValue(d.checkpoint_time), core.fmtValue(d.checkpoint_inspector_name), core.fmtTime(r.submittedAt)];
       }
       if (mod.kind === 'monthly') {
         return [core.fmtDateShort(r.reportDate)]
@@ -6672,7 +6553,6 @@ class Component extends DCLogic {
     else if (page === 'golf') data = this.buildGolf();
     else if (page === 'visitors') data = this.buildVisitors();
     else if (page === 'elevator') data = this.buildElevator();
-    else if (page === 'checkpoint') data = this.buildCheckpoint();
     /* a group landing page rolls its members up; a module inside a group uses the generic
        form-driven builder, since its questions are admin-editable (see buildDynamic) */
     else if (pageGroup) data = this.buildGroupOverview(pageGroup.id);
@@ -6781,7 +6661,6 @@ class Component extends DCLogic {
       golf: { kicker: 'Golf Fleet Module', title: 'รถกอล์ฟ' },
       visitors: { kicker: 'Visitors Module', title: 'Visitor' },
       elevator: { kicker: 'Elevator Module', title: 'รายงานปุ่มฉุกเฉินลิฟต์' },
-      checkpoint: { kicker: 'Checkpoint Module', title: 'รายงานการตรวจจุด' },
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },
       repairs: { kicker: 'Repair Tracking', title: 'ตามงานซ่อม' },
