@@ -147,6 +147,16 @@
   @keyframes socAreaFade { to { opacity: 1; } }
   /* today's/latest point stays marked with a slow pulsing ring so a live-looking dashboard reads
      as "still updating" at a glance, on top of the existing static ring for the same point */
+  /* ---------- ตารางเวร ---------- days ripple in, today breathes, the past settles back */
+  .rs-cell { animation: rsIn 460ms cubic-bezier(0.22,1,0.36,1) both; transition: transform 200ms cubic-bezier(0.22,1,0.36,1), opacity 300ms ease; }
+  .rs-cell:hover { transform: translateY(-2px); }
+  @keyframes rsIn { from { opacity: 0; transform: translateY(10px) scale(0.94); } to { opacity: var(--rs-op, 1); transform: none; } }
+  .rs-today { position: relative; }
+  .rs-today::after { content: ''; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--accent); animation: rsPulse 2.4s ease-in-out infinite; pointer-events: none; }
+  @keyframes rsPulse { 0%,100% { opacity: 0.9; transform: scale(1); } 50% { opacity: 0.25; transform: scale(1.04); } }
+  .rs-fill { animation: rsFill 900ms cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+  @keyframes rsFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .rs-now { animation: rsIn 520ms cubic-bezier(0.22,1,0.36,1) both; }
   /* ---------- ตามงานซ่อม ---------- spring-ish easing, nothing linear or abrupt */
   .rp-card { animation: rpIn 520ms cubic-bezier(0.22,1,0.36,1) both; transition: transform 260ms cubic-bezier(0.22,1,0.36,1), box-shadow 260ms ease, border-color 260ms ease; }
   .rp-card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px -18px rgba(0,0,0,0.45); }
@@ -1386,11 +1396,18 @@
             <sc-if value="{{ roster.hasStaff }}" hint-placeholder-val="{{ false }}">
               <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
                 <sc-if value="{{ roster.todayText }}" hint-placeholder-val="{{ false }}">
-                  <div style="padding: 12px 16px; border-radius: 14px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 14px; font-weight: 500; overflow-wrap: anywhere;">{{ roster.todayText }}</div>
+                  <div class="rs-now" style="padding: 12px 16px; border-radius: 14px; border: 1px solid var(--accent-line); background: var(--accent-soft); display: flex; align-items: center; gap: 14px; min-width: 0;">
+                    <div class="rs-today" style="flex: none; width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; font-weight: 700; background: {{ roster.todayBg }}; color: {{ roster.todayFg }};">{{ roster.todayCode }}</div>
+                    <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                      <div style="font-size: 15px; font-weight: 600; overflow-wrap: anywhere;">{{ roster.todayText }}</div>
+                      <div style="font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere;">{{ roster.tomorrowText }}</div>
+                      <sc-if value="{{ roster.phoneText }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: var(--muted);">{{ roster.phoneText }}</div></sc-if>
+                    </div>
+                  </div>
                 </sc-if>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
                   <sc-for list="{{ roster.metrics }}" as="mt" hint-placeholder-count="4">
-                    <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); min-width: 0;">
+                    <div class="rs-now" style="padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); min-width: 0;">
                       <div style="font-size: 12px; color: var(--muted);">{{ mt.label }}</div>
                       <div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; margin-top: 2px;">{{ mt.value }}</div>
                       <div style="font-size: 11.5px; color: var(--dim); min-height: 15px;">{{ mt.sub }}</div>
@@ -1399,19 +1416,43 @@
                 </div>
                 <div>
                   <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 5px;"><span>{{ roster.hoursText }}</span><span>{{ roster.reqText }}</span></div>
-                  <div style="height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;"><div style="width: {{ roster.barReq }}; background: #2fa89a; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div><div style="width: {{ roster.barOT }}; background: #d85a30; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div></div>
+                  <div style="height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;"><div class="rs-fill" style="width: {{ roster.barReq }}; background: #2fa89a; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div><div style="width: {{ roster.barOT }}; background: #d85a30; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div></div>
+                </div>
+                <div style="border-radius: 14px; border: 1px solid var(--line); background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+                  <div style="font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere;">{{ roster.paper.header }}</div>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 14px 22px;">
+                    <sc-for list="{{ roster.paper.groups }}" as="pg" hint-placeholder-count="2">
+                      <div style="min-width: 0;">
+                        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">{{ pg.title }}</div>
+                        <sc-for list="{{ pg.rows }}" as="pr" hint-placeholder-count="4">
+                          <div style="display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); min-width: 0;">
+                            <span style="flex: 1; min-width: 0; font-size: 13px;">{{ pr.k }}</span>
+                            <span style="font-size: 11.5px; color: var(--dim); text-align: right; overflow-wrap: anywhere; max-width: 45%;">{{ pr.note }}</span>
+                            <span style="flex: none; font-size: 14px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; min-width: 64px; text-align: right;">{{ pr.v }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-for>
+                  </div>
                 </div>
                 <sc-if value="{{ roster.otWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--warn);">⚠ {{ roster.otWarn }}</div></sc-if>
                 <sc-if value="{{ roster.emptyWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--muted);">● {{ roster.emptyWarn }}</div></sc-if>
 
+                <sc-if value="{{ roster.progress.show }}" hint-placeholder-val="{{ false }}">
+                  <div>
+                    <div style="font-size: 12px; color: var(--muted); margin-bottom: 5px; overflow-wrap: anywhere;">{{ roster.progress.text }}</div>
+                    <div style="height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden;"><div class="rs-fill" style="height: 100%; width: {{ roster.progress.width }}; background: var(--accent); border-radius: 99px;"></div></div>
+                  </div>
+                </sc-if>
                 <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;">
                   <div style="font-size: 12px; color: var(--muted); text-align: center;">จ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">อ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">พ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">พฤ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">ศ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">ส</div><div style="font-size: 12px; color: var(--muted); text-align: center;">อา</div>
                   <sc-for list="{{ roster.cells }}" as="c" hint-placeholder-count="31">
                     <sc-if value="{{ c.blank }}" hint-placeholder-val="{{ false }}"><div></div></sc-if>
                     <sc-if value="{{ !c.blank }}" hint-placeholder-val="{{ true }}">
-                      <button class="rp-btn" onClick="{{ c.pick }}" style="min-width: 0; min-height: 66px; padding: 6px; border-radius: 10px; cursor: pointer; border: {{ c.border }}; background: {{ c.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left;">
-                        <span style="font-size: 11.5px; color: var(--muted);">{{ c.num }}</span>
+                      <button class="{{ c.cls }}" onClick="{{ c.pick }}" style="--rs-op: {{ c.op }}; animation-delay: {{ c.delay }}; min-width: 0; min-height: 66px; padding: 6px; border-radius: 10px; cursor: pointer; border: {{ c.border }}; background: {{ c.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left;">
+                        <span style="font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ c.numText }}</span>
                         <span style="border-radius: 6px; padding: 2px 0; text-align: center; font-size: 13px; font-weight: 700; background: {{ c.cbg }}; color: {{ c.cfg }};">{{ c.label }}</span>
+                        <sc-if value="{{ c.hrs }}" hint-placeholder-val="{{ false }}"><span style="font-size: 10.5px; color: var(--dim); text-align: center; white-space: nowrap;">{{ c.hrs }}</span></sc-if>
                         <sc-if value="{{ c.ot }}" hint-placeholder-val="{{ false }}"><span style="border-radius: 6px; text-align: center; font-size: 10.5px; font-weight: 600; background: rgba(216,90,48,0.14); color: color-mix(in srgb, #d85a30 80%, var(--text));">OT</span></sc-if>
                       </button>
                     </sc-if>
@@ -5702,10 +5743,12 @@ class Component extends DCLogic {
       const dow = (lead + i - 1) % 7;
       if (r) { if (c.work) work++; ({ D: () => nD++, N: () => nN++, W: () => nW++, X: () => nX++, L: () => nL++ })[r.code](); if (r.ot) nOT++; } else empty++;
       const sel = s.rosterSel === iso;
-      cells.push({ blank: false, num: String(i), has: !!r, label: c ? c.label : '·', cbg: c ? c.bg : 'transparent', cfg: c ? c.fg : 'var(--dim)', ot: !!(r && r.ot),
-        bg: dow >= 5 ? 'var(--panel-2)' : 'var(--panel)',
+      cells.push({ blank: false, num: String(i), has: !!r, label: c ? c.label : '·', hrs: c && c.work ? (Number((d.month || {}).hours_per_shift) || 11) + ' ชม.' : '', cbg: c ? c.bg : 'transparent', cfg: c ? c.fg : 'var(--dim)', ot: !!(r && r.ot),
+        bg: iso === todayIso ? 'var(--accent-soft)' : (dow >= 5 ? 'var(--panel-2)' : 'var(--panel)'),
         border: sel ? '2px solid var(--accent)' : (iso === todayIso ? '1.5px solid var(--accent-line)' : '1px solid var(--line)'),
-        today: iso === todayIso,
+        today: iso === todayIso, cls: 'rs-cell' + (iso === todayIso ? ' rs-today' : ''),
+        op: iso < todayIso ? '0.55' : '1', delay: Math.min(cells.length, 40) * 14 + 'ms',
+        numText: iso === todayIso ? i + ' · วันนี้' : String(i),
         pick: () => this.setState({ rosterSel: sel ? null : iso }) });
     }
     const mo = d.month || { holidays: 0, required_shifts: 0, hours_per_shift: 11 };
@@ -5717,6 +5760,38 @@ class Component extends DCLogic {
       { label: 'หยุด · ลา', value: nX + ' · ' + nL, sub: mo.holidays ? 'วันหยุดตามกำหนด ' + mo.holidays : '' },
       { label: 'โอที', value: nOT + ' วัน', sub: (nOT * hps) + ' ชม.' }
     ];
+    /* how far through the month we are, counted from today's date */
+    const inMonth = todayIso.slice(0, 7) === y + '-' + mm, past = todayIso.slice(0, 7) > y + '-' + mm;
+    const elapsed = past ? nDays : (inMonth ? +todayIso.slice(8) : 0);
+    const doneKeys = Object.keys(byDay).filter(k => +k.slice(8) <= elapsed);
+    const doneWork = doneKeys.filter(k => CODES[byDay[k].code].work).length;
+    const leftWork = Object.keys(byDay).filter(k => +k.slice(8) > elapsed && CODES[byDay[k].code].work).length;
+    base.progress = {
+      show: elapsed > 0,
+      text: past ? 'เดือนนี้จบแล้ว · ทำไป ' + doneWork + ' เวร (' + doneWork * hps + ' ชม.)'
+        : 'ผ่านไป ' + elapsed + ' จาก ' + nDays + ' วัน · ทำไปแล้ว ' + doneWork + ' เวร (' + doneWork * hps + ' ชม.) · เหลืออีก ' + leftWork + ' เวร',
+      width: Math.round(elapsed / nDays * 100) + '%'
+    };
+    const otDates = Object.keys(byDay).filter(k => byDay[k].ot).sort().map(k => String(+k.slice(8)));
+    /* the paper's header line and right-hand totals, same names and order */
+    base.paper = {
+      header: 'วันหยุด ' + (mo.holidays || 0) + ' วัน (เวรทำงาน ' + req + ' เวร × ' + hps + ' ชม. = ' + reqH + ' ชม.)',
+      groups: [
+        { title: 'จำนวนวัน', rows: [
+          { k: 'วันหยุด', v: nX + ' วัน', note: mo.holidays ? 'กำหนด ' + mo.holidays + ' วัน' : '' },
+          { k: 'วันลา', v: nL + ' วัน', note: '' },
+          { k: 'จำนวนเวรที่ทำ', v: work + ' เวร', note: req ? 'กำหนด ' + req + ' เวร' : '' },
+          { k: 'เวรกลางวัน (D)', v: nD + ' เวร', note: (nD * hps) + ' ชม.' },
+          { k: 'เวรกลางคืน (N)', v: nN + ' เวร', note: (nN * hps) + ' ชม.' }
+        ].concat(nW ? [{ k: 'วันทำงาน (ช)', v: nW + ' วัน', note: (nW * hps) + ' ชม.' }] : []) },
+        { title: 'ชั่วโมง', rows: [
+          { k: 'ชม.ทำงานรวมโอที', v: hours + ' ชม.', note: work + ' เวร × ' + hps },
+          { k: 'ชม.ทำงานตามกำหนด', v: reqH + ' ชม.', note: req + ' เวร × ' + hps },
+          { k: 'ชม.โอที', v: Math.max(0, hours - reqH) + ' ชม.', note: over + ' เวรที่เกิน' },
+          { k: 'วันที่ทำโอที', v: nOT + ' วัน', note: otDates.length ? 'วันที่ ' + otDates.join(', ') : '' }
+        ] }
+      ]
+    };
     base.hoursText = 'ชั่วโมงทำงาน ' + hours + ' ชม.'; base.reqText = reqH ? 'ที่กำหนด ' + reqH + ' ชม.' : '';
     const top = Math.max(hours, reqH, 1);
     base.barReq = Math.round(Math.min(hours, reqH || hours) / top * 100) + '%';
@@ -5732,7 +5807,13 @@ class Component extends DCLogic {
       this.core().rosterCopyPrev(cur.id, y, m).then(err => { if (err) this.flash(err, 'var(--warn)'); else { this.flash('คัดลอกเวรจากเดือนก่อนแล้ว · ติ๊กโอทีใหม่เอง', 'var(--ok)'); this.loadRoster(); } });
     };
     const t = byDay[todayIso];
-    base.todayText = todayIso.slice(0, 7) === y + '-' + mm ? 'วันนี้: ' + (t ? CODES[t.code].name + (t.ot ? ' · โอที' : '') : 'ยังไม่ได้ลงเวร') + (cur.phone ? ' · โทร ' + cur.phone : '') : '';
+    const tmrIso = new Date(Date.parse(todayIso + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10), tm = byDay[tmrIso];
+    const say = (r) => r ? CODES[r.code].name + (CODES[r.code].work ? ' ' + hps + ' ชม.' : '') + (r.ot ? ' · โอที' : '') : 'ยังไม่ได้ลงเวร';
+    base.todayText = todayIso.slice(0, 7) === y + '-' + mm ? 'วันนี้ ' + (+todayIso.slice(8)) + ' ' + TH[m] + ': ' + say(t) : '';
+    base.todayCode = t ? CODES[t.code].label : '–';
+    base.todayBg = t ? CODES[t.code].bg : 'var(--panel-2)'; base.todayFg = t ? CODES[t.code].fg : 'var(--muted)';
+    base.tomorrowText = base.todayText && tmrIso.slice(0, 7) === y + '-' + mm ? 'พรุ่งนี้: ' + say(tm) : '';
+    base.phoneText = cur.phone ? 'โทร ' + cur.phone : '';
     const saveMonth = (k, e) => {
       const v = parseInt(e.target.value, 10) || 0;
       if (v === (Number(mo[k]) || 0)) return;
@@ -6882,7 +6963,7 @@ class Component extends DCLogic {
       isBuilder: page === 'builder',
       isRecords: page === 'records',
       isRoster: page === 'roster',
-      roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {} },
+      roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, paper: { groups: [] }, progress: { show: false } },
       isRepairs: page === 'repairs',
       repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null, form: null, openNew: null },
       isPdf: page === 'pdf',
