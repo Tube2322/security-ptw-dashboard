@@ -51,7 +51,15 @@ with s as (
   returning id
 )
 insert into public.roster_days (staff_id, day, code, ot)
-select s.id, make_date(2026, 10, d), substr('XXXDNNXDDDDDDNXDDDNNNXDDDNNNXDD', d, 1),
+select s.id, make_date(2026, 10, d), substr('XXXDNNXDDDDDDNXDDDDNNXDDDDDXDDD', d, 1),
        d = any (array[5, 8, 9, 12, 16, 19, 21, 25, 26])
 from s, generate_series(1, 31) d
 on conflict do nothing;
+
+-- v2: status-only staff (shown on the team grid / today strip, no hour totals) and per-day custom times
+alter table public.roster_staff add column if not exists status_only boolean not null default false;
+alter table public.roster_days  add column if not exists start_time text check (start_time ~ '^\d{2}:\d{2}$');
+alter table public.roster_days  add column if not exists end_time   text check (end_time   ~ '^\d{2}:\d{2}$');
+-- v3: the supervisor (shown only as a red dot on days they work) and hours written on the paper when not the standard shift
+alter table public.roster_staff add column if not exists is_head boolean not null default false;
+alter table public.roster_days  add column if not exists hours numeric check (hours > 0 and hours <= 24);
