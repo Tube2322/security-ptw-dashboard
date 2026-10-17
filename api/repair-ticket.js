@@ -25,7 +25,9 @@ const ORDER = { pending: 0, sent: 1, accepted: 2, repairing: 3, done: 4, closed:
 const LABEL = { Register: 'ยังไม่รับงาน', Assign: 'รับแล้ว รอเริ่ม', 'Work On': 'กำลังซ่อม', Clear: 'ซ่อมเสร็จ รอประเมิน', Clear1: 'ซ่อมเสร็จ รอเบิกอะไหล่', Close: 'ช่างปิดงานแล้ว', Cancel: 'ช่างยกเลิกงาน' };
 
 const RESEND_AFTER = 10 * 60 * 1000;   // how long a filed-but-unnumbered ticket is searched for before filing it again
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 2;                 // the first filing plus at most one automatic re-file; after that a person decides
+const SCAN_LIMIT = 400;                // most ticket numbers read in one look-up
+const FIRST_KNOWN = 1174;              // PTW/2569/1174 — the number scan never starts below a ticket we know exists
 const stamp = (iso) => (iso ? new Date(iso) : new Date()).toISOString().slice(0, 16).replace('T', ' ');
 
 async function techJson(path, init) {
@@ -48,7 +50,37 @@ async function locations() {
    in its description. Their search matches whole values only (job number, phone, requester name),
    so try each way the reporter could have been stored. Returns { hit, sure }: sure is false when any
    search failed, and only a sure miss may ever lead to filing again. */
-async function findFiled(job) {
+async function findFiled(sb, job) {
+  const byWho = await findByReporter(job);
+  if (byWho.hit) return byWho;
+  /* second, independent check: their job numbers run in sequence (PTW/2569/1174, 1175, ...), and the
+     public search finds any of them by number. Walk forward from the newest number we already hold
+     to the end of their list, reading every ticket filed since. Only reaching the end with no match
+     and no failed request counts as sure. */
+  const byNumber = await findByNumber(sb, job);
+  return { hit: byNumber.hit, sure: byWho.sure && byNumber.sure };
+}
+
+async function findByNumber(sb, job) {
+  const year = new Date(Date.now() + 7 * 3600000).getUTCFullYear() + 543, prefix = 'PTW/' + year + '/';
+  const known = await sb.from('repair_jobs').select('ext_code').like('ext_code', prefix + '%');
+  if (known.error) return { hit: null, sure: false };
+  let n = Math.max(FIRST_KNOWN - 1, ...(known.data || []).map(r => parseInt(String(r.ext_code).slice(prefix.length), 10) || 0));
+  const since = job.ext_sending_at ? new Date(job.ext_sending_at).getTime() - 60000 : 0;
+  let misses = 0;
+  for (let i = 0; i < SCAN_LIMIT; i++) {
+    n++;
+    let found;
+    try { found = await techJson('/jobs/search?q=' + encodeURIComponent(prefix + n)); } catch (e) { return { hit: null, sure: false }; }
+    const t = (Array.isArray(found) ? found : []).find(j => j.job_number === prefix + n);
+    if (!t) { if (++misses >= 3) return { hit: null, sure: true }; continue; }
+    misses = 0;
+    if (new Date(t.register_time).getTime() >= since && String(t.description || '').indexOf('อ้างอิง ' + job.code) !== -1) return { hit: t, sure: true };
+  }
+  return { hit: null, sure: false };   // ran out of budget before the end of their list: not sure
+}
+
+async function findByReporter(job) {
   const who = job.reporter || {};
   const phone = String(who.phone || '').trim(), digits = phone.replace(/\D/g, '');
   const terms = [...new Set([phone, digits, String(who.name || '').trim()].filter(t => t.length >= 3))];
@@ -101,6 +133,14 @@ async function send(sb, jobId) {
      RESEND_AFTER; only then is the claim released for another attempt, up to MAX_ATTEMPTS in all. */
   const attempts = Number((job.times || {}).attempts || 0);
   if (attempts >= MAX_ATTEMPTS) return { status: 409, body: { ok: false, error: 'ส่งไปแล้ว ' + attempts + ' ครั้ง ยังไม่พบใบงานในเว็บช่าง · ตรวจสอบกับช่างโดยตรง' } };
+  if (attempts > 0) {
+    const again = await findFiled(sb, job);
+    if (again.hit) {
+      const err = await markSent(sb, job, again.hit.job_number, again.hit.id);
+      return { status: 200, body: { ok: true, extCode: again.hit.job_number, warning: err } };
+    }
+    if (!again.sure) return { status: 409, body: { ok: false, error: 'ยังตรวจไม่ได้ว่าใบเดิมเข้าเว็บช่างหรือยัง · ไม่ส่งซ้ำ' } };
+  }
   const claim = await sb.from('repair_jobs').update({ ext_sending_at: new Date().toISOString(), last_error: null,
     times: Object.assign({}, job.times || {}, { attempts: attempts + 1 }) })
     .eq('id', job.id).is('ext_code', null).is('ext_sending_at', null).select('id');
@@ -108,7 +148,7 @@ async function send(sb, jobId) {
 
   let out = null, postError = '';
   try { out = await techJson('/jobs', { method: 'POST', body: fd }); } catch (e) { postError = e.message; }
-  const number = out && out.jobNumber ? out : await findFiled(job).then(f => f.hit && { jobNumber: f.hit.job_number, jobId: f.hit.id });
+  const number = out && out.jobNumber ? out : await findFiled(sb, job).then(f => f.hit && { jobNumber: f.hit.job_number, jobId: f.hit.id });
   if (number) {
     const err = await markSent(sb, job, number.jobNumber, number.jobId);
     return { status: 200, body: { ok: true, extCode: number.jobNumber, warning: err ? 'ส่งแล้ว แต่บันทึกเลขใบงานไม่สำเร็จ ระบบจะหาเลขให้เองในรอบถัดไป' : '' } };
@@ -127,7 +167,7 @@ async function sync(sb) {
      site after RESEND_AFTER counts as not filed, and is filed again */
   const lost = await sb.from('repair_jobs').select('*').is('ext_code', null).not('ext_sending_at', 'is', null);
   for (const job of lost.data || []) {
-    const f = await findFiled(job);
+    const f = await findFiled(sb, job);
     if (f.hit) { if (!(await markSent(sb, job, f.hit.job_number, f.hit.id))) changed++; continue; }
     /* a search that failed proves nothing: never re-file on it */
     if (!f.sure || Date.now() - new Date(job.ext_sending_at).getTime() < RESEND_AFTER) continue;
