@@ -875,15 +875,18 @@
       var to = year + '-' + String(month).padStart(2, '0') + '-' + String(new Date(year, month, 0).getDate()).padStart(2, '0');
       return Promise.all([
         sb.from('roster_staff').select('*').eq('active', true).order('sort').order('created_at'),
-        sb.from('roster_days').select('staff_id,day,code,ot,note').gte('day', from).lte('day', to),
+        sb.from('roster_days').select('*').gte('day', from).lte('day', to),
         sb.from('roster_months').select('*').eq('year', year).eq('month', month).maybeSingle()
       ]).then(function (r) {
         var err = (r[0].error || r[1].error || r[2].error || {}).message || '';
         return { error: err, staff: r[0].data || [], days: r[1].data || [], month: r[2].data || null };
       });
     },
-    rosterSetDay: function (staffId, day, code, ot) {
-      return sb.from('roster_days').upsert({ staff_id: staffId, day: day, code: code, ot: !!ot, updated_at: new Date().toISOString().slice(0, 19) }, { onConflict: 'staff_id,day' })
+    /* start/end: 'HH:MM' for a day that runs off the usual shift times; hours: worked hours written on the paper
+       when they differ from the standard shift. Both null on an ordinary day. */
+    rosterSetDay: function (staffId, day, code, ot, start, end, hours) {
+      var row = { staff_id: staffId, day: day, code: code, ot: !!ot, start_time: start || null, end_time: end || null, hours: hours == null || hours === '' ? null : Number(hours), updated_at: new Date().toISOString().slice(0, 19) };
+      return sb.from('roster_days').upsert(row, { onConflict: 'staff_id,day' })
         .then(function (res) { return res.error ? res.error.message : ''; });
     },
     rosterClearDay: function (staffId, day) {
@@ -901,6 +904,11 @@
         if (!rows.length) return 'เดือนก่อนไม่มีข้อมูลเวร';
         return sb.from('roster_days').upsert(rows, { onConflict: 'staff_id,day' }).then(function (res) { return res.error ? res.error.message : ''; });
       });
+    },
+    /* many staff-days at once (pasted from Excel); rows are full roster_days rows */
+    rosterBulk: function (rows) {
+      if (!rows.length) return Promise.resolve('');
+      return sb.from('roster_days').upsert(rows, { onConflict: 'staff_id,day' }).then(function (res) { return res.error ? res.error.message : ''; });
     },
     rosterSaveStaff: function (staff) {
       var q = staff.id ? sb.from('roster_staff').update(staff).eq('id', staff.id) : sb.from('roster_staff').insert(staff);
