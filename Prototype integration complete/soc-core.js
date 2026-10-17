@@ -803,7 +803,8 @@
         .then(function (res) { return res.error ? res.error.message : ''; });
     },
     /* repair_jobs (supabase/repair_tracking.sql): jobs opened by the records trigger from monthly
-       inspections. Admin-only via RLS. Nothing here talks to the technicians' site. */
+       inspections, or by hand. Admin-only via RLS. The technicians' site is reached only through
+       repairApi below (api/repair-ticket.js), which acts with the admin's own session. */
     repairJobs: function () {
       return sb.from('repair_jobs').select('*').order('created_at', { ascending: false }).limit(300)
         .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
@@ -845,10 +846,10 @@
               return sb.from('repair_jobs').insert({
                 code: code, module: 'manual', topic: job.topic, spot_key: 'manual:' + code, place: job.place,
                 faults: [{ field_id: 'manual', label: job.title, value: '' }], photos: job.photos || [], record_ids: [],
-                detail: job.detail || null, times: { found: stamp, approved: stamp },
+                detail: job.detail || null, times: { found: stamp, approved: stamp }, loc: job.loc || null, reporter: job.reporter || null,
                 approved_by: (u && u.data && u.data.user && u.data.user.email) || ''
-              }).then(function (ins) {
-                if (!ins.error) return { code: code };
+              }).select('id').then(function (ins) {
+                if (!ins.error) return { code: code, id: ins.data && ins.data[0] && ins.data[0].id };
                 if (ins.error.code === '23505' && tries > 0) return attempt(tries - 1);
                 return { error: ins.error.message };
               });
@@ -856,6 +857,16 @@
           });
       };
       return attempt(2);
+    },
+    /* api/repair-ticket.js: 'locations' | 'send' (jobId) | 'sync'. Resolves to the JSON reply, { ok:false, error } on failure. */
+    repairApi: function (action, extra) {
+      return sb.auth.getSession().then(function (r) {
+        var token = r && r.data && r.data.session && r.data.session.access_token;
+        if (!token) return { ok: false, error: 'ต้องเข้าสู่ระบบใหม่' };
+        return fetch('/api/repair-ticket', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(Object.assign({ action: action }, extra || {})) })
+          .then(function (res) { return res.json().catch(function () { return { ok: false, error: 'HTTP ' + res.status }; }); });
+      }).catch(function (e) { return { ok: false, error: (e && e.message) || 'เชื่อมต่อไม่ได้' }; });
     },
     /* stamps one step into times and records who did it; returns '' or the error text */
     repairJobStep: function (job, status, step, extra) {
