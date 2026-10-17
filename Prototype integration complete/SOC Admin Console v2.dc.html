@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261004b"></script>
+<script src="./soc-core.js?v=20261017a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -1381,6 +1381,8 @@
                   <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">รหัสพนักงาน<input type="text" value="{{ roster.form.emp_code }}" onChange="{{ roster.form.set_emp_code }}" placeholder="626986" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
                   <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">ตำแหน่ง<input type="text" value="{{ roster.form.position }}" onChange="{{ roster.form.set_position }}" placeholder="CCTV" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
                   <label style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--muted);">เบอร์โทร<input type="tel" value="{{ roster.form.phone }}" onChange="{{ roster.form.set_phone }}" placeholder="08x-xxx-xxxx" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); min-height: 40px; align-self: end;"><input type="checkbox" checked="{{ roster.form.statusOnly }}" onChange="{{ roster.form.set_statusOnly }}" style="width: 18px; height: 18px;">แสดงสถานะอย่างเดียว (ไม่สรุปชั่วโมง)</label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); min-height: 40px; align-self: end;"><input type="checkbox" checked="{{ roster.form.isHead }}" onChange="{{ roster.form.set_isHead }}" style="width: 18px; height: 18px;">หัวหน้า (วันที่เข้าแสดงเป็นจุดแดง ไม่โชว์ชื่อ)</label>
                 </div>
                 <div style="display: flex; gap: 8px;">
                   <button class="rp-btn" onClick="{{ roster.form.save }}" style="min-height: 40px; padding: 0 18px; border-radius: 11px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: none; background: var(--accent); color: #fff;">บันทึก</button>
@@ -1395,8 +1397,51 @@
 
             <sc-if value="{{ roster.hasStaff }}" hint-placeholder-val="{{ false }}">
               <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+                <!-- whole team today -->
+                <sc-if value="{{ roster.teamToday }}" hint-placeholder-val="{{ false }}">
+                  <div class="rs-now" style="padding: 12px 16px; border-radius: 14px; border: 1px solid var(--accent-line); background: var(--accent-soft); display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+                    <div style="font-size: 15px; font-weight: 600; overflow-wrap: anywhere;">{{ roster.teamToday.title }}</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                      <sc-for list="{{ roster.teamToday.groups }}" as="tg" hint-placeholder-count="3">
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); min-width: 0; max-width: 100%;">
+                          <span style="flex: none; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 700; background: {{ tg.bg }}; color: {{ tg.fg }};">{{ tg.label }}</span>
+                          <span style="font-size: 13px; overflow-wrap: anywhere;">{{ tg.names }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                  <div style="font-size: 12px; color: var(--muted);">ในแต่ละวันแสดงทุกคน · กดชื่อในช่องเพื่อแก้เวรของคนนั้น · กรอบแดง = เข้าดึกแล้วต่อกลางวัน</div>
+                  <button class="rp-btn" onClick="{{ roster.openImport }}" style="margin-left: auto; min-height: 34px; padding: 0 12px; border-radius: 9px; cursor: pointer; font-size: 12.5px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text);">วางจาก Excel</button>
+                </div>
+
+                <sc-if value="{{ roster.importBox }}" hint-placeholder-val="{{ false }}">
+                  <div class="rp-empty" style="border-radius: 14px; border: 1px solid var(--accent-line); background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+                    <div style="font-size: 14px; font-weight: 600;">วางเวรจาก Excel · {{ roster.monthLabel }}</div>
+                    <div style="font-size: 12.5px; color: var(--muted);">ใน Excel เลือกแถวของแต่ละคน (ช่องชื่อ แล้วตามด้วยวันที่ 1 ถึงสิ้นเดือน) กด Ctrl+C แล้ววางที่นี่ · รหัส D / N / ช / X หรือ หยุด / ลา · ใส่ OT หรือ * ต่อท้ายถ้าเป็นโอที เช่น D*</div>
+                    <textarea value="{{ roster.importBox.text }}" onChange="{{ roster.importBox.set }}" rows="{{ 5 }}" placeholder="โอ๊ต	X	X	X	D	N*	N ..." style="width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 13px; font-family: 'IBM Plex Mono', monospace; resize: vertical;"></textarea>
+                    <sc-if value="{{ roster.importBox.hasReport }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; flex-direction: column; gap: 3px; font-size: 12.5px;">
+                        <sc-for list="{{ roster.importBox.report }}" as="ir" hint-placeholder-count="2"><div style="color: {{ ir.color }};">{{ ir.text }}</div></sc-for>
+                      </div>
+                    </sc-if>
+                    <div style="display: flex; gap: 8px;">
+                      <sc-if value="{{ roster.importBox.canSave }}" hint-placeholder-val="{{ false }}"><button class="rp-btn" onClick="{{ roster.importBox.save }}" style="min-height: 40px; padding: 0 18px; border-radius: 11px; cursor: pointer; font-size: 13.5px; font-weight: 600; border: none; background: var(--accent); color: #fff;">{{ roster.importBox.saveLabel }}</button></sc-if>
+                      <button class="rp-btn" onClick="{{ roster.importBox.cancel }}" style="min-height: 40px; padding: 0 16px; border-radius: 11px; cursor: pointer; font-size: 13.5px; border: 1px solid var(--line); background: transparent; color: var(--text);">ปิด</button>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-for list="{{ roster.conflicts }}" as="cf" hint-placeholder-count="0">
+                  <div style="padding: 9px 12px; border-radius: 10px; background: rgba(209,72,58,0.1); color: var(--danger); font-size: 12.5px; overflow-wrap: anywhere;">⚠ {{ cf }}</div>
+                </sc-for>
+
+                <!-- the selected person -->
+                <div style="font-size: 12px; color: var(--muted); padding-top: 4px; border-top: 1px solid var(--line);">รายละเอียดรายคน · {{ roster.staffName }}</div>
                 <sc-if value="{{ roster.todayText }}" hint-placeholder-val="{{ false }}">
-                  <div class="rs-now" style="padding: 12px 16px; border-radius: 14px; border: 1px solid var(--accent-line); background: var(--accent-soft); display: flex; align-items: center; gap: 14px; min-width: 0;">
+                  <div class="rs-now" style="padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); display: flex; align-items: center; gap: 14px; min-width: 0;">
                     <div class="rs-today" style="flex: none; width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; font-weight: 700; background: {{ roster.todayBg }}; color: {{ roster.todayFg }};">{{ roster.todayCode }}</div>
                     <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
                       <div style="font-size: 15px; font-weight: 600; overflow-wrap: anywhere;">{{ roster.todayText }}</div>
@@ -1405,56 +1450,46 @@
                     </div>
                   </div>
                 </sc-if>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
-                  <sc-for list="{{ roster.metrics }}" as="mt" hint-placeholder-count="4">
-                    <div class="rs-now" style="padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); min-width: 0;">
-                      <div style="font-size: 12px; color: var(--muted);">{{ mt.label }}</div>
-                      <div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; margin-top: 2px;">{{ mt.value }}</div>
-                      <div style="font-size: 11.5px; color: var(--dim); min-height: 15px;">{{ mt.sub }}</div>
+                <sc-if value="{{ roster.detail }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+                      <sc-for list="{{ roster.metrics }}" as="mt" hint-placeholder-count="4">
+                        <div class="rs-now" style="padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); min-width: 0;">
+                          <div style="font-size: 12px; color: var(--muted);">{{ mt.label }}</div>
+                          <div style="font-size: 22px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; margin-top: 2px;">{{ mt.value }}</div>
+                          <div style="font-size: 11.5px; color: var(--dim); min-height: 15px;">{{ mt.sub }}</div>
+                        </div>
+                      </sc-for>
                     </div>
-                  </sc-for>
-                </div>
-                <div>
-                  <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 5px;"><span>{{ roster.hoursText }}</span><span>{{ roster.reqText }}</span></div>
-                  <div style="height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;"><div class="rs-fill" style="width: {{ roster.barReq }}; background: #2fa89a; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div><div style="width: {{ roster.barOT }}; background: #d85a30; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div></div>
-                </div>
-                <div style="border-radius: 14px; border: 1px solid var(--line); background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
-                  <div style="font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere;">{{ roster.paper.header }}</div>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 14px 22px;">
-                    <sc-for list="{{ roster.paper.groups }}" as="pg" hint-placeholder-count="2">
-                      <div style="min-width: 0;">
-                        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">{{ pg.title }}</div>
-                        <sc-for list="{{ pg.rows }}" as="pr" hint-placeholder-count="4">
-                          <div style="display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); min-width: 0;">
-                            <span style="flex: 1; min-width: 0; font-size: 13px;">{{ pr.k }}</span>
-                            <span style="font-size: 11.5px; color: var(--dim); text-align: right; overflow-wrap: anywhere; max-width: 45%;">{{ pr.note }}</span>
-                            <span style="flex: none; font-size: 14px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; min-width: 64px; text-align: right;">{{ pr.v }}</span>
-                          </div>
-                        </sc-for>
+                    <div>
+                      <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 5px;"><span>{{ roster.hoursText }}</span><span>{{ roster.reqText }}</span></div>
+                      <div style="height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;"><div class="rs-fill" style="width: {{ roster.barReq }}; background: #2fa89a; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div><div style="width: {{ roster.barOT }}; background: #d85a30; transition: width 420ms cubic-bezier(0.22,1,0.36,1);"></div></div>
+                    </div>
+                    <sc-if value="{{ roster.otWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--warn);">⚠ {{ roster.otWarn }}</div></sc-if>
+                    <sc-if value="{{ roster.progress.show }}" hint-placeholder-val="{{ false }}">
+                      <div>
+                        <div style="font-size: 12px; color: var(--muted); margin-bottom: 5px; overflow-wrap: anywhere;">{{ roster.progress.text }}</div>
+                        <div style="height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden;"><div class="rs-fill" style="height: 100%; width: {{ roster.progress.width }}; background: var(--accent); border-radius: 99px;"></div></div>
                       </div>
-                    </sc-for>
-                  </div>
-                </div>
-                <sc-if value="{{ roster.otWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--warn);">⚠ {{ roster.otWarn }}</div></sc-if>
-                <sc-if value="{{ roster.emptyWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--muted);">● {{ roster.emptyWarn }}</div></sc-if>
-
-                <sc-if value="{{ roster.progress.show }}" hint-placeholder-val="{{ false }}">
-                  <div>
-                    <div style="font-size: 12px; color: var(--muted); margin-bottom: 5px; overflow-wrap: anywhere;">{{ roster.progress.text }}</div>
-                    <div style="height: 6px; border-radius: 99px; background: var(--panel-2); overflow: hidden;"><div class="rs-fill" style="height: 100%; width: {{ roster.progress.width }}; background: var(--accent); border-radius: 99px;"></div></div>
+                    </sc-if>
                   </div>
                 </sc-if>
+                <sc-if value="{{ roster.emptyWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--muted);">● {{ roster.emptyWarn }}</div></sc-if>
+
                 <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;">
                   <div style="font-size: 12px; color: var(--muted); text-align: center;">จ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">อ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">พ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">พฤ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">ศ</div><div style="font-size: 12px; color: var(--muted); text-align: center;">ส</div><div style="font-size: 12px; color: var(--muted); text-align: center;">อา</div>
                   <sc-for list="{{ roster.cells }}" as="c" hint-placeholder-count="31">
                     <sc-if value="{{ c.blank }}" hint-placeholder-val="{{ false }}"><div></div></sc-if>
                     <sc-if value="{{ !c.blank }}" hint-placeholder-val="{{ true }}">
-                      <button class="{{ c.cls }}" onClick="{{ c.pick }}" style="--rs-op: {{ c.op }}; animation-delay: {{ c.delay }}; min-width: 0; min-height: 66px; padding: 6px; border-radius: 10px; cursor: pointer; border: {{ c.border }}; background: {{ c.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 4px; align-items: stretch; text-align: left;">
-                        <span style="font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ c.numText }}</span>
-                        <span style="border-radius: 6px; padding: 2px 0; text-align: center; font-size: 13px; font-weight: 700; background: {{ c.cbg }}; color: {{ c.cfg }};">{{ c.label }}</span>
-                        <sc-if value="{{ c.hrs }}" hint-placeholder-val="{{ false }}"><span style="font-size: 10.5px; color: var(--dim); text-align: center; white-space: nowrap;">{{ c.hrs }}</span></sc-if>
-                        <sc-if value="{{ c.ot }}" hint-placeholder-val="{{ false }}"><span style="border-radius: 6px; text-align: center; font-size: 10.5px; font-weight: 600; background: rgba(216,90,48,0.14); color: color-mix(in srgb, #d85a30 80%, var(--text));">OT</span></sc-if>
-                      </button>
+                      <div class="{{ c.cls }}" style="--rs-op: {{ c.op }}; animation-delay: {{ c.delay }}; min-width: 0; min-height: 66px; padding: 5px; border-radius: 10px; border: {{ c.border }}; background: {{ c.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 3px;">
+                        <div style="display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; min-height: 16px;"><span style="overflow: hidden; text-overflow: ellipsis; min-width: 0;">{{ c.numText }}</span><sc-if value="{{ c.boss }}" hint-placeholder-val="{{ false }}"><span title="หัวหน้าเข้างาน" aria-label="หัวหน้าเข้างาน" style="flex: none; width: 7px; height: 7px; border-radius: 99px; background: var(--danger);"></span></sc-if><span style="margin-left: auto; flex: none; font-size: 10.5px; color: var(--dim);">{{ c.countText }}</span></div>
+                        <sc-for list="{{ c.people }}" as="pp" hint-placeholder-count="1">
+                          <button class="rp-btn" onClick="{{ pp.pick }}" title="{{ pp.title }}" aria-label="{{ pp.title }}" style="display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 4px; height: 26px; padding: 0 2px 0 4px; border-radius: 7px; border: {{ pp.border }}; background: transparent; cursor: pointer; min-width: 0;">
+                            <span style="min-width: 0; text-align: left; line-height: 1.1; overflow: hidden;"><span style="display: block; font-size: 11px; font-weight: {{ pp.nameWeight }}; color: {{ pp.nameFg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ pp.name }}</span><sc-if value="{{ pp.time }}" hint-placeholder-val="{{ false }}"><span style="display: block; font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ pp.time }}</span></sc-if></span>
+                            <span style="position: relative; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: {{ pp.cbg }}; color: {{ pp.cfg }};">{{ pp.label }}<sc-if value="{{ pp.ot }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -5px; right: -4px; padding: 0 3px; border-radius: 4px; font-size: 8px; font-weight: 700; line-height: 11px; background: #d85a30; color: #fff;">OT</span></sc-if></span>
+                          </button>
+                        </sc-for>
+                      </div>
                     </sc-if>
                   </sc-for>
                 </div>
@@ -1462,6 +1497,7 @@
                 <sc-if value="{{ roster.editor }}" hint-placeholder-val="{{ false }}">
                   <div class="rp-empty" style="border-radius: 14px; border: 1px solid var(--accent-line); background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;"><div style="font-size: 14px; font-weight: 600;">{{ roster.editor.title }}</div><button class="rp-btn" onClick="{{ roster.editor.close }}" aria-label="ปิด" style="width: 32px; height: 32px; border-radius: 8px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--muted);">×</button></div>
+                    <sc-if value="{{ roster.editor.warn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12.5px; color: var(--danger);">⚠ {{ roster.editor.warn }}</div></sc-if>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                       <sc-for list="{{ roster.editor.options }}" as="op" hint-placeholder-count="5">
                         <button class="rp-chip" onClick="{{ op.pick }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; cursor: pointer; font-size: 13.5px; border: 1px solid {{ op.border }}; background: {{ op.bg }}; color: var(--text);">{{ op.label }}</button>
@@ -1471,12 +1507,47 @@
                       </sc-if>
                       <button class="rp-chip" onClick="{{ roster.editor.clear }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid var(--line); background: transparent; color: var(--muted);">ล้าง</button>
                     </div>
+                    <sc-if value="{{ roster.editor.timeCan }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
+                        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">เริ่ม<input type="time" value="{{ roster.editor.start }}" onBlur="{{ roster.editor.setStart }}" style="min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">เลิก<input type="time" value="{{ roster.editor.end }}" onBlur="{{ roster.editor.setEnd }}" style="min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">ชั่วโมง (ถ้าไม่ตรงปกติ)<input type="number" min="0" max="24" step="0.5" value="{{ roster.editor.hours }}" onBlur="{{ roster.editor.setHours }}" placeholder="11" style="width: 120px; min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
+                        <span style="font-size: 12.5px; color: var(--muted); padding-bottom: 9px;">{{ roster.editor.hoursNote }}</span>
+                        <sc-if value="{{ roster.editor.custom }}" hint-placeholder-val="{{ false }}"><button class="rp-btn" onClick="{{ roster.editor.resetTime }}" style="min-height: 38px; padding: 0 12px; border-radius: 10px; cursor: pointer; font-size: 12.5px; border: 1px solid var(--line); background: transparent; color: var(--text);">ใช้เวลาปกติ</button></sc-if>
+                      </div>
+                    </sc-if>
                   </div>
                 </sc-if>
 
+                <!-- the paper roster's totals, under the calendar — one block per person -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr)); gap: 12px;">
+                  <sc-for list="{{ roster.papers }}" as="pa" hint-placeholder-count="2">
+                    <div style="border-radius: 14px; border: 1px solid {{ pa.border }}; background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+                      <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;"><span style="font-size: 15px; font-weight: 700;">{{ pa.name }}</span><span style="font-size: 12px; color: var(--muted);">{{ pa.sub }}</span></div>
+                      <div style="font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere;">{{ pa.header }}</div>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 14px 22px;">
+                        <sc-for list="{{ pa.groups }}" as="pg" hint-placeholder-count="2">
+                          <div style="min-width: 0;">
+                            <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">{{ pg.title }}</div>
+                            <sc-for list="{{ pg.rows }}" as="pr" hint-placeholder-count="4">
+                              <div style="display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); min-width: 0;">
+                                <span style="flex: 1; min-width: 0; font-size: 13px;">{{ pr.k }}</span>
+                                <span style="font-size: 11.5px; color: var(--dim); text-align: right; overflow-wrap: anywhere; max-width: 45%;">{{ pr.note }}</span>
+                                <span style="flex: none; font-size: 14px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; min-width: 64px; text-align: right;">{{ pr.v }}</span>
+                              </div>
+                            </sc-for>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted);">
                   <sc-for list="{{ roster.legend }}" as="lg" hint-placeholder-count="5"><span><span style="display: inline-block; min-width: 26px; text-align: center; border-radius: 6px; padding: 1px 6px; font-weight: 700; background: {{ lg.bg }}; color: {{ lg.fg }};">{{ lg.label }}</span> {{ lg.name }}</span></sc-for>
-                  <span><span style="display: inline-block; border-radius: 6px; padding: 1px 6px; font-weight: 600; background: rgba(216,90,48,0.14); color: color-mix(in srgb, #d85a30 80%, var(--text));">OT</span> โอที</span>
+                  <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="padding: 0 3px; border-radius: 4px; font-size: 9px; font-weight: 700; line-height: 12px; background: #d85a30; color: #fff;">OT</span>โอที</span>
+                  <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 7px; height: 7px; border-radius: 99px; background: var(--danger);"></span>หัวหน้าเข้างาน</span>
+                  <span>D 07:00–19:00 · N 19:00–07:00 · ชี้ที่ชื่อเพื่อดูชั่วโมง</span>
                 </div>
 
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding-top: 12px; border-top: 1px solid var(--line);">
@@ -5557,44 +5628,83 @@ class Component extends DCLogic {
     if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
     this.setState({ rosterY: y, rosterM: m, rosterSel: null, rosterData: null }, this.loadRoster);
   }
-  rosterPut(staffId, day, code, ot) {
+  rosterPut(staffId, day, code, ot, start, end, hours) {
     /* optimistic: the grid answers at once, the save follows; a failed save reloads the truth */
     this.setState(s => {
       const d = s.rosterData; if (!d) return null;
       const rest = d.days.filter(x => !(x.staff_id === staffId && x.day === day));
-      return { rosterData: Object.assign({}, d, { days: code ? rest.concat([{ staff_id: staffId, day, code, ot }]) : rest }) };
+      return { rosterData: Object.assign({}, d, { days: code ? rest.concat([{ staff_id: staffId, day, code, ot, start_time: start || null, end_time: end || null, hours: hours == null || hours === '' ? null : Number(hours) }]) : rest }) };
     });
     const c = this.core();
-    (code ? c.rosterSetDay(staffId, day, code, ot) : c.rosterClearDay(staffId, day)).then(err => {
+    (code ? c.rosterSetDay(staffId, day, code, ot, start, end, hours) : c.rosterClearDay(staffId, day)).then(err => {
       if (err) { this.flash('บันทึกเวรไม่สำเร็จ: ' + err, 'var(--danger)'); this.loadRoster(); }
     });
+  }
+  /* Excel rows pasted as text: name cell, then one cell per day from the 1st. Tab-separated is what
+     Excel puts on the clipboard. Returns { rows, report } without saving anything. */
+  rosterParsePaste(text, staff, y, m) {
+    const mm = String(m).padStart(2, '0'), nDays = new Date(y, m, 0).getDate();
+    const norm = (v) => String(v || '').replace(/\s+/g, '').toLowerCase();
+    const findStaff = (cell) => {
+      const c = norm(cell); if (!c) return null;
+      return staff.find(x => [x.name, x.nickname, x.emp_code].some(k => k && (norm(k) === c || (norm(k).length > 2 && c.indexOf(norm(k)) !== -1)))) || null;
+    };
+    const MAP = { D: 'D', N: 'N', W: 'W', 'ช': 'W', X: 'X', O: 'X', OFF: 'X', 'หยุด': 'X', L: 'L', 'ลา': 'L' };
+    const rows = [], report = [], unmatched = [];
+    String(text || '').split(/\r?\n/).forEach(line => {
+      if (!line.trim()) return;
+      const cells = line.indexOf('\t') !== -1 ? line.split('\t') : line.trim().split(/\s+/);
+      const at = cells.findIndex(c => findStaff(c));
+      if (at === -1) { unmatched.push(cells.filter(Boolean).slice(0, 2).join(' ')); return; }
+      const who = findStaff(cells[at]);
+      let n = 0, bad = 0;
+      cells.slice(at + 1, at + 1 + nDays).forEach((raw, i) => {
+        let v = String(raw || '').trim().toUpperCase();
+        if (!v) return;
+        const ot = /OT|\*|\+/.test(v);
+        v = v.replace(/OT|\*|\+/g, '').trim();
+        const code = MAP[v];
+        if (!code) { bad++; return; }
+        rows.push({ staff_id: who.id, day: y + '-' + mm + '-' + String(i + 1).padStart(2, '0'), code, ot: ot && code !== 'X' && code !== 'L', start_time: null, end_time: null });
+        n++;
+      });
+      report.push({ text: (who.nickname || who.name) + ': ' + n + ' วัน' + (bad ? ' · อ่านไม่ออก ' + bad + ' ช่อง' : ''), color: bad ? 'var(--warn)' : 'var(--text)' });
+    });
+    unmatched.forEach(u => report.push({ text: 'ไม่พบพนักงาน: ' + u, color: 'var(--warn)' }));
+    return { rows, report };
   }
   buildRoster() {
     const s = this.state, d = s.rosterData, [y, m] = this.rosterYM();
     const TH = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const THS = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const DOW = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
     const CODES = {
-      D: { label: 'D', name: 'กลางวัน', bg: 'rgba(224,163,60,0.18)', fg: 'color-mix(in srgb, #b7791f 80%, var(--text))', work: true },
-      N: { label: 'N', name: 'กลางคืน', bg: 'rgba(91,124,250,0.18)', fg: 'color-mix(in srgb, #4c63d2 80%, var(--text))', work: true },
-      W: { label: 'ช', name: 'วันทำงาน', bg: 'rgba(63,191,143,0.16)', fg: 'color-mix(in srgb, #23966c 80%, var(--text))', work: true },
+      D: { label: 'D', name: 'กลางวัน', bg: 'rgba(224,163,60,0.18)', fg: 'color-mix(in srgb, #b7791f 80%, var(--text))', work: true, time: ['07:00', '19:00'] },
+      N: { label: 'N', name: 'กลางคืน', bg: 'rgba(91,124,250,0.18)', fg: 'color-mix(in srgb, #4c63d2 80%, var(--text))', work: true, time: ['19:00', '07:00'] },
+      W: { label: 'ช', name: 'วันทำงาน', bg: 'rgba(63,191,143,0.16)', fg: 'color-mix(in srgb, #23966c 80%, var(--text))', work: true, time: null },
       X: { label: 'X', name: 'หยุด', bg: 'var(--panel-2)', fg: 'var(--muted)', work: false },
       L: { label: 'ลา', name: 'ลา', bg: 'rgba(155,120,230,0.18)', fg: 'color-mix(in srgb, #7a5ad0 80%, var(--text))', work: false }
     };
     const base = { loading: !d, error: d && d.error ? d.error : '', monthLabel: TH[m] + ' ' + (y + 543),
       prev: () => this.rosterShift(-1), next: () => this.rosterShift(1), staffChips: [], hasStaff: false, noStaff: false,
-      addStaff: () => this.setState({ rosterForm: { name: '', nickname: '', emp_code: '', position: 'CCTV', phone: '' } }),
-      form: null, legend: Object.keys(CODES).map(k => ({ label: CODES[k].label, name: CODES[k].name, bg: CODES[k].bg, fg: CODES[k].fg })) };
+      addStaff: () => this.setState({ rosterForm: { name: '', nickname: '', emp_code: '', position: 'CCTV', phone: '', status_only: false, is_head: false } }),
+      form: null, legend: Object.keys(CODES).map(k => ({ label: CODES[k].label, name: CODES[k].name, bg: CODES[k].bg, fg: CODES[k].fg })),
+      teamToday: null, importBox: null, conflicts: [], detail: false, papers: [] };
     const f = s.rosterForm;
     if (f) base.form = {
       title: f.id ? 'แก้ข้อมูลพนักงาน' : 'เพิ่มพนักงาน', name: f.name, nickname: f.nickname || '', emp_code: f.emp_code || '', position: f.position || '', phone: f.phone || '',
+      statusOnly: !!f.status_only, isHead: !!f.is_head,
       set_name: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { name: e.target.value }) })),
       set_nickname: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { nickname: e.target.value }) })),
       set_emp_code: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { emp_code: e.target.value }) })),
       set_position: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { position: e.target.value }) })),
       set_phone: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { phone: e.target.value }) })),
+      set_isHead: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { is_head: e.target.checked }) })),
+      set_statusOnly: (e) => this.setState(st => ({ rosterForm: Object.assign({}, st.rosterForm, { status_only: e.target.checked }) })),
       cancel: () => this.setState({ rosterForm: null }),
       save: () => {
         const v = this.state.rosterForm; if (!v.name.trim()) { this.flash('กรอกชื่อ-สกุล', 'var(--danger)'); return; }
-        const row = { name: v.name.trim(), nickname: (v.nickname || '').trim() || null, emp_code: (v.emp_code || '').trim() || null, position: (v.position || '').trim() || null, phone: (v.phone || '').trim() || null };
+        const row = { name: v.name.trim(), nickname: (v.nickname || '').trim() || null, emp_code: (v.emp_code || '').trim() || null, position: (v.position || '').trim() || null, phone: (v.phone || '').trim() || null, status_only: !!v.status_only, is_head: !!v.is_head };
         if (v.id) row.id = v.id; else row.sort = (d ? d.staff.length : 0) + 1;
         this.core().rosterSaveStaff(row).then(err => {
           if (err) { this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); return; }
@@ -5607,76 +5717,160 @@ class Component extends DCLogic {
     const cur = d.staff.find(x => x.id === s.rosterStaff) || d.staff[0];
     base.staffChips = d.staff.map(x => {
       const on = cur && x.id === cur.id;
-      return { initials: x.nickname || x.name.slice(0, 2), name: x.name, sub: [x.emp_code, x.position].filter(Boolean).join(' · '),
+      return { initials: x.nickname || x.name.slice(0, 2), name: x.name, sub: [x.emp_code, x.position, x.is_head ? 'หัวหน้า · จุดแดง' : '', x.status_only ? 'แสดงสถานะ' : ''].filter(Boolean).join(' · '),
         border: on ? '2px solid var(--accent-line)' : '1px solid var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--panel)',
         pick: () => this.setState({ rosterStaff: x.id, rosterSel: null }) };
     });
     if (!cur) return base;
     const mm = String(m).padStart(2, '0'), nDays = new Date(y, m, 0).getDate();
-    const byDay = {}; d.days.filter(x => x.staff_id === cur.id).forEach(x => { byDay[x.day] = x; });
+    const isoOf = (i) => y + '-' + mm + '-' + String(i).padStart(2, '0');
     const todayIso = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
-    const cells = [];
     const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
-    for (let i = 0; i < lead; i++) cells.push({ blank: true });
-    let work = 0, nD = 0, nN = 0, nW = 0, nX = 0, nL = 0, nOT = 0, empty = 0;
-    for (let i = 1; i <= nDays; i++) {
-      const iso = y + '-' + mm + '-' + String(i).padStart(2, '0'), r = byDay[iso], c = r ? CODES[r.code] : null;
-      const dow = (lead + i - 1) % 7;
-      if (r) { if (c.work) work++; ({ D: () => nD++, N: () => nN++, W: () => nW++, X: () => nX++, L: () => nL++ })[r.code](); if (r.ot) nOT++; } else empty++;
-      const sel = s.rosterSel === iso;
-      cells.push({ blank: false, num: String(i), has: !!r, label: c ? c.label : '·', hrs: c && c.work ? (Number((d.month || {}).hours_per_shift) || 11) + ' ชม.' : '', cbg: c ? c.bg : 'transparent', cfg: c ? c.fg : 'var(--dim)', ot: !!(r && r.ot),
-        bg: iso === todayIso ? 'var(--accent-soft)' : (dow >= 5 ? 'var(--panel-2)' : 'var(--panel)'),
-        border: sel ? '2px solid var(--accent)' : (iso === todayIso ? '1.5px solid var(--accent-line)' : '1px solid var(--line)'),
-        today: iso === todayIso, cls: 'rs-cell' + (iso === todayIso ? ' rs-today' : ''),
-        op: iso < todayIso ? '0.55' : '1', delay: Math.min(cells.length, 40) * 14 + 'ms',
-        numText: iso === todayIso ? i + ' · วันนี้' : String(i),
-        pick: () => this.setState({ rosterSel: sel ? null : iso }) });
-    }
     const mo = d.month || { holidays: 0, required_shifts: 0, hours_per_shift: 11 };
     const hps = Number(mo.hours_per_shift) || 11, req = Number(mo.required_shifts) || 0;
-    const hours = work * hps, reqH = req * hps, over = Math.max(0, work - req);
+    /* a day's hours: its own start/end when set (an end at or before the start runs past midnight), else the standard shift */
+    const toMin = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+    const hrsOf = (r) => {
+      if (!r || !CODES[r.code].work) return 0;
+      if (r.hours != null && r.hours !== '') return Number(r.hours);
+      if (r.start_time && r.end_time) { let mins = toMin(r.end_time) - toMin(r.start_time); if (mins <= 0) mins += 1440; if (mins > 360) mins -= 60; return Math.round(mins / 30) / 2; }
+      return hps;
+    };
+    const timeOf = (r) => r.start_time && r.end_time ? r.start_time + '–' + r.end_time : (CODES[r.code].time ? CODES[r.code].time.join('–') : '');
+    const grid = {}; d.staff.forEach(x => { grid[x.id] = {}; });
+    d.days.forEach(x => { if (grid[x.staff_id]) grid[x.staff_id][x.day] = x; });
+    /* a night shift ends at 07:00 — a day shift starting the same morning means 24 hours straight */
+    const nightThenDay = (sid, i) => {
+      const r = grid[sid][isoOf(i)], p = i > 1 ? grid[sid][isoOf(i - 1)] : null;
+      return !!(r && p && p.code === 'N' && (r.code === 'D' || r.code === 'W'));
+    };
+    const short = (x) => x.nickname || x.name.split(' ')[0];
+    /* the supervisor is kept on the roster for their own days but never shown by name: their working days become a red dot */
+    const heads = d.staff.filter(x => x.is_head), team = d.staff.filter(x => !x.is_head);
+    const headOn = (iso) => heads.some(x => { const r = grid[x.id][iso]; return r && CODES[r.code].work; });
+
+    /* ---- team: who is on what today ---- */
+    if (todayIso.slice(0, 7) === y + '-' + mm) {
+      const groups = ['D', 'N', 'W', 'X', 'L'].map(k => ({ k, names: team.filter(x => (grid[x.id][todayIso] || {}).code === k) }));
+      const unset = team.filter(x => !grid[x.id][todayIso]);
+      const onDuty = groups.filter(g => CODES[g.k].work).reduce((n, g) => n + g.names.length, 0);
+      base.teamToday = {
+        title: 'วันนี้ ' + (+todayIso.slice(8)) + ' ' + THS[m] + ' · เข้างาน ' + onDuty + ' จาก ' + team.length + ' คน' + (heads.length ? (headOn(todayIso) ? ' · หัวหน้าเข้า' : ' · หัวหน้าไม่เข้า') : ''),
+        groups: groups.filter(g => g.names.length).map(g => ({ label: CODES[g.k].name + (CODES[g.k].time ? ' ' + CODES[g.k].time.join('–') : ''), bg: CODES[g.k].bg, fg: CODES[g.k].fg,
+          names: g.names.map(x => { const r = grid[x.id][todayIso]; return short(x) + (r.ot ? ' (OT)' : '') + (r.start_time ? ' ' + timeOf(r) : ''); }).join(', ') }))
+          .concat(unset.length ? [{ label: 'ยังไม่ลงเวร', bg: 'transparent', fg: 'var(--dim)', names: unset.map(short).join(', ') }] : [])
+      };
+    }
+    const days = []; for (let i = 1; i <= nDays; i++) days.push(i);
+    team.forEach(x => days.forEach(i => { if (nightThenDay(x.id, i)) base.conflicts.push(short(x) + ' วันที่ ' + i + ' ' + THS[m] + ' — เข้าดึกวันที่ ' + (i - 1) + ' (19:00–07:00) แล้วต่อกลางวัน ต้องเป็นวันหยุด'); }));
+
+    /* ---- paste from Excel ---- */
+    const imp = s.rosterImport;
+    base.openImport = () => this.setState({ rosterImport: { text: '' } });
+    if (imp) {
+      const parsed = this.rosterParsePaste(imp.text, d.staff, y, m);
+      base.importBox = {
+        text: imp.text, report: parsed.report, hasReport: parsed.report.length > 0, canSave: parsed.rows.length > 0,
+        saveLabel: 'บันทึก ' + parsed.rows.length + ' วัน',
+        set: (e) => this.setState({ rosterImport: { text: e.target.value } }),
+        cancel: () => this.setState({ rosterImport: null }),
+        save: () => {
+          if (!parsed.rows.length) return;
+          if (!window.confirm('บันทึกทับเวร ' + parsed.rows.length + ' วันในเดือน ' + TH[m] + '?')) return;
+          this.core().rosterBulk(parsed.rows).then(err => {
+            if (err) { this.flash('นำเข้าไม่สำเร็จ: ' + err, 'var(--danger)'); return; }
+            this.setState({ rosterImport: null }); this.flash('นำเข้าเวรแล้ว ' + parsed.rows.length + ' วัน', 'var(--ok)'); this.loadRoster();
+          });
+        }
+      };
+    }
+
+    /* ---- the selected person ---- */
+    base.detail = !cur.status_only && !cur.is_head;
+    const byDay = grid[cur.id];
+    const cells = [];
+    for (let i = 0; i < lead; i++) cells.push({ blank: true });
+    let work = 0, nD = 0, nN = 0, nW = 0, nX = 0, nL = 0, nOT = 0, empty = 0, hours = 0, hD = 0, hN = 0, hW = 0;
+    for (let i = 1; i <= nDays; i++) {
+      const iso = isoOf(i), r = byDay[iso], c = r ? CODES[r.code] : null;
+      const dow = (lead + i - 1) % 7, h = hrsOf(r), bad = nightThenDay(cur.id, i);
+      if (r) {
+        if (c.work) { work++; hours += h; }
+        ({ D: () => { nD++; hD += h; }, N: () => { nN++; hN += h; }, W: () => { nW++; hW += h; }, X: () => nX++, L: () => nL++ })[r.code]();
+        if (r.ot) nOT++;
+      } else empty++;
+      const sel = s.rosterSel === iso;
+      /* every person's shift that day, the selected person first; status-only people show just their code */
+      const order = [cur].concat(team.filter(x => x.id !== cur.id));
+      const people = order.map(x => {
+        const pr = grid[x.id][iso], pc = pr ? CODES[pr.code] : null, pBad = nightThenDay(x.id, i), main = x.id === cur.id;
+        return { name: short(x), label: pc ? pc.label : '·', cbg: pc ? pc.bg : 'var(--panel-2)', cfg: pc ? pc.fg : 'var(--dim)',
+          ot: !!(pr && pr.ot), time: pr && pc.work && (pr.start_time || pr.hours != null) ? (pr.start_time ? timeOf(pr) + ' · ' : '') + hrsOf(pr) + ' ชม.' : '',
+          title: x.name + ': ' + (pr ? pc.name + (pc.work ? ' ' + timeOf(pr) + ' · ' + hrsOf(pr) + ' ชม.' : '') + (pr.ot ? ' · OT' : '') : 'ยังไม่ลงเวร') + (pBad ? ' · เข้าดึกแล้วต่อกลางวัน' : ''),
+          border: pBad ? '1.5px solid var(--danger)' : (main && sel ? '1.5px solid var(--accent)' : '1px solid transparent'),
+          nameFg: main ? 'var(--text)' : 'var(--muted)', nameWeight: main ? '600' : '500',
+          pick: () => this.setState({ rosterStaff: x.id, rosterSel: main && sel ? null : iso }) };
+      });
+      const onDay = order.filter(x => { const pr = grid[x.id][iso]; return pr && CODES[pr.code].work; }).length;
+      cells.push({ blank: false, num: String(i), people, multi: order.length > 1, countText: order.length > 1 ? 'เข้า ' + onDay : '', boss: headOn(iso),
+        bg: iso === todayIso ? 'var(--accent-soft)' : (dow >= 5 ? 'var(--panel-2)' : 'var(--panel)'),
+        border: bad ? '2px solid var(--danger)' : (sel ? '2px solid var(--accent)' : (iso === todayIso ? '1.5px solid var(--accent-line)' : '1px solid var(--line)')),
+        today: iso === todayIso, cls: 'rs-cell' + (iso === todayIso ? ' rs-today' : ''),
+        op: iso < todayIso ? '0.55' : '1', delay: Math.min(cells.length, 40) * 14 + 'ms',
+        numText: String(i),
+        pick: () => this.setState({ rosterSel: sel ? null : iso }) });
+    }
+    const reqH = req * hps, over = Math.max(0, work - req), otH = Math.max(0, hours - reqH);
     base.metrics = [
       { label: 'เวรที่ทำ', value: String(work), sub: req ? '/ ' + req + ' ที่กำหนด' : 'ยังไม่ตั้งเวรที่กำหนด' },
       { label: 'กลางวัน · กลางคืน', value: nD + ' · ' + nN, sub: nW ? 'วันทำงาน (ช) ' + nW : '' },
       { label: 'หยุด · ลา', value: nX + ' · ' + nL, sub: mo.holidays ? 'วันหยุดตามกำหนด ' + mo.holidays : '' },
-      { label: 'โอที', value: nOT + ' วัน', sub: (nOT * hps) + ' ชม.' }
+      { label: 'โอที', value: nOT + ' วัน', sub: otH + ' ชม.' }
     ];
     /* how far through the month we are, counted from today's date */
     const inMonth = todayIso.slice(0, 7) === y + '-' + mm, past = todayIso.slice(0, 7) > y + '-' + mm;
     const elapsed = past ? nDays : (inMonth ? +todayIso.slice(8) : 0);
-    const doneKeys = Object.keys(byDay).filter(k => +k.slice(8) <= elapsed);
-    const doneWork = doneKeys.filter(k => CODES[byDay[k].code].work).length;
+    const doneKeys = Object.keys(byDay).filter(k => +k.slice(8) <= elapsed && CODES[byDay[k].code].work);
+    const doneH = doneKeys.reduce((n, k) => n + hrsOf(byDay[k]), 0);
     const leftWork = Object.keys(byDay).filter(k => +k.slice(8) > elapsed && CODES[byDay[k].code].work).length;
     base.progress = {
       show: elapsed > 0,
-      text: past ? 'เดือนนี้จบแล้ว · ทำไป ' + doneWork + ' เวร (' + doneWork * hps + ' ชม.)'
-        : 'ผ่านไป ' + elapsed + ' จาก ' + nDays + ' วัน · ทำไปแล้ว ' + doneWork + ' เวร (' + doneWork * hps + ' ชม.) · เหลืออีก ' + leftWork + ' เวร',
+      text: past ? 'เดือนนี้จบแล้ว · ทำไป ' + doneKeys.length + ' เวร (' + doneH + ' ชม.)'
+        : 'ผ่านไป ' + elapsed + ' จาก ' + nDays + ' วัน · ทำไปแล้ว ' + doneKeys.length + ' เวร (' + doneH + ' ชม.) · เหลืออีก ' + leftWork + ' เวร',
       width: Math.round(elapsed / nDays * 100) + '%'
     };
-    const otDates = Object.keys(byDay).filter(k => byDay[k].ot).sort().map(k => String(+k.slice(8)));
-    /* the paper's header line and right-hand totals, same names and order */
-    base.paper = {
-      header: 'วันหยุด ' + (mo.holidays || 0) + ' วัน (เวรทำงาน ' + req + ' เวร × ' + hps + ' ชม. = ' + reqH + ' ชม.)',
-      groups: [
-        { title: 'จำนวนวัน', rows: [
-          { k: 'วันหยุด', v: nX + ' วัน', note: mo.holidays ? 'กำหนด ' + mo.holidays + ' วัน' : '' },
-          { k: 'วันลา', v: nL + ' วัน', note: '' },
-          { k: 'จำนวนเวรที่ทำ', v: work + ' เวร', note: req ? 'กำหนด ' + req + ' เวร' : '' },
-          { k: 'เวรกลางวัน (D)', v: nD + ' เวร', note: (nD * hps) + ' ชม.' },
-          { k: 'เวรกลางคืน (N)', v: nN + ' เวร', note: (nN * hps) + ' ชม.' }
-        ].concat(nW ? [{ k: 'วันทำงาน (ช)', v: nW + ' วัน', note: (nW * hps) + ' ชม.' }] : []) },
-        { title: 'ชั่วโมง', rows: [
-          { k: 'ชม.ทำงานรวมโอที', v: hours + ' ชม.', note: work + ' เวร × ' + hps },
-          { k: 'ชม.ทำงานตามกำหนด', v: reqH + ' ชม.', note: req + ' เวร × ' + hps },
-          { k: 'ชม.โอที', v: Math.max(0, hours - reqH) + ' ชม.', note: over + ' เวรที่เกิน' },
-          { k: 'วันที่ทำโอที', v: nOT + ' วัน', note: otDates.length ? 'วันที่ ' + otDates.join(', ') : '' }
-        ] }
-      ]
+    /* the paper's header line and right-hand totals, same names and order — one block per person */
+    const paperFor = (x) => {
+      const days = grid[x.id], n = { D: 0, N: 0, W: 0, X: 0, L: 0 }, h = { D: 0, N: 0, W: 0 };
+      let ot = 0, wk = 0, hr = 0;
+      Object.keys(days).forEach(k => { const r = days[k]; n[r.code]++; if (CODES[r.code].work) { wk++; const v = hrsOf(r); hr += v; h[r.code] += v; } if (r.ot) ot++; });
+      const otH = Math.max(0, hr - reqH), dates = Object.keys(days).filter(k => days[k].ot).sort().map(k => String(+k.slice(8)));
+      return {
+        name: x.name + (x.nickname ? ' (' + x.nickname + ')' : ''), sub: [x.emp_code, x.position].filter(Boolean).join(' · '),
+        header: 'วันหยุด ' + (mo.holidays || 0) + ' วัน (เวรทำงาน ' + req + ' เวร × ' + hps + ' ชม. = ' + reqH + ' ชม.)',
+        border: x.id === cur.id ? 'var(--accent-line)' : 'var(--line)',
+        groups: [
+          { title: 'จำนวนวัน', rows: [
+            { k: 'วันหยุด', v: n.X + ' วัน', note: mo.holidays ? 'กำหนด ' + mo.holidays + ' วัน' : '' },
+            { k: 'วันลา', v: n.L + ' วัน', note: '' },
+            { k: 'จำนวนเวรที่ทำ', v: wk + ' เวร', note: req ? 'กำหนด ' + req + ' เวร' : '' },
+            { k: 'เวรกลางวัน (D)', v: n.D + ' เวร', note: h.D + ' ชม.' },
+            { k: 'เวรกลางคืน (N)', v: n.N + ' เวร', note: h.N + ' ชม.' }
+          ].concat(n.W ? [{ k: 'วันทำงาน (ช)', v: n.W + ' วัน', note: h.W + ' ชม.' }] : []) },
+          { title: 'ชั่วโมง', rows: [
+            { k: 'ชม.ทำงานรวมโอที', v: hr + ' ชม.', note: wk + ' เวร' },
+            { k: 'ชม.ทำงานตามกำหนด', v: reqH + ' ชม.', note: req + ' เวร × ' + hps },
+            { k: 'ชม.โอที', v: otH + ' ชม.', note: Math.max(0, wk - req) + ' เวรที่เกิน' },
+            { k: 'วันที่ทำโอที', v: ot + ' วัน', note: dates.length ? 'วันที่ ' + dates.join(', ') : '' }
+          ] }
+        ]
+      };
     };
+    base.papers = team.map(paperFor);
     base.hoursText = 'ชั่วโมงทำงาน ' + hours + ' ชม.'; base.reqText = reqH ? 'ที่กำหนด ' + reqH + ' ชม.' : '';
     const top = Math.max(hours, reqH, 1);
     base.barReq = Math.round(Math.min(hours, reqH || hours) / top * 100) + '%';
-    base.barOT = Math.round((reqH ? Math.max(0, hours - reqH) : 0) / top * 100) + '%';
+    base.barOT = Math.round((reqH ? otH : 0) / top * 100) + '%';
     /* the paper marks OT by hand; flag when the ticks don't add up to the shifts over target */
     base.otWarn = req && nOT !== over ? 'ติ๊กโอทีไว้ ' + nOT + ' วัน แต่เวรเกินที่กำหนด ' + over + ' เวร' : '';
     base.emptyWarn = empty ? 'ยังไม่ได้ลงเวร ' + empty + ' วัน' : '';
@@ -5689,8 +5883,8 @@ class Component extends DCLogic {
     };
     const t = byDay[todayIso];
     const tmrIso = new Date(Date.parse(todayIso + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10), tm = byDay[tmrIso];
-    const say = (r) => r ? CODES[r.code].name + (CODES[r.code].work ? ' ' + hps + ' ชม.' : '') + (r.ot ? ' · โอที' : '') : 'ยังไม่ได้ลงเวร';
-    base.todayText = todayIso.slice(0, 7) === y + '-' + mm ? 'วันนี้ ' + (+todayIso.slice(8)) + ' ' + TH[m] + ': ' + say(t) : '';
+    const say = (r) => r ? CODES[r.code].name + (CODES[r.code].work ? ' ' + timeOf(r) + ' (' + hrsOf(r) + ' ชม.)' : '') + (r.ot ? ' · โอที' : '') : 'ยังไม่ได้ลงเวร';
+    base.todayText = inMonth ? short(cur) + ' · วันนี้ ' + (+todayIso.slice(8)) + ' ' + TH[m] + ': ' + say(t) : '';
     base.todayCode = t ? CODES[t.code].label : '–';
     base.todayBg = t ? CODES[t.code].bg : 'var(--panel-2)'; base.todayFg = t ? CODES[t.code].fg : 'var(--muted)';
     base.tomorrowText = base.todayText && tmrIso.slice(0, 7) === y + '-' + mm ? 'พรุ่งนี้: ' + say(tm) : '';
@@ -5704,17 +5898,52 @@ class Component extends DCLogic {
     };
     base.settings = { holidays: String(mo.holidays || ''), required: String(mo.required_shifts || ''),
       saveHolidays: (e) => saveMonth('holidays', e), saveRequired: (e) => saveMonth('required_shifts', e) };
-    const selR = s.rosterSel ? byDay[s.rosterSel] : null;
-    base.editor = s.rosterSel ? {
-      title: 'วันที่ ' + (+s.rosterSel.slice(8)) + ' ' + TH[m] + ' ' + (y + 543),
+
+    /* ---- day editor ---- */
+    const sel = s.rosterSel, selR = sel ? byDay[sel] : null, selI = sel ? +sel.slice(8) : 0;
+    /* picking a shift that would sit right after a night (or right before one) asks first */
+    const clash = (k) => {
+      const p = selI > 1 ? byDay[isoOf(selI - 1)] : null, n = selI < nDays ? byDay[isoOf(selI + 1)] : null;
+      if ((k === 'D' || k === 'W') && p && p.code === 'N') return 'วันที่ ' + (selI - 1) + ' เข้าดึก (19:00–07:00) วันนี้ควรเป็นวันหยุด';
+      if (k === 'N' && n && (n.code === 'D' || n.code === 'W')) return 'วันที่ ' + (selI + 1) + ' เข้ากลางวัน ถ้าวันนี้เข้าดึกจะทำงานต่อเนื่อง 24 ชม.';
+      return '';
+    };
+    const selC = selR ? CODES[selR.code] : null;
+    const setTime = (which, e) => {
+      if (!selR || !selC.work) return;
+      const v = e.target.value; if (v && !/^\d{2}:\d{2}$/.test(v)) return;
+      let st = which === 'start' ? v : (selR.start_time || (selC.time || [])[0] || '');
+      let en = which === 'end' ? v : (selR.end_time || (selC.time || [])[1] || '');
+      if (selC.time && st === selC.time[0] && en === selC.time[1]) { st = ''; en = ''; }
+      if (!st || !en) { st = ''; en = ''; }
+      if ((st || null) === (selR.start_time || null) && (en || null) === (selR.end_time || null)) return;
+      this.rosterPut(cur.id, sel, selR.code, selR.ot, st, en, null);
+    };
+    base.editor = sel ? {
+      title: short(cur) + ' · วันที่ ' + selI + ' ' + TH[m] + ' ' + (y + 543),
       options: Object.keys(CODES).map(k => ({ label: CODES[k].name, on: !!(selR && selR.code === k),
         border: selR && selR.code === k ? 'var(--accent-line)' : 'var(--line)', bg: selR && selR.code === k ? 'var(--accent-soft)' : 'transparent',
-        pick: () => this.rosterPut(cur.id, s.rosterSel, k, CODES[k].work ? !!(selR && selR.ot) : false) })),
-      otOn: !!(selR && selR.ot), otCan: !!(selR && CODES[selR.code].work),
+        pick: () => { const w = clash(k); if (w && !window.confirm(w + ' — บันทึกต่อ?')) return; this.rosterPut(cur.id, sel, k, CODES[k].work ? !!(selR && selR.ot) : false); } })),
+      warn: selR ? clash(selR.code) : '',
+      otOn: !!(selR && selR.ot), otCan: !!(selR && selC.work),
       otLabel: selR && selR.ot ? '✓ โอที' : '＋ โอที',
       otBorder: selR && selR.ot ? 'rgba(216,90,48,0.55)' : 'var(--line)', otBg: selR && selR.ot ? 'rgba(216,90,48,0.12)' : 'transparent',
-      toggleOt: () => { if (selR && CODES[selR.code].work) this.rosterPut(cur.id, s.rosterSel, selR.code, !selR.ot); },
-      clear: () => this.rosterPut(cur.id, s.rosterSel, null),
+      toggleOt: () => { if (selR && selC.work) this.rosterPut(cur.id, sel, selR.code, !selR.ot, selR.start_time, selR.end_time, selR.hours); },
+      timeCan: !!(selR && selC.work),
+      start: selR ? (selR.start_time || (selC.time || [])[0] || '') : '', end: selR ? (selR.end_time || (selC.time || [])[1] || '') : '',
+      hoursNote: selR && selC.work ? 'นับ ' + hrsOf(selR) + ' ชม.' + (selR.hours != null ? ' · ตามที่กรอก' : (selR.start_time ? ' · ตามเวลา (หักพัก 1 ชม.)' : ' · เวลาปกติ')) : '',
+      custom: !!(selR && (selR.start_time || selR.hours != null)),
+      resetTime: () => { if (selR) this.rosterPut(cur.id, sel, selR.code, selR.ot); },
+      hours: selR && selR.hours != null ? String(selR.hours) : '',
+      setHours: (e) => {
+        if (!selR || !selC.work) return;
+        const v = String(e.target.value).trim();
+        if (v !== '' && !(Number(v) > 0 && Number(v) <= 24)) { this.flash('ชั่วโมงต้องอยู่ระหว่าง 0–24', 'var(--warn)'); return; }
+        if ((v === '' ? null : Number(v)) === (selR.hours == null ? null : Number(selR.hours))) return;
+        this.rosterPut(cur.id, sel, selR.code, selR.ot, selR.start_time, selR.end_time, v);
+      },
+      setStart: (e) => setTime('start', e), setEnd: (e) => setTime('end', e),
+      clear: () => this.rosterPut(cur.id, sel, null),
       close: () => this.setState({ rosterSel: null })
     } : null;
     return base;
@@ -6842,7 +7071,7 @@ class Component extends DCLogic {
       isBuilder: page === 'builder',
       isRecords: page === 'records',
       isRoster: page === 'roster',
-      roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, paper: { groups: [] }, progress: { show: false } },
+      roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
       isRepairs: page === 'repairs',
       repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null, form: null, openNew: null },
       isPdf: page === 'pdf',
