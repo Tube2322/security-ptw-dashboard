@@ -5620,7 +5620,7 @@ class Component extends DCLogic {
     this._rosterKey = y + '-' + m;
     this.core().rosterLoad(y, m).then(res => {
       if (this._rosterKey !== y + '-' + m) return;
-      this.setState(s => ({ rosterData: res, rosterStaff: s.rosterStaff && res.staff.some(x => x.id === s.rosterStaff) ? s.rosterStaff : (res.staff[0] || {}).id || null }));
+      this.setState(s => ({ rosterData: res, rosterStaff: s.rosterStaff && res.staff.some(x => x.id === s.rosterStaff) ? s.rosterStaff : (res.staff.find(x => !x.is_head) || res.staff[0] || {}).id || null }));
     });
   }
   rosterShift(delta) {
@@ -5714,7 +5714,7 @@ class Component extends DCLogic {
     };
     if (!d || d.error) return base;
     base.hasStaff = d.staff.length > 0; base.noStaff = !base.hasStaff;
-    const cur = d.staff.find(x => x.id === s.rosterStaff) || d.staff[0];
+    const cur = d.staff.find(x => x.id === s.rosterStaff) || d.staff.find(x => !x.is_head) || d.staff[0];
     base.staffChips = d.staff.map(x => {
       const on = cur && x.id === cur.id;
       return { initials: x.nickname || x.name.slice(0, 2), name: x.name, sub: [x.emp_code, x.position, x.is_head ? 'หัวหน้า · จุดแดง' : '', x.status_only ? 'แสดงสถานะ' : ''].filter(Boolean).join(' · '),
@@ -5811,8 +5811,8 @@ class Component extends DCLogic {
           nameFg: main ? 'var(--text)' : 'var(--muted)', nameWeight: main ? '600' : '500',
           pick: () => this.setState({ rosterStaff: x.id, rosterSel: main && sel ? null : iso }) };
       });
-      const onDay = order.filter(x => { const pr = grid[x.id][iso]; return pr && CODES[pr.code].work; }).length;
-      cells.push({ blank: false, num: String(i), people, multi: order.length > 1, countText: order.length > 1 ? 'เข้า ' + onDay : '', boss: headOn(iso),
+      const onDay = order.filter(x => { const pr = grid[x.id][iso]; return !x.is_head && pr && CODES[pr.code].work; }).length;
+      cells.push({ blank: false, num: String(i), people, multi: order.length > 1, countText: team.length > 1 ? 'เข้า ' + onDay : '', boss: headOn(iso),
         bg: iso === todayIso ? 'var(--accent-soft)' : (dow >= 5 ? 'var(--panel-2)' : 'var(--panel)'),
         border: bad ? '2px solid var(--danger)' : (sel ? '2px solid var(--accent)' : (iso === todayIso ? '1.5px solid var(--accent-line)' : '1px solid var(--line)')),
         today: iso === todayIso, cls: 'rs-cell' + (iso === todayIso ? ' rs-today' : ''),
