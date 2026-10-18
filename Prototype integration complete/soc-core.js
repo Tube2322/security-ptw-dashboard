@@ -893,10 +893,13 @@
         return { error: err, staff: r[0].data || [], days: r[1].data || [], month: r[2].data || null };
       });
     },
-    /* start/end: 'HH:MM' for a day that runs off the usual shift times; hours: worked hours written on the paper
-       when they differ from the standard shift. Both null on an ordinary day. */
-    rosterSetDay: function (staffId, day, code, ot, start, end, hours) {
-      var row = { staff_id: staffId, day: day, code: code, ot: !!ot, start_time: start || null, end_time: end || null, hours: hours == null || hours === '' ? null : Number(hours), updated_at: new Date().toISOString().slice(0, 19) };
+    /* d: { code, ot, start_time, end_time, hours, ot_hours, ot_rate }. start/end 'HH:MM' and hours only when
+       the day runs off the standard shift; ot_hours only when OT is not the usual 12; ot_rate 1 or 1.5. */
+    rosterSetDay: function (staffId, day, d) {
+      var num = function (v) { return v == null || v === '' ? null : Number(v); };
+      var row = { staff_id: staffId, day: day, code: d.code, ot: !!d.ot, start_time: d.start_time || null, end_time: d.end_time || null,
+        hours: num(d.hours), ot_hours: d.ot ? num(d.ot_hours) : null, ot_rate: d.ot && Number(d.ot_rate) === 1.5 ? 1.5 : 1,
+        updated_at: new Date().toISOString().slice(0, 19) };
       return sb.from('roster_days').upsert(row, { onConflict: 'staff_id,day' })
         .then(function (res) { return res.error ? res.error.message : ''; });
     },

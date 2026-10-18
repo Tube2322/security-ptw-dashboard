@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261018a"></script>
+<script src="./soc-core.js?v=20261018b"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -1486,7 +1486,7 @@
                         <sc-for list="{{ c.people }}" as="pp" hint-placeholder-count="1">
                           <button class="rp-btn" onClick="{{ pp.pick }}" title="{{ pp.title }}" aria-label="{{ pp.title }}" style="display: grid; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 4px; height: 26px; padding: 0 2px 0 4px; border-radius: 7px; border: {{ pp.border }}; background: transparent; cursor: pointer; min-width: 0;">
                             <span style="min-width: 0; text-align: left; line-height: 1.1; overflow: hidden;"><span style="display: block; font-size: 11px; font-weight: {{ pp.nameWeight }}; color: {{ pp.nameFg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ pp.name }}</span><sc-if value="{{ pp.time }}" hint-placeholder-val="{{ false }}"><span style="display: block; font-size: 9px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ pp.time }}</span></sc-if></span>
-                            <span style="position: relative; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: {{ pp.cbg }}; color: {{ pp.cfg }};">{{ pp.label }}<sc-if value="{{ pp.ot }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -5px; right: -4px; padding: 0 3px; border-radius: 4px; font-size: 8px; font-weight: 700; line-height: 11px; background: #d85a30; color: #fff;">OT</span></sc-if></span>
+                            <span style="position: relative; height: 20px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: {{ pp.cbg }}; color: {{ pp.cfg }};">{{ pp.label }}<sc-if value="{{ pp.ot }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -5px; right: -4px; padding: 0 3px; border-radius: 4px; font-size: 8px; font-weight: 700; line-height: 11px; background: #d85a30; color: #fff; white-space: nowrap;">{{ pp.otText }}</span></sc-if></span>
                           </button>
                         </sc-for>
                       </div>
@@ -1507,6 +1507,15 @@
                       </sc-if>
                       <button class="rp-chip" onClick="{{ roster.editor.clear }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid var(--line); background: transparent; color: var(--muted);">ล้าง</button>
                     </div>
+                    <sc-if value="{{ roster.editor.otOn }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(216,90,48,0.06); border: 1px solid rgba(216,90,48,0.25);">
+                        <sc-for list="{{ roster.editor.otRates }}" as="orr" hint-placeholder-count="2">
+                          <button class="rp-chip" onClick="{{ orr.pick }}" style="min-height: 38px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; border: 1px solid {{ orr.border }}; background: {{ orr.bg }}; color: var(--text);">{{ orr.label }}</button>
+                        </sc-for>
+                        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">ชั่วโมง OT<input type="number" min="0" max="24" step="0.5" value="{{ roster.editor.otHours }}" onBlur="{{ roster.editor.setOtHours }}" placeholder="12" style="width: 110px; min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px;"></label>
+                        <span style="font-size: 12.5px; color: var(--muted); padding-bottom: 9px;">{{ roster.editor.otNote }}</span>
+                      </div>
+                    </sc-if>
                     <sc-if value="{{ roster.editor.timeCan }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
                         <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">เริ่ม<input type="time" value="{{ roster.editor.start }}" onBlur="{{ roster.editor.setStart }}" style="min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;"></label>
@@ -5652,15 +5661,16 @@ class Component extends DCLogic {
     if (m < 1) { m = 12; y--; } if (m > 12) { m = 1; y++; }
     this.setState({ rosterY: y, rosterM: m, rosterSel: null, rosterData: null }, this.loadRoster);
   }
-  rosterPut(staffId, day, code, ot, start, end, hours) {
+  /* row: { code, ot, start_time, end_time, hours, ot_hours, ot_rate } or null to clear the day */
+  rosterPut(staffId, day, row) {
     /* optimistic: the grid answers at once, the save follows; a failed save reloads the truth */
     this.setState(s => {
       const d = s.rosterData; if (!d) return null;
       const rest = d.days.filter(x => !(x.staff_id === staffId && x.day === day));
-      return { rosterData: Object.assign({}, d, { days: code ? rest.concat([{ staff_id: staffId, day, code, ot, start_time: start || null, end_time: end || null, hours: hours == null || hours === '' ? null : Number(hours) }]) : rest }) };
+      return { rosterData: Object.assign({}, d, { days: row ? rest.concat([Object.assign({ staff_id: staffId, day }, row)]) : rest }) };
     });
     const c = this.core();
-    (code ? c.rosterSetDay(staffId, day, code, ot, start, end, hours) : c.rosterClearDay(staffId, day)).then(err => {
+    (row ? c.rosterSetDay(staffId, day, row) : c.rosterClearDay(staffId, day)).then(err => {
       if (err) { this.flash('บันทึกเวรไม่สำเร็จ: ' + err, 'var(--danger)'); this.loadRoster(); }
     });
   }
@@ -5760,6 +5770,9 @@ class Component extends DCLogic {
       if (r.start_time && r.end_time) { let mins = toMin(r.end_time) - toMin(r.start_time); if (mins <= 0) mins += 1440; if (mins > 360) mins -= 60; return Math.round(mins / 30) / 2; }
       return hps;
     };
+    /* OT counts its own hours: 12 unless written otherwise, paid at x1 or x1.5 */
+    const otHrsOf = (r) => r && r.ot ? (r.ot_hours != null && r.ot_hours !== '' ? Number(r.ot_hours) : 12) : 0;
+    const otRateOf = (r) => Number(r && r.ot_rate) === 1.5 ? 1.5 : 1;
     const timeOf = (r) => r.start_time && r.end_time ? r.start_time + '–' + r.end_time : (CODES[r.code].time ? CODES[r.code].time.join('–') : '');
     const grid = {}; d.staff.forEach(x => { grid[x.id] = {}; });
     d.days.forEach(x => { if (grid[x.staff_id]) grid[x.staff_id][x.day] = x; });
@@ -5814,14 +5827,14 @@ class Component extends DCLogic {
     const byDay = grid[cur.id];
     const cells = [];
     for (let i = 0; i < lead; i++) cells.push({ blank: true });
-    let work = 0, nD = 0, nN = 0, nW = 0, nX = 0, nL = 0, nOT = 0, empty = 0, hours = 0, hD = 0, hN = 0, hW = 0;
+    let work = 0, nD = 0, nN = 0, nW = 0, nX = 0, nL = 0, nOT = 0, empty = 0, hours = 0, hD = 0, hN = 0, hW = 0, otHours = 0;
     for (let i = 1; i <= nDays; i++) {
       const iso = isoOf(i), r = byDay[iso], c = r ? CODES[r.code] : null;
       const dow = (lead + i - 1) % 7, h = hrsOf(r), bad = nightThenDay(cur.id, i);
       if (r) {
         if (c.work) { work++; hours += h; }
         ({ D: () => { nD++; hD += h; }, N: () => { nN++; hN += h; }, W: () => { nW++; hW += h; }, X: () => nX++, L: () => nL++ })[r.code]();
-        if (r.ot) nOT++;
+        if (r.ot) { nOT++; otHours += otHrsOf(r); }
       } else empty++;
       const sel = s.rosterSel === iso;
       /* every person's shift that day, the selected person first; status-only people show just their code */
@@ -5829,8 +5842,8 @@ class Component extends DCLogic {
       const people = order.map(x => {
         const pr = grid[x.id][iso], pc = pr ? CODES[pr.code] : null, pBad = nightThenDay(x.id, i), main = x.id === cur.id;
         return { name: short(x), label: pc ? pc.label : '·', cbg: pc ? pc.bg : 'var(--panel-2)', cfg: pc ? pc.fg : 'var(--dim)',
-          ot: !!(pr && pr.ot), time: pr && pc.work && (pr.start_time || pr.hours != null) ? (pr.start_time ? timeOf(pr) + ' · ' : '') + hrsOf(pr) + ' ชม.' : '',
-          title: x.name + ': ' + (pr ? pc.name + (pc.work ? ' ' + timeOf(pr) + ' · ' + hrsOf(pr) + ' ชม.' : '') + (pr.ot ? ' · OT' : '') : 'ยังไม่ลงเวร') + (pBad ? ' · เข้าดึกแล้วต่อกลางวัน' : ''),
+          ot: !!(pr && pr.ot), otText: pr && pr.ot ? (otRateOf(pr) === 1.5 ? 'OT1.5' : 'OT') : '', time: pr && pc.work && (pr.start_time || pr.hours != null) ? (pr.start_time ? timeOf(pr) + ' · ' : '') + hrsOf(pr) + ' ชม.' : '',
+          title: x.name + ': ' + (pr ? pc.name + (pc.work ? ' ' + timeOf(pr) + ' · ' + hrsOf(pr) + ' ชม.' : '') + (pr.ot ? ' · OT ×' + otRateOf(pr) + ' ' + otHrsOf(pr) + ' ชม.' : '') : 'ยังไม่ลงเวร') + (pBad ? ' · เข้าดึกแล้วต่อกลางวัน' : ''),
           border: pBad ? '1.5px solid var(--danger)' : (main && sel ? '1.5px solid var(--accent)' : '1px solid transparent'),
           nameFg: main ? 'var(--text)' : 'var(--muted)', nameWeight: main ? '600' : '500',
           pick: () => this.setState({ rosterStaff: x.id, rosterSel: main && sel ? null : iso }) };
@@ -5844,7 +5857,7 @@ class Component extends DCLogic {
         numText: String(i),
         pick: () => this.setState({ rosterSel: sel ? null : iso }) });
     }
-    const reqH = req * hps, over = Math.max(0, work - req), otH = Math.max(0, hours - reqH);
+    const reqH = req * hps, over = Math.max(0, work - req), otH = otHours;
     base.metrics = [
       { label: 'เวรที่ทำ', value: String(work), sub: req ? '/ ' + req + ' ที่กำหนด' : 'ยังไม่ตั้งเวรที่กำหนด' },
       { label: 'กลางวัน · กลางคืน', value: nD + ' · ' + nN, sub: nW ? 'วันทำงาน (ช) ' + nW : '' },
@@ -5867,8 +5880,10 @@ class Component extends DCLogic {
     const paperFor = (x) => {
       const days = grid[x.id], n = { D: 0, N: 0, W: 0, X: 0, L: 0 }, h = { D: 0, N: 0, W: 0 };
       let ot = 0, wk = 0, hr = 0;
-      Object.keys(days).forEach(k => { const r = days[k]; n[r.code]++; if (CODES[r.code].work) { wk++; const v = hrsOf(r); hr += v; h[r.code] += v; } if (r.ot) ot++; });
-      const otH = Math.max(0, hr - reqH), dates = Object.keys(days).filter(k => days[k].ot).sort().map(k => String(+k.slice(8)));
+      const r1 = { n: 0, h: 0, d: [] }, r15 = { n: 0, h: 0, d: [] };
+      Object.keys(days).sort().forEach(k => { const r = days[k]; n[r.code]++; if (CODES[r.code].work) { wk++; const v = hrsOf(r); hr += v; h[r.code] += v; }
+        if (r.ot) { ot++; const b = otRateOf(r) === 1.5 ? r15 : r1; b.n++; b.h += otHrsOf(r); b.d.push(String(+k.slice(8))); } });
+      const otH = r1.h + r15.h;
       return {
         name: x.name + (x.nickname ? ' (' + x.nickname + ')' : ''), sub: [x.emp_code, x.position].filter(Boolean).join(' · '),
         header: 'วันหยุด ' + (mo.holidays || 0) + ' วัน (เวรทำงาน ' + req + ' เวร × ' + hps + ' ชม. = ' + reqH + ' ชม.)',
@@ -5884,8 +5899,9 @@ class Component extends DCLogic {
           { title: 'ชั่วโมง', rows: [
             { k: 'ชม.ทำงานรวมโอที', v: hr + ' ชม.', note: wk + ' เวร' },
             { k: 'ชม.ทำงานตามกำหนด', v: reqH + ' ชม.', note: req + ' เวร × ' + hps },
-            { k: 'ชม.โอที', v: otH + ' ชม.', note: Math.max(0, wk - req) + ' เวรที่เกิน' },
-            { k: 'วันที่ทำโอที', v: ot + ' วัน', note: dates.length ? 'วันที่ ' + dates.join(', ') : '' }
+            { k: 'ชม.โอที', v: otH + ' ชม.', note: ot + ' วัน' },
+            { k: 'OT × 1', v: r1.n + ' วัน', note: r1.n ? r1.h + ' ชม. · วันที่ ' + r1.d.join(', ') : '' },
+            { k: 'OT × 1.5', v: r15.n + ' วัน', note: r15.n ? r15.h + ' ชม. · วันที่ ' + r15.d.join(', ') : '' }
           ] }
         ]
       };
@@ -5907,7 +5923,7 @@ class Component extends DCLogic {
     };
     const t = byDay[todayIso];
     const tmrIso = new Date(Date.parse(todayIso + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10), tm = byDay[tmrIso];
-    const say = (r) => r ? CODES[r.code].name + (CODES[r.code].work ? ' ' + timeOf(r) + ' (' + hrsOf(r) + ' ชม.)' : '') + (r.ot ? ' · โอที' : '') : 'ยังไม่ได้ลงเวร';
+    const say = (r) => r ? CODES[r.code].name + (CODES[r.code].work ? ' ' + timeOf(r) + ' (' + hrsOf(r) + ' ชม.)' : '') + (r.ot ? ' · OT ×' + otRateOf(r) + ' ' + otHrsOf(r) + ' ชม.' : '') : 'ยังไม่ได้ลงเวร';
     base.todayText = inMonth ? short(cur) + ' · วันนี้ ' + (+todayIso.slice(8)) + ' ' + TH[m] + ': ' + say(t) : '';
     base.todayCode = t ? CODES[t.code].label : '–';
     base.todayBg = t ? CODES[t.code].bg : 'var(--panel-2)'; base.todayFg = t ? CODES[t.code].fg : 'var(--muted)';
@@ -5933,6 +5949,8 @@ class Component extends DCLogic {
       return '';
     };
     const selC = selR ? CODES[selR.code] : null;
+    const save = (patch) => this.rosterPut(cur.id, sel, Object.assign({ code: selR.code, ot: !!selR.ot, start_time: selR.start_time || null, end_time: selR.end_time || null,
+      hours: selR.hours == null ? null : selR.hours, ot_hours: selR.ot_hours == null ? null : selR.ot_hours, ot_rate: otRateOf(selR) }, patch));
     const setTime = (which, e) => {
       if (!selR || !selC.work) return;
       const v = e.target.value; if (v && !/^\d{2}:\d{2}$/.test(v)) return;
@@ -5941,30 +5959,42 @@ class Component extends DCLogic {
       if (selC.time && st === selC.time[0] && en === selC.time[1]) { st = ''; en = ''; }
       if (!st || !en) { st = ''; en = ''; }
       if ((st || null) === (selR.start_time || null) && (en || null) === (selR.end_time || null)) return;
-      this.rosterPut(cur.id, sel, selR.code, selR.ot, st, en, null);
+      save({ start_time: st || null, end_time: en || null, hours: null });
     };
     base.editor = sel ? {
       title: short(cur) + ' · วันที่ ' + selI + ' ' + TH[m] + ' ' + (y + 543),
       options: Object.keys(CODES).map(k => ({ label: CODES[k].name, on: !!(selR && selR.code === k),
         border: selR && selR.code === k ? 'var(--accent-line)' : 'var(--line)', bg: selR && selR.code === k ? 'var(--accent-soft)' : 'transparent',
-        pick: () => { const w = clash(k); if (w && !window.confirm(w + ' — บันทึกต่อ?')) return; this.rosterPut(cur.id, sel, k, CODES[k].work ? !!(selR && selR.ot) : false); } })),
+        pick: () => { const w = clash(k); if (w && !window.confirm(w + ' — บันทึกต่อ?')) return; const keep = CODES[k].work && selR && selR.ot;
+          this.rosterPut(cur.id, sel, { code: k, ot: !!keep, ot_hours: keep ? selR.ot_hours : null, ot_rate: keep ? otRateOf(selR) : 1 }); } })),
       warn: selR ? clash(selR.code) : '',
       otOn: !!(selR && selR.ot), otCan: !!(selR && selC.work),
       otLabel: selR && selR.ot ? '✓ โอที' : '＋ โอที',
       otBorder: selR && selR.ot ? 'rgba(216,90,48,0.55)' : 'var(--line)', otBg: selR && selR.ot ? 'rgba(216,90,48,0.12)' : 'transparent',
-      toggleOt: () => { if (selR && selC.work) this.rosterPut(cur.id, sel, selR.code, !selR.ot, selR.start_time, selR.end_time, selR.hours); },
+      toggleOt: () => { if (selR && selC.work) save({ ot: !selR.ot, ot_hours: null, ot_rate: 1 }); },
+      otRates: [1, 1.5].map(rt => ({ label: 'OT × ' + rt, pick: () => save({ ot_rate: rt }),
+        border: otRateOf(selR) === rt ? 'rgba(216,90,48,0.55)' : 'var(--line)', bg: otRateOf(selR) === rt ? 'rgba(216,90,48,0.12)' : 'transparent' })),
+      otHours: selR && selR.ot_hours != null ? String(selR.ot_hours) : '',
+      otNote: selR && selR.ot ? 'นับ OT ' + otHrsOf(selR) + ' ชม. × ' + otRateOf(selR) + (selR.ot_hours != null ? ' · ตามที่กรอก' : ' · ปกติ 12 ชม.') : '',
+      setOtHours: (e) => {
+        if (!selR || !selR.ot) return;
+        const v = String(e.target.value).trim();
+        if (v !== '' && !(Number(v) > 0 && Number(v) <= 24)) { this.flash('ชั่วโมง OT ต้องอยู่ระหว่าง 0–24', 'var(--warn)'); return; }
+        if ((v === '' ? null : Number(v)) === (selR.ot_hours == null ? null : Number(selR.ot_hours))) return;
+        save({ ot_hours: v === '' ? null : Number(v) });
+      },
       timeCan: !!(selR && selC.work),
       start: selR ? (selR.start_time || (selC.time || [])[0] || '') : '', end: selR ? (selR.end_time || (selC.time || [])[1] || '') : '',
-      hoursNote: selR && selC.work ? 'นับ ' + hrsOf(selR) + ' ชม.' + (selR.hours != null ? ' · ตามที่กรอก' : (selR.start_time ? ' · ตามเวลา (หักพัก 1 ชม.)' : ' · เวลาปกติ')) : '',
+      hoursNote: selR && selC.work ? 'รวม ' + hrsOf(selR) + ' ชม.' + (selR.hours != null ? ' · ตามที่กรอก' : (selR.start_time ? ' · คิดจากเวลาเริ่ม–เลิก (หักพัก 1 ชม.)' : ' · เวลาปกติ')) : '',
       custom: !!(selR && (selR.start_time || selR.hours != null)),
-      resetTime: () => { if (selR) this.rosterPut(cur.id, sel, selR.code, selR.ot); },
+      resetTime: () => { if (selR) save({ start_time: null, end_time: null, hours: null }); },
       hours: selR && selR.hours != null ? String(selR.hours) : '',
       setHours: (e) => {
         if (!selR || !selC.work) return;
         const v = String(e.target.value).trim();
         if (v !== '' && !(Number(v) > 0 && Number(v) <= 24)) { this.flash('ชั่วโมงต้องอยู่ระหว่าง 0–24', 'var(--warn)'); return; }
         if ((v === '' ? null : Number(v)) === (selR.hours == null ? null : Number(selR.hours))) return;
-        this.rosterPut(cur.id, sel, selR.code, selR.ot, selR.start_time, selR.end_time, v);
+        save({ hours: v === '' ? null : Number(v) });
       },
       setStart: (e) => setTime('start', e), setEnd: (e) => setTime('end', e),
       clear: () => this.rosterPut(cur.id, sel, null),
