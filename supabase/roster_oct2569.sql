@@ -3,7 +3,7 @@
 
 -- 1) supervisor: คุณอัฒม์เดช มัชวาท (616631, หนน.)
 insert into public.roster_staff (emp_code, name, position, phone, is_head, status_only, sort)
-select '616631', 'อัฒม์เดช มัชวาท', 'หนน.', '061-4655288', true, true, 0
+select '616631', 'อัศม์เดช มัฆวาฬ', 'หนน.', '061-4655288', true, true, 0
 where not exists (select 1 from public.roster_staff where emp_code = '616631');
 
 -- 2) ฟ้า: full name, ID and phone from the sheet

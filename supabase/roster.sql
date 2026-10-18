@@ -63,3 +63,6 @@ alter table public.roster_days  add column if not exists end_time   text check (
 -- v3: the supervisor (shown only as a red dot on days they work) and hours written on the paper when not the standard shift
 alter table public.roster_staff add column if not exists is_head boolean not null default false;
 alter table public.roster_days  add column if not exists hours numeric check (hours > 0 and hours <= 24);
+-- v4: OT counts its own hours (12 unless written) at x1 or x1.5
+alter table public.roster_days add column if not exists ot_hours numeric check (ot_hours > 0 and ot_hours <= 24);
+alter table public.roster_days add column if not exists ot_rate numeric not null default 1 check (ot_rate in (1, 1.5));
