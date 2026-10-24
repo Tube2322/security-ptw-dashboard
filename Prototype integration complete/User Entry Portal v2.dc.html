@@ -231,9 +231,56 @@
               </section>
             </sc-for>
 
+            <sc-if value="{{ showRepairAsk }}" hint-placeholder-val="{{ false }}">
+              <label style="min-width: 0; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--panel); cursor: pointer;">
+                <input type="checkbox" checked="{{ repairAsk }}" onChange="{{ toggleRepair }}" style="width: 22px; height: 22px; flex: none; accent-color: var(--accent);">
+                <span style="min-width: 0;">
+                  <span style="display: block; font-size: 15.5px; font-weight: 600;">🔧 มีงานแจ้งซ่อม</span>
+                  <span style="display: block; margin-top: 2px; font-size: 13px; color: var(--muted);">พบของชำรุดหรือผิดปกติ — ติ๊กแล้วถ่ายรูป ข้อมูลที่กรอกจะเข้าคิวแจ้งซ่อมให้ ไม่ต้องแจ้งซ้ำ</span>
+                </span>
+              </label>
+            </sc-if>
+
+            <sc-if value="{{ repairAsk }}" hint-placeholder-val="{{ false }}">
+              <section style="min-width: 0; padding: 16px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--panel);">
+                <div style="font-size: 15.5px; font-weight: 600;">🔧 รายละเอียดแจ้งซ่อม</div>
+                <div style="margin-top: 4px; font-size: 13px; color: var(--muted);">ข้อมูลนี้จะส่งให้ช่างเมื่อกดบันทึก — ระบุสถานที่ให้ตรงกับที่ช่างต้องไปซ่อม</div>
+                <sc-if value="{{ showRepairErr }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-top: 8px; font-size: 13px; color: #a3291d;">{{ repairLocErr }}</div>
+                </sc-if>
+                <label style="display: block; font-size: 14px; font-weight: 500; margin: 12px 0 6px;">อาคาร</label>
+                <select value="{{ rpBuilding }}" onChange="{{ setRpBuilding }}" style="width: 100%; min-width: 0; min-height: 48px; padding: 0 12px; font-size: 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text);">
+                  <option value="" style="background: #ffffff;">เลือกอาคาร</option>
+                  <sc-for list="{{ repairBuildings }}" as="o" hint-placeholder-count="3">
+                    <option value="{{ o }}" style="background: #ffffff;">{{ o }}</option>
+                  </sc-for>
+                </select>
+                <label style="display: block; font-size: 14px; font-weight: 500; margin: 12px 0 6px;">ชั้น</label>
+                <select value="{{ rpFloor }}" onChange="{{ setRpFloor }}" style="width: 100%; min-width: 0; min-height: 48px; padding: 0 12px; font-size: 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text);">
+                  <option value="" style="background: #ffffff;">เลือกชั้น</option>
+                  <sc-for list="{{ repairFloors }}" as="o" hint-placeholder-count="3">
+                    <option value="{{ o }}" style="background: #ffffff;">{{ o }}</option>
+                  </sc-for>
+                </select>
+                <label style="display: block; font-size: 14px; font-weight: 500; margin: 12px 0 6px;">แผนก / ห้อง (ตามรายการของช่าง)</label>
+                <select value="{{ rpDept }}" onChange="{{ setRpDept }}" style="width: 100%; min-width: 0; min-height: 48px; padding: 0 12px; font-size: 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text);">
+                  <option value="" style="background: #ffffff;">เลือกแผนก</option>
+                  <sc-for list="{{ repairDepts }}" as="o" hint-placeholder-count="3">
+                    <option value="{{ o }}" style="background: #ffffff;">{{ o }}</option>
+                  </sc-for>
+                </select>
+                <label style="display: block; font-size: 14px; font-weight: 500; margin: 12px 0 6px;">รายละเอียดปัญหา — เสียเพราะอะไร มีปัญหาอย่างไร</label>
+                <textarea rows="3" placeholder="เช่น ถังดับเพลิงชั้น 10 ถัง 10/7 หูห้อยชำรุด" value="{{ rpDetail }}" onChange="{{ setRpDetail }}" style="width: 100%; min-width: 0; padding: 12px 14px; font-size: 16px; line-height: 1.55; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text); resize: vertical;"></textarea>
+                <label style="display: block; font-size: 14px; font-weight: 500; margin: 12px 0 6px;">ชื่อผู้ตรวจ</label>
+                <input type="text" placeholder="ชื่อ-นามสกุล" value="{{ rpName }}" onChange="{{ setRpName }}" style="width: 100%; min-width: 0; min-height: 48px; padding: 0 14px; font-size: 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text);">
+                <label style="display: block; font-size: 14px; font-weight: 500; margin: 12px 0 6px;">เบอร์โทรผู้ตรวจ</label>
+                <input type="tel" placeholder="เช่น 0812345678" value="{{ rpPhone }}" onChange="{{ setRpPhone }}" style="width: 100%; min-width: 0; min-height: 48px; padding: 0 14px; font-size: 16px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text);">
+              </section>
+            </sc-if>
+
             <sc-if value="{{ showPhotos }}" hint-placeholder-val="{{ false }}">
               <section style="min-width: 0; padding: 16px; border-radius: 14px; border: 1px solid rgba(224,163,60,0.45); background: rgba(224,163,60,0.08);">
-                <div style="font-size: 15.5px; font-weight: 600;">📷 ถ่ายรูปจุดที่พบปัญหา <span style="font-weight: 400; color: var(--muted); font-size: 13px;">(ไม่บังคับ)</span></div>
+                <div style="font-size: 15.5px; font-weight: 600;">📷 ถ่ายรูปจุดที่พบปัญหา <span style="font-weight: 400; color: var(--muted); font-size: 13px;">{{ photoOptional }}</span></div>
                 <div style="margin-top: 4px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere;">พบ: {{ photoFaults }} · รูปช่วยให้ช่างเห็นปัญหาและส่งงานซ่อมได้</div>
                 <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px;">
                   <sc-for list="{{ photoList }}" as="ph" hint-placeholder-count="0">
@@ -378,7 +425,7 @@ class Component extends DCLogic {
     const values = {};
     if (dateField) values[dateField] = today;
     if (core && core.field(id, 'checkpoint_time')) values.checkpoint_time = this.nowHHMM();
-    this.setState({ view: 'form', module: id, phase: 'loading', values, errors: {}, banner: '', repairRules: null, photos: [], photoBusy: 0 });
+    this.setState({ view: 'form', module: id, phase: 'loading', values, errors: {}, banner: '', repairRules: null, repairAsk: false, repairInfo: {}, photos: [], photoBusy: 0 });
     /* only monthly inspections can open a repair job; their "broken" answers decide when the camera shows */
     if (core && (core.module(id) || {}).kind === 'monthly') {
       core.repairRules(id).then(rules => { if (this.state.module === id) this.setState({ repairRules: rules }); });
@@ -478,6 +525,17 @@ class Component extends DCLogic {
     const core = this.core();
     const errors = this.validate();
     const bad = Object.keys(errors);
+    /* a repair request is made here, while inspecting, and always travels with a photo of the problem */
+    if (!bad.length && this.state.repairAsk) {
+      const ri = this.state.repairInfo || {};
+      const missing = [!ri.building && 'อาคาร', !ri.floor && 'ชั้น', !ri.department && 'แผนก', !String(ri.detail || '').trim() && 'รายละเอียดปัญหา',
+        !String(ri.name || '').trim() && 'ชื่อผู้ตรวจ', String(ri.phone || '').replace(/\D/g, '').length < 9 && 'เบอร์โทรผู้ตรวจ',
+        !(this.state.photos || []).some(p => p.path) && 'รูปอย่างน้อย 1 รูป'].filter(Boolean);
+      if (missing.length) {
+        this.setState({ banner: 'ติ๊ก "มีงานแจ้งซ่อม" ไว้ — กรุณากรอกให้ครบ: ' + missing.join(', ') });
+        return;
+      }
+    }
     if (bad.length) {
       this.setState({ errors, banner: 'กรอกข้อมูลไม่ครบถ้วน ' + bad.length + ' รายการ — ระบบเลื่อนไปยังช่องแรกที่ต้องแก้ไข' });
       const el = this._els[bad[0]];
@@ -493,7 +551,15 @@ class Component extends DCLogic {
       if (core.field(this.state.module, 'checkpoint_time')) payload.checkpoint_time = this.nowHHMM();
       /* photos ride on the record only when something was marked broken; the repair_jobs trigger reads them */
       const shots = (this.state.photos || []).map(p => p.path).filter(Boolean);
-      if (shots.length && this.faultsPicked().length) payload.repair_photos = shots;
+      if (shots.length && (this.state.repairAsk || this.faultsPicked().length)) payload.repair_photos = shots;
+      /* the repair_jobs trigger opens a job for the technicians' queue only from this flag, on insert */
+      if (this.state.repairAsk && shots.length) {
+        const ri = this.state.repairInfo || {};
+        payload.repair_request = true;
+        payload.repair_loc = { building: ri.building, floor: ri.floor, department: ri.department };
+        payload.repair_detail = String(ri.detail || '').trim();
+        payload.repair_inspector = { name: String(ri.name || '').trim(), phone: String(ri.phone || '').trim() };
+      }
 
       /* Talay Thong rides along with Traffic Flow's submit but is its own record and its own
          forward — split into a second payload here (its date and "ชื่อผู้กรอก" stamped from
@@ -518,7 +584,7 @@ class Component extends DCLogic {
       if (combo) ttRec = core.addRecord(combo, ttPayload);
 
       this.setState({
-        submitting: false, view: 'done', values: {}, errors: {}, banner: '', photos: [], photoBusy: 0,
+        submitting: false, view: 'done', values: {}, errors: {}, banner: '', repairAsk: false, repairInfo: {}, photos: [], photoBusy: 0,
         done: rec, doneTt: ttRec,
         msForwardStatus: null, msForwardPayload: null, msForwardStatus2: null, msForwardPayload2: null
       });
@@ -893,6 +959,23 @@ class Component extends DCLogic {
       });
     });
   };
+  toggleRepair = (e) => {
+    const on = !!(e && e.target && e.target.checked), core = this.core(), id = this.state.module, v = this.state.values || {};
+    this.setState({ repairAsk: on, banner: '' });
+    if (!on) return;
+    /* start the repair details from what the inspector already wrote on this form */
+    const mod = core.module(id) || {}, note = core.activeFields(id).filter(f => f.type === 'textarea')[0];
+    this.setState(s => ({ repairInfo: Object.assign({ detail: note ? String(v[note.fieldId] || '') : '', name: mod.nameField ? String(v[mod.nameField] || '') : '' }, s.repairInfo) }));
+    if (!this.state.repairLocs) {
+      fetch('/api/repair-ticket', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'locations' }) })
+        .then(r => r.json()).then(j => this.setState({ repairLocs: (j && j.buildings) || [], repairLocErr: j && j.ok ? '' : 'โหลดรายการสถานที่ของช่างไม่ได้' }))
+        .catch(() => this.setState({ repairLocErr: 'โหลดรายการสถานที่ของช่างไม่ได้ — ลองใหม่อีกครั้ง' }));
+    }
+  };
+  setRepair = (k) => (e) => {
+    const val = e && e.target ? e.target.value : '';
+    this.setState(s => ({ repairInfo: Object.assign({}, s.repairInfo, { [k]: val }, k === 'building' ? { floor: '', department: '' } : k === 'floor' ? { department: '' } : {}) }));
+  };
   removePhoto(key) { this.setState(s => ({ photos: s.photos.filter(p => p.key !== key) })); }
 
   renderVals() {
@@ -971,8 +1054,23 @@ class Component extends DCLogic {
         fields: g.fields.map(f => this.buildField(f))
       })),
 
-      showPhotos: faults.length > 0,
-      photoFaults: faults.join(' · '),
+      showRepairAsk: s.view === 'form' && s.phase === 'ready' && (core.module(s.module) || {}).kind === 'monthly',
+      repairAsk: !!s.repairAsk,
+      toggleRepair: this.toggleRepair,
+      repairBuildings: (s.repairLocs || []).map(b => b.name),
+      repairFloors: ((s.repairLocs || []).filter(b => b.name === (s.repairInfo || {}).building)[0] || { floors: [] }).floors,
+      repairDepts: (() => {
+        const b = (s.repairLocs || []).filter(x => x.name === (s.repairInfo || {}).building)[0];
+        return b ? (b.departments || []).filter(d => d.floor === (s.repairInfo || {}).floor).map(d => d.name) : [];
+      })(),
+      rpBuilding: (s.repairInfo || {}).building || '', rpFloor: (s.repairInfo || {}).floor || '', rpDept: (s.repairInfo || {}).department || '',
+      rpDetail: (s.repairInfo || {}).detail || '', rpName: (s.repairInfo || {}).name || '', rpPhone: (s.repairInfo || {}).phone || '',
+      setRpBuilding: this.setRepair('building'), setRpFloor: this.setRepair('floor'), setRpDept: this.setRepair('department'),
+      setRpDetail: this.setRepair('detail'), setRpName: this.setRepair('name'), setRpPhone: this.setRepair('phone'),
+      repairLocErr: s.repairLocErr || '', showRepairErr: !!s.repairLocErr,
+      photoOptional: s.repairAsk ? '(บังคับอย่างน้อย 1 รูป)' : '(ไม่บังคับ)',
+      showPhotos: faults.length > 0 || !!s.repairAsk,
+      photoFaults: faults.length ? faults.join(' · ') : 'งานแจ้งซ่อมจากผู้ตรวจ',
       photoList: (s.photos || []).map(p => ({ bg: 'center/cover no-repeat url("' + p.preview + '")',
         note: p.failed ? 'อัปโหลดไม่สำเร็จ' : (p.path ? '' : 'กำลังอัปโหลด…'), noteShow: p.failed || !p.path,
         remove: () => this.removePhoto(p.key) })),
