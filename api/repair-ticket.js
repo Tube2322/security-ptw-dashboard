@@ -161,6 +161,29 @@ async function send(sb, jobId) {
   return { status: 200, body: { ok: true, extCode: '', warning: 'ส่งแล้ว · ระบบกำลังหาเลขใบงานจากเว็บช่างให้เอง' } };
 }
 
+/* Repair requests made by an inspector in the entry portal (supabase/repair_inspector_request.sql): the
+   tick in the form IS the approval, so these are filed on the technicians' site without an admin pressing
+   send. Runs from the 5-minute scheduler only, never from a browser. Off until
+   portal_settings.repair_tracking.inspector_auto_send is true, and each job gets exactly one automatic
+   try (times.auto_tried) — a failure is written to last_error and left for an admin, never retried blind. */
+async function sendInspectorRequests(sb) {
+  const cfg = await sb.from('portal_settings').select('repair_tracking').limit(1).maybeSingle();
+  if (!(cfg.data && cfg.data.repair_tracking && cfg.data.repair_tracking.inspector_auto_send === true)) return 0;
+  const { data: jobs } = await sb.from('repair_jobs').select('*').eq('status', 'pending').is('ext_code', null).is('ext_sending_at', null)
+    .order('created_at', { ascending: true }).limit(10);
+  let filed = 0;
+  for (const job of (jobs || []).filter(j => Array.isArray(j.faults) && j.faults[0] && j.faults[0].field_id === 'inspector_request' && !(j.times || {}).auto_tried)) {
+    const times = Object.assign({}, job.times || {}, { auto_tried: stamp() });
+    const mark = await sb.from('repair_jobs').update({ times }).eq('id', job.id).eq('status', 'pending').select('id');
+    if (!(mark.data && mark.data.length)) continue;
+    let r;
+    try { r = await send(sb, job.id); } catch (e) { r = { status: 500, body: { error: e.message || String(e) } }; }
+    if (r.status === 200) filed++;
+    else await sb.from('repair_jobs').update({ last_error: 'ส่งอัตโนมัติไม่สำเร็จ: ' + ((r.body && r.body.error) || r.status) }).eq('id', job.id);
+  }
+  return filed;
+}
+
 async function sync(sb) {
   let changed = 0;
   /* filed but the number never came back: look it up first; only a ticket that still is not on their
@@ -241,7 +264,18 @@ module.exports = async (req, res) => {
     if (!want || cron.length !== want.length || !require('crypto').timingSafeEqual(Buffer.from(cron), Buffer.from(want))) {
       res.status(403).json({ ok: false, error: 'forbidden' }); return;
     }
-    try { res.status(200).json(await sync(svc)); } catch (e) { res.status(500).json({ ok: false, error: e.message || String(e) }); }
+    try {
+      const filed = await sendInspectorRequests(svc);
+      const out = await sync(svc);
+      res.status(200).json(Object.assign({ filed }, out));
+    } catch (e) { res.status(500).json({ ok: false, error: e.message || String(e) }); }
+    return;
+  }
+  /* the entry portal (no login) offers the technicians' own building / floor / department lists while an
+     inspector files a repair request; that list is public on their site and carries nothing of ours */
+  const bodyIn = typeof req.body === 'string' ? (() => { try { return JSON.parse(req.body || '{}'); } catch (e) { return {}; } })() : (req.body || {});
+  if (bodyIn.action === 'locations') {
+    try { res.status(200).json({ ok: true, buildings: await locations() }); } catch (e) { res.status(502).json({ ok: false, error: e.message || String(e) }); }
     return;
   }
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');

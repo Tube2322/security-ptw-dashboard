@@ -185,6 +185,8 @@ async function attemptFill(form, moduleId, data, dryRun) {
 
     for (let i = 0; i < form.fields.length; i++) {
       let value = data[form.fields[i].id];
+      /* a number-only question of the other department's form: send the value only when it is one */
+      if (form.fields[i].numeric && !/^\s*-?\d+([.,]\d+)?\s*$/.test(String(value == null ? '' : value))) value = '';
       /* The other department's questions are mandatory ("ต้องใส่ข้อมูลนี้" on an empty submit — all 16 on
          the Visitor form), but a submission often has only the half that applies: no contractor came,
          so the contractor card number and times are empty. The form refuses an empty answer, so a
@@ -368,8 +370,11 @@ const FORMS = {
       { id: 'mi_fire_ext_inspector_name', type: 'text' },
       /* question 15 on the live form restricts to a number and is optional (no red asterisk) —
          the default dash-for-blank convention below would fail its numeric validation, so this
-         field keeps a real blank instead. */
-      { id: 'mi_fire_ext_note', type: 'text', blank: '' }
+         field keeps a real blank instead. It also takes numbers only: a written remark ("หูห้อย
+         ถังมีปัญหา") makes the form refuse the submit forever ("The value must be a number"), so
+         anything that is not a number is held back here — our own record keeps the full text, and the
+         repair ticket carries it to the technicians. */
+      { id: 'mi_fire_ext_note', type: 'text', blank: '', numeric: true }
     ]
   },
   monthly_inspection_fire_exit: {
