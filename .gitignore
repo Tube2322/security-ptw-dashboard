@@ -19,3 +19,6 @@ Prototype integration complete/uploads/
 
 # Claude Design canvas scratch
 **/.thumbnail
+
+# Staff roster seeds hold real names, employee IDs and phone numbers - keep local, never public
+supabase/roster*.sql
