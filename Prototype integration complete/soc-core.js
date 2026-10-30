@@ -802,6 +802,19 @@
       return sb.from('kpi_entries').upsert(Object.assign({ numerator: numerator, denominator: denominator, updated_at: new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 19) }, key), { onConflict: 'year,kpi_no,month' })
         .then(function (res) { return res.error ? res.error.message : ''; });
     },
+    /* form_links (supabase/form_links.sql): shareable external form links, admin-managed */
+    formLinks: function () {
+      return sb.from('form_links').select('*').order('sort').order('created_at')
+        .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
+    },
+    addFormLink: function (label, url, sort) {
+      return sb.from('form_links').insert({ label: label, url: url, sort: sort || 0 })
+        .then(function (res) { return res.error ? res.error.message : ''; });
+    },
+    deleteFormLink: function (id) {
+      return sb.from('form_links').delete().eq('id', id)
+        .then(function (res) { return res.error ? res.error.message : ''; });
+    },
     /* repair_jobs (supabase/repair_tracking.sql): jobs opened by the records trigger from monthly
        inspections, or by hand. Admin-only via RLS. The technicians' site is reached only through
        repairApi below (api/repair-ticket.js), which acts with the admin's own session. */
