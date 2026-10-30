@@ -1571,6 +1571,52 @@
         </sc-if>
 
         <!-- ===== REPAIRS (ตามงานซ่อม) — jobs from repair_jobs ===== -->
+        <sc-if value="{{ isLinks }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+            <div style="font-size: 13px; color: var(--dim); overflow-wrap: anywhere;">ลิงก์แบบฟอร์มภายนอกสำหรับคัดลอกส่งต่อ — กด "คัดลอก" ได้ลิงก์เต็ม, "คัดลอกพร้อมชื่อ" ได้ข้อความพร้อมส่งในแชท</div>
+
+            <sc-if value="{{ linkLoading }}" hint-placeholder-val="{{ false }}">
+              <div style="height: 84px; border-radius: 14px; background: var(--panel-2); animation: socPulse 1.3s ease-in-out infinite;"></div>
+            </sc-if>
+            <sc-if value="{{ linkError }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(232,115,95,0.4); background: rgba(232,115,95,0.1); color: var(--danger); font-size: 13px; overflow-wrap: anywhere;">โหลดรายการลิงก์ไม่สำเร็จ: {{ linkError }}</div>
+            </sc-if>
+            <sc-if value="{{ linkEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 22px; border-radius: 14px; border: 1px dashed var(--line-2); text-align: center; color: var(--muted); font-size: 13.5px;">ยังไม่มีลิงก์ — เพิ่มลิงก์แรกจากช่องด้านล่าง</div>
+            </sc-if>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 12px;">
+              <sc-for list="{{ linkCards }}" as="lk" hint-placeholder-count="2">
+                <div style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 15px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+                  <div style="display: flex; align-items: flex-start; gap: 10px; min-width: 0;">
+                    <span style="width: 34px; height: 34px; flex: none; border-radius: 10px; display: grid; place-items: center; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-size: 15px;">🔗</span>
+                    <div style="min-width: 0; flex: 1;">
+                      <div style="font-size: 14px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere;">{{ lk.label }}</div>
+                      <a href="{{ lk.url }}" target="_blank" rel="noopener noreferrer" title="{{ lk.url }}" style="display: block; margin-top: 2px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ lk.short }}</a>
+                    </div>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <button onClick="{{ lk.copy }}" style="flex: 1 1 110px; min-height: 42px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">คัดลอก</button>
+                    <button onClick="{{ lk.copyMsg }}" style="flex: 1 1 130px; min-height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px;" style-hover="background: var(--panel-2);">คัดลอกพร้อมชื่อ</button>
+                    <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ lk.remove }}" aria-label="ลบลิงก์" style="flex: none; min-height: 42px; padding: 0 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px;" style-hover="border-color: rgba(232,115,95,0.5); color: var(--danger);">ลบ</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+              <section style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 15px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+                <div style="font-size: 14px; font-weight: 600;">เพิ่มลิงก์</div>
+                <input value="{{ linkLabel }}" onChange="{{ setLinkLabel }}" placeholder="ชื่อแบบฟอร์ม เช่น แบบฟอร์มขอรหัสเข้าประตู" style="min-height: 44px; width: 100%; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-size: 14px;">
+                <input value="{{ linkUrl }}" onChange="{{ setLinkUrl }}" placeholder="https://..." inputmode="url" style="min-height: 44px; width: 100%; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px;">
+                <button onClick="{{ addLink }}" disabled="{{ linkBusy }}" style="align-self: flex-start; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13.5px; font-weight: 500;">{{ linkAddLabel }}</button>
+              </section>
+            </sc-if>
+          </div>
+        </sc-if>
+
         <sc-if value="{{ isRepairs }}" hint-placeholder-val="{{ false }}">
           <div class="rp-page" style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
 
@@ -6041,6 +6087,55 @@ class Component extends DCLogic {
     this._repairMapped = { src: rows, jobs };
     return jobs;
   }
+  /* ---------- รวมลิงก์ (form_links) ---------- */
+  loadLinks = () => {
+    this.core().formLinks().then(res => this.setState({ linkRows: res.rows, linkError: res.error, linkLoaded: true }));
+  }
+  /* the full URL is what gets copied; the card only shows host + a clipped id so long
+     MS Forms links don't wrap into an unreadable block */
+  shortLink(url) {
+    try {
+      const u = new URL(url);
+      const id = u.searchParams.get('id');
+      return u.host + (id ? ' · …' + id.slice(-8) : u.pathname.slice(0, 24));
+    } catch (e) { return String(url).slice(0, 40) + '…'; }
+  }
+  copyText(text, okMsg) {
+    const done = () => this.flash(okMsg || '✓ คัดลอกแล้ว');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { this.flash('คัดลอกไม่สำเร็จ', 'var(--danger)'); }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  }
+  addLink = () => {
+    const label = String(this.state.linkLabel || '').trim();
+    const url = String(this.state.linkUrl || '').trim();
+    if (!label) { this.flash('กรุณาใส่ชื่อลิงก์', 'var(--danger)'); return; }
+    if (!/^https?:\/\//i.test(url)) { this.flash('ลิงก์ต้องขึ้นต้นด้วย http:// หรือ https://', 'var(--danger)'); return; }
+    this.setState({ linkBusy: true });
+    const sort = (this.state.linkRows || []).reduce((n, r) => Math.max(n, r.sort || 0), 0) + 1;
+    this.core().addFormLink(label, url, sort).then(err => {
+      this.setState({ linkBusy: false });
+      if (err) { this.flash('เพิ่มไม่สำเร็จ: ' + err, 'var(--danger)'); return; }
+      this.setState({ linkLabel: '', linkUrl: '' });
+      this.flash('✓ เพิ่มลิงก์แล้ว');
+      this.loadLinks();
+    });
+  }
+  deleteLink(row) {
+    this.askConfirm('ลบลิงก์นี้?', row.label + ' จะถูกลบออกจากรายการ (ฟอร์มต้นทางไม่ได้รับผลกระทบ)', 'ลบลิงก์', () => {
+      this.core().deleteFormLink(row.id).then(err => {
+        if (err) { this.flash('ลบไม่สำเร็จ: ' + err, 'var(--danger)'); return; }
+        this.flash('ลบลิงก์แล้ว');
+        this.loadLinks();
+      });
+    });
+  }
   loadRepairs = () => {
     const core = this.core();
     core.repairJobs().then(res => {
@@ -6854,6 +6949,10 @@ class Component extends DCLogic {
       this._rosterLoadStarted = true;
       this.loadRoster();
     }
+    if (page === 'links' && !this._linksLoadStarted) {
+      this._linksLoadStarted = true;
+      this.loadLinks();
+    }
     if (page === 'repairs' && !this._repairLoadStarted) {
       this._repairLoadStarted = true;
       this.loadRepairs();
@@ -7005,6 +7104,7 @@ class Component extends DCLogic {
       builder: { kicker: 'Form & Field Builder', title: 'จัดการคำถามในแบบฟอร์ม' },
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },
       repairs: { kicker: 'Repair Tracking', title: 'ตามงานซ่อม' },
+      links: { kicker: 'Form Links', title: 'รวมลิงก์' },
       roster: { kicker: 'Duty Roster', title: 'ตารางเวร' },
       pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน PDF' },
       kpi: { kicker: 'Key Performance Indicators', title: 'KPI' },
@@ -7168,6 +7268,7 @@ class Component extends DCLogic {
           navItem('records', 'Records', 'RC', 'var(--muted)', String(core.MODULES.reduce((n, m) => n + core.recordCount(m.id), 0))),
           navItem('roster', 'ตารางเวร', 'SH', '#5b7cfa', ''),
           navItem('repairs', 'ตามงานซ่อม', 'RP', '#e0763f', String(this.repairJobs().filter(j => j.status !== 'closed' && j.status !== 'rejected').length)),
+          navItem('links', 'รวมลิงก์', 'LK', 'var(--muted)', s.linkLoaded ? String((s.linkRows || []).length) : ''),
           navItem('pdf', 'Export PDF', 'PD', 'var(--muted)')
         ] },
         { title: 'System', items: [navItem('settings', 'ตั้งค่า', 'ST', 'var(--muted)')] }
@@ -7184,6 +7285,23 @@ class Component extends DCLogic {
       isRecords: page === 'records',
       isRoster: page === 'roster',
       roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
+      isLinks: page === 'links',
+      linkLoading: !s.linkLoaded,
+      linkError: s.linkError || '',
+      linkEmpty: !!s.linkLoaded && !s.linkError && !(s.linkRows || []).length,
+      linkLabel: s.linkLabel || '',
+      linkUrl: s.linkUrl || '',
+      setLinkLabel: (e) => this.setState({ linkLabel: e.target.value }),
+      setLinkUrl: (e) => this.setState({ linkUrl: e.target.value }),
+      addLink: this.addLink,
+      linkAddLabel: s.linkBusy ? 'กำลังเพิ่ม…' : 'เพิ่มลิงก์',
+      linkBusy: !!s.linkBusy,
+      linkCards: (s.linkRows || []).map(r => ({
+        label: r.label, url: r.url, short: this.shortLink(r.url),
+        copy: () => this.copyText(r.url, '✓ คัดลอกลิงก์แล้ว'),
+        copyMsg: () => this.copyText(r.label + '\n' + r.url, '✓ คัดลอกชื่อ + ลิงก์แล้ว'),
+        remove: () => this.deleteLink(r)
+      })),
       isRepairs: page === 'repairs',
       repairs: page === 'repairs' ? this.buildRepairs() : { stats: [], topics: [], cards: [], empty: false, search: '', setSearch: null, heroAction: null, form: null, openNew: null },
       isPdf: page === 'pdf',
