@@ -671,10 +671,19 @@ async function fillQuestion(item, field, rawValue) {
   /* nps — Forms' 0-10 scale: eleven radios whose value attribute is the number itself */
   if (field.type === 'nps') {
     if (!/^(10|[0-9])$/.test(value)) throw new Error(`value for ${field.id} must be 0-10, got "${value}"`);
-    const radio = item.locator(`[data-automation-id="npsContainer"] input[type="radio"][value="${value}"]`);
+    const radio = item.locator(`[data-automation-id="npsContainer"] input[type="radio"][value="${value}"]`).first();
     if (!(await radio.count())) throw new Error(`no ${value} on the 0-10 scale of ${field.id}`);
-    await clickToCheck(radio.first());
-    return;
+    /* the visible number is a <label for=...> drawn over the radio and takes the click, so click
+       that label, then confirm the radio really is checked */
+    const label = item.locator(`label[for="${await radio.getAttribute('id')}"]`).first();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await label.click();
+      for (let i = 0; i < 5; i++) {
+        if (await radio.isChecked().catch(() => false)) return;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+    throw new Error(`could not select ${value} on the 0-10 scale of ${field.id}`);
   }
 
   if (field.type === 'date') {
