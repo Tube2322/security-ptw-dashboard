@@ -465,6 +465,20 @@ const FORMS = {
      so most of these are `checkbox`. It also asks for no date at all, which is why mi_golf_date
      isn't in this list. soc-core.js's monthly_inspection_golf_cart form was rewritten from the
      generic total/pass/fail template to match these 13 questions one-for-one. */
+  /* เบิกจ่ายน้ำกลั่น รถกอล์ฟ — six questions, verified against the live form 2026-11-05: date, name
+     (text), shift (เช้า/ดึก), cart ("รถกอล์ฟ 1 " / "รถกอล์ฟ 2 " — trailing spaces, matched because
+     choices are whitespace-normalized), quantity (text), note (optional). */
+  golf_water: {
+    url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UQkg3RExHRE9RNUYyWjRIRkhONTFPSVBQUy4u',
+    fields: [
+      { id: 'gw_date', type: 'date' },
+      { id: 'gw_name', type: 'text' },
+      { id: 'gw_shift', type: 'radio' },
+      { id: 'gw_cart', type: 'radio' },
+      { id: 'gw_qty', type: 'text' },
+      { id: 'gw_note', type: 'text' }
+    ]
+  },
   monthly_inspection_golf_cart: {
     url: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=YDYBfPpivEywct4fZ2hkPDikm5IrrH5LheWy-VUfBo1UNTRFVTZVRzdORUhaTjNEQlIwQkZRVjVMVi4u',
     fields: [

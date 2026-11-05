@@ -76,7 +76,14 @@
       kind: 'monthly', fieldPrefix: 'mi_fire_ext', dateField: 'mi_fire_ext_date', nameField: 'mi_fire_ext_checker_name', inspectorField: 'mi_fire_ext_inspector_name' },
     { id: 'monthly_inspection_fire_exit', code: 'M5', name: 'ประตูหนีไฟ', en: 'Monthly – Fire Exit', formId: 'form_monthly_fire_exit',
       desc: 'ตรวจเช็คความพร้อมประตูหนีไฟ', color: PALETTE.monthly, group: 'monthly',
-      kind: 'monthly', fieldPrefix: 'mi_fire_exit', dateField: 'mi_fire_exit_date', nameField: 'mi_fire_exit_checker_name', inspectorField: 'mi_fire_exit_inspector_name' }
+      kind: 'monthly', fieldPrefix: 'mi_fire_exit', dateField: 'mi_fire_exit_date', nameField: 'mi_fire_exit_checker_name', inspectorField: 'mi_fire_exit_inspector_name' },
+
+    /* เบิกจ่ายน้ำกลั่น รถกอล์ฟ — one record per withdrawal, mirroring the other department's form of
+       the same name (forward-msforms.js FORMS.golf_water). Form-driven (kind 'monthly' = the generic
+       dashboard), but a tile of its own, not part of the monthly-inspection group. */
+    { id: 'golf_water', code: 'GW', name: 'เบิกน้ำกลั่นรถกอล์ฟ', en: 'Golf Cart – Distilled Water', formId: 'form_golf_water',
+      desc: 'บันทึกการเบิกจ่ายน้ำกลั่นสำหรับรถกอล์ฟ', color: PALETTE.golf,
+      kind: 'monthly', fieldPrefix: 'gw', dateField: 'gw_date', nameField: 'gw_name', inspectorField: null }
   ];
 
   /* The code's own name for each module, kept aside so a custom label (see loadModuleLabels /
@@ -269,6 +276,14 @@
          from their form so the auto-forward can match each choice exactly). mi_golf_date has
          no counterpart on their form — it stays because this module is filed by month on our
          side (see MODULES' dateField) and is simply not forwarded. */
+      golf_water: [
+        f('gw_date', 'วันที่เบิก', 'date', { required: true, system: true, group: 'ข้อมูลการเบิก' }),
+        f('gw_name', 'ชื่อ-นามสกุล', 'select', { required: true, system: true, group: 'ข้อมูลการเบิก', options: [], placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),
+        f('gw_shift', 'กะเช้า/กะดึก', 'radio', { required: true, group: 'ข้อมูลการเบิก', options: ['เช้า', 'ดึก'] }),
+        f('gw_cart', 'ใช้กับรถ', 'radio', { required: true, group: 'ข้อมูลการเบิก', options: ['รถกอล์ฟ 1', 'รถกอล์ฟ 2'] }),
+        f('gw_qty', 'จำนวนที่เบิก', 'number', { required: true, group: 'ข้อมูลการเบิก', placeholder: '0' }),
+        f('gw_note', 'หมายเหตุ', 'textarea', { group: 'ข้อมูลการเบิก', placeholder: 'ถ้ามี' })
+      ],
       monthly_inspection_golf_cart: [
         f('mi_golf_date', 'เดือนที่ตรวจ', 'date', { required: true, system: true, group: 'ข้อมูลการตรวจ', helper: 'เลือกวันใดก็ได้ในเดือนที่ตรวจ' }),
         f('mi_golf_name', 'ชื่อ - นามสกุล', 'select', { required: true, system: true, group: 'ข้อมูลการตรวจ', options: OPERATORS.slice(), placeholder: 'เลือกชื่อ หรือพิมพ์ชื่อเอง', allowCustom: true }),

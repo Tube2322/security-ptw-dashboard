@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261105a"></script>
+<script src="./soc-core.js?v=20261105b"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -7118,6 +7118,8 @@ class Component extends DCLogic {
     if (pageGroup) { t.kicker = pageGroup.en; t.title = pageGroup.name; }
     else if (moduleId) {
       t.title = (core.module(moduleId) || {}).name || t.title;
+      /* a module with no entry of its own (golf_water) is still not "All Operations" */
+      if (!titles[page]) t.kicker = ((core.module(moduleId) || {}).en || 'Module') + ' Module';
       /* a module inside a group is named relative to it — "ตรวจประจำเดือน — กล้องวงจรปิด" */
       if (modGroup) { t.kicker = modGroup.en; t.title = modGroup.name + ' — ' + t.title; }
     }
@@ -7845,6 +7847,7 @@ class Component extends DCLogic {
         { id: 'monthly_inspection_acc_door', name: 'ตรวจประจำเดือน — ประตู ACC' },
         { id: 'monthly_inspection_cctv', name: 'ตรวจประจำเดือน — กล้องวงจรปิด' },
         { id: 'monthly_inspection_golf_cart', name: 'ตรวจประจำเดือน — รถกอล์ฟ' },
+        { id: 'golf_water', name: 'เบิกจ่ายน้ำกลั่น รถกอล์ฟ' },
         { id: 'visitors', name: 'Visitor' },
         { id: 'traffic_tt', name: 'รถเข้า-ออก ทะเลทอง (ลานจอดทะเลทอง)' },
         /* one toggle for two of our modules: their form asks both in a single submission */
