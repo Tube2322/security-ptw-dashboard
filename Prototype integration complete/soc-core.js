@@ -283,7 +283,9 @@
         f('mi_golf_suspension', 'ช่วงล่าง', 'checkbox', { required: true, group: 'สภาพรถ', options: ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน'], allowCustom: true }),
         f('mi_golf_canvas', 'ผ้าใบกันฝน', 'checkbox', { required: true, group: 'สภาพรถ', options: ['มีรอยฉีก/ขาด', 'พร้อมใช้งาน'], allowCustom: true }),
         f('mi_golf_status', 'สถานะรถ', 'checkbox', { required: true, group: 'สภาพรถ', options: ['พร้อมใช้งาน', 'ไม่พร้อมใช้งาน'], allowCustom: true }),
-        f('mi_golf_note', 'หมายเหตุ', 'textarea', { group: 'สภาพรถ', placeholder: 'สิ่งที่พบ / รายการที่ต้องแก้ไข (ถ้ามี)' })
+        f('mi_golf_note', 'หมายเหตุ', 'textarea', { group: 'สภาพรถ', placeholder: 'สิ่งที่พบ / รายการที่ต้องแก้ไข (ถ้ามี)' }),
+        /* their question 14 (added 2026-11): a 0-10 scale, optional there too */
+        f('mi_golf_water', 'ระดับน้ำกลั่น', 'radio', { group: 'สภาพรถ', options: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], helper: 'เลือก 0–10 ตามระดับที่วัดได้ (ไม่บังคับ)' })
       ]
     };
     Object.keys(forms).forEach(function (k) { forms[k].forEach(function (fl, i) { fl.order = i; }); });

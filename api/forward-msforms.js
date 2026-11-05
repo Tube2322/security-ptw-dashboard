@@ -313,6 +313,9 @@ async function checkForm(browser, moduleId, form) {
         } else if (f.type === 'text') {
           const inputs = await items.nth(i).locator('input[data-automation-id="textInput"], textarea[data-automation-id="textInput"]').count();
           if (!inputs) problems.push(`question ${i + 1} (${f.id}) has no text box`);
+        } else if (f.type === 'nps') {
+          const cells = await items.nth(i).locator('[data-automation-id="npsContainer"] input[type="radio"]').count();
+          if (cells !== 11) problems.push(`question ${i + 1} (${f.id}) should be a 0-10 scale, shows ${cells} choices`);
         }
       }
     }
@@ -477,7 +480,9 @@ const FORMS = {
       { id: 'mi_golf_suspension', type: 'checkbox' },
       { id: 'mi_golf_canvas', type: 'checkbox' },
       { id: 'mi_golf_status', type: 'checkbox' },
-      { id: 'mi_golf_note', type: 'text' }
+      { id: 'mi_golf_note', type: 'text' },
+      /* question 14, added on their side 2026-11: "ระดับน้ำกลั่น", a 0-10 scale (Forms' NPS control), optional */
+      { id: 'mi_golf_water', type: 'nps' }
     ]
   },
   /* The other department's main daily form ("จำนวนรถเข้าออกประจำวัน") covers TWO of our modules at
@@ -662,6 +667,15 @@ async function fillQuestion(item, field, rawValue) {
 
   const value = rawValue == null ? '' : String(rawValue).trim();
   if (!value) return; // optional/empty field (e.g. หมายเหตุ) — leave blank on the target form too
+
+  /* nps — Forms' 0-10 scale: eleven radios whose value attribute is the number itself */
+  if (field.type === 'nps') {
+    if (!/^(10|[0-9])$/.test(value)) throw new Error(`value for ${field.id} must be 0-10, got "${value}"`);
+    const radio = item.locator(`[data-automation-id="npsContainer"] input[type="radio"][value="${value}"]`);
+    if (!(await radio.count())) throw new Error(`no ${value} on the 0-10 scale of ${field.id}`);
+    await clickToCheck(radio.first());
+    return;
+  }
 
   if (field.type === 'date') {
     const input = item.locator('[data-automation-id="dateContainer"] input').first();
