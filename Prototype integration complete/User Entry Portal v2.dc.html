@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261105a"></script>
+<script src="./soc-core.js?v=20261105b"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -427,7 +427,7 @@ class Component extends DCLogic {
     if (core && core.field(id, 'checkpoint_time')) values.checkpoint_time = this.nowHHMM();
     this.setState({ view: 'form', module: id, phase: 'loading', values, errors: {}, banner: '', repairRules: null, repairAsk: false, repairInfo: {}, photos: [], photoBusy: 0 });
     /* only monthly inspections can open a repair job; their "broken" answers decide when the camera shows */
-    if (core && (core.module(id) || {}).kind === 'monthly') {
+    if (core && (core.module(id) || {}).group === 'monthly') {
       core.repairRules(id).then(rules => { if (this.state.module === id) this.setState({ repairRules: rules }); });
     }
     if (this._t) clearTimeout(this._t);
@@ -602,7 +602,7 @@ class Component extends DCLogic {
      screen just reflects whether the forward itself worked so a failure isn't silent. */
   forwardToMsForms(moduleId, payload, saved) {
     if (moduleId === 'traffic' || moduleId === 'golf') { this.forwardTrafficGolf(moduleId, payload, saved); return; }
-    const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit', 'monthly_inspection_acc_door', 'monthly_inspection_cctv', 'monthly_inspection_golf_cart', 'visitors', 'traffic_tt'];
+    const FORWARDABLE = ['monthly_inspection_fire_extinguisher', 'monthly_inspection_fire_exit', 'monthly_inspection_acc_door', 'monthly_inspection_cctv', 'monthly_inspection_golf_cart', 'visitors', 'traffic_tt', 'golf_water'];
     if (FORWARDABLE.indexOf(moduleId) === -1) return;
     const core = this.core();
     const on = !!(core.getPortal().msFormsForwarding || {})[moduleId];
@@ -1054,7 +1054,8 @@ class Component extends DCLogic {
         fields: g.fields.map(f => this.buildField(f))
       })),
 
-      showRepairAsk: s.view === 'form' && s.phase === 'ready' && (core.module(s.module) || {}).kind === 'monthly',
+      /* inspections only — the monthly group; golf_water is a withdrawal log that shares the generic kind */
+      showRepairAsk: s.view === 'form' && s.phase === 'ready' && (core.module(s.module) || {}).group === 'monthly',
       repairAsk: !!s.repairAsk,
       toggleRepair: this.toggleRepair,
       repairBuildings: (s.repairLocs || []).map(b => b.name),
