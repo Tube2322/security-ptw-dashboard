@@ -332,6 +332,18 @@
           <h1 style="margin: 4px 0 4px; font-size: clamp(21px, 5.6vw, 25px); font-weight: 600;">ตรวจกล้องประจำสัปดาห์</h1>
           <p style="margin: 0; font-size: 14px; color: var(--muted);">เลือก NVR แล้วกรอกจำนวนวันที่แต่ละกล้องดูย้อนหลังได้ · ตัวเลขดึงค่าครั้งก่อนมาให้ แก้เฉพาะตัวที่เปลี่ยน</p>
         </div>
+        <div style="padding: 12px 14px; border-radius: 14px; border: 1px solid {{ cctv.weekBorder }}; background: {{ cctv.weekBg }}; font-size: 14px; font-weight: 500;">{{ cctv.weekText }}</div>
+        <details style="border-radius: 14px; border: 1px solid var(--line); background: var(--panel); padding: 0 14px;">
+          <summary style="min-height: 46px; display: flex; align-items: center; cursor: pointer; font-size: 14px; font-weight: 600;">วิธีตรวจ (อ่านครั้งแรก)</summary>
+          <ol style="margin: 0 0 14px; padding-left: 20px; font-size: 14px; line-height: 1.75; color: var(--text);">
+            <li>เปิดหน้า <b>Playback</b> ของ NVR ที่จะตรวจ แล้วเลือกกล้องทีละตัว</li>
+            <li>ดูว่าวันที่ <b>เก่าสุดที่ยังมีภาพ</b> คือวันไหน</li>
+            <li>นับวันจากวันนั้นถึงวันนี้ เช่น เก่าสุด 14 ต.ค. วันนี้ 11 พ.ย. = <b>28 วัน</b> (ตัวเลขข้าง <b>/ 28</b> คือที่กล้องควรได้ ถ้าได้น้อยกว่าจะขึ้น "ขาด" ให้เอง)</li>
+            <li>กล้องที่ภาพดับ ภาพค้าง หรือเปิดย้อนหลังไม่ได้ ให้กด <b>เสีย</b> แล้วเขียนอาการสั้นๆ</li>
+            <li>ถ้าทุกตัวใน NVR ได้เท่ากัน ใช้ <b>ตั้งทุกตัวเป็น</b> แล้วแก้เฉพาะตัวที่ต่าง จะเร็วกว่า</li>
+            <li>ตรวจครบ 6 NVR สัปดาห์ละครั้ง บันทึกทีละ NVR</li>
+          </ol>
+        </details>
         <section style="padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px;">
           <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; min-width: 0;">วันที่ตรวจ *<input type="date" value="{{ cctv.date }}" onChange="{{ cctv.setDate }}" style="min-height: 44px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--line-2); background: #ffffff; color: var(--text); font-size: 16px; min-width: 0;"></label>
           <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; min-width: 0;">ชื่อผู้ตรวจ *<input type="text" value="{{ cctv.name }}" onChange="{{ cctv.setName }}" placeholder="ชื่อ-นามสกุล" style="min-height: 44px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--line-2); background: #ffffff; color: var(--text); font-size: 16px; min-width: 0;"></label>
@@ -589,18 +601,26 @@ class Component extends DCLogic {
         setNote: (e) => this.cctvPatch(c.name, { note: e.target.value }),
         setOk: () => this.cctvPatch(c.name, { ok: true }), setBad: () => this.cctvPatch(c.name, { ok: false }) };
     });
+    /* this week = Monday to Sunday, Thai time */
+    const now = new Date(Date.now() + 7 * 3600000), dow = (now.getUTCDay() + 6) % 7;
+    const weekStart = new Date(now.getTime() - dow * 86400000).toISOString().slice(0, 10);
+    const pending = [1, 2, 3, 4, 5, 6].filter(n => !(lastNvr[n] && lastNvr[n] >= weekStart));
     const names = Object.keys(items), bad = names.filter(n => !items[n].ok).length;
     const capOf = {}; cams.forEach(c => { capOf[c.name] = c.capacity; });
     const shortN = names.filter(n => items[n].ok && /^\d{1,3}$/.test(String(items[n].days).trim()) && capOf[n] && +items[n].days < capOf[n]).length;
     const empty = names.filter(n => items[n].ok && String(items[n].days).trim() === '').length;
     return {
+      weekText: pending.length ? 'สัปดาห์นี้ตรวจแล้ว ' + (6 - pending.length) + '/6 NVR · ยังเหลือ NVR ' + pending.join(', ') : '✓ สัปดาห์นี้ตรวจครบทั้ง 6 NVR แล้ว',
+      weekBg: pending.length ? 'rgba(217,162,27,0.08)' : 'rgba(22,155,70,0.08)', weekBorder: pending.length ? 'rgba(217,162,27,0.4)' : 'var(--accent-line)',
       date: s.cctvDate || '', name: s.cctvName || '', loading: !!s.cctvLoading, hasNvr: !!s.cctvNvr && rows.length > 0, rows,
       setDate: (e) => this.setState({ cctvDate: e.target.value }),
       setName: (e) => this.setState({ cctvName: e.target.value }),
       nvrs: [1, 2, 3, 4, 5, 6].map(n => {
         const on = s.cctvNvr === n, count = cams.filter(c => c.nvr === n).length;
-        return { label: 'NVR ' + n, sub: count + ' กล้อง' + (lastNvr[n] ? ' · ล่าสุด ' + core.fmtDate(lastNvr[n]) : ''),
-          border: on ? '2px solid var(--accent)' : '1px solid var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--panel)', pick: () => this.cctvPick(n) };
+        const done = lastNvr[n] && lastNvr[n] >= weekStart;
+        return { label: (done ? '✓ ' : '') + 'NVR ' + n, sub: count + ' กล้อง · ' + (done ? 'ตรวจแล้วสัปดาห์นี้' : (lastNvr[n] ? 'ล่าสุด ' + core.fmtDate(lastNvr[n]) : 'ยังไม่เคยตรวจ')),
+          border: on ? '2px solid var(--accent)' : (done ? '1px solid var(--accent-line)' : '1px solid var(--line)'),
+          bg: on ? 'var(--accent-soft)' : (done ? 'rgba(22,155,70,0.06)' : 'var(--panel)'), pick: () => this.cctvPick(n) };
       }),
       bulk: s.cctvBulk || '', setBulk: (e) => this.setState({ cctvBulk: e.target.value }),
       applyBulk: () => {
@@ -611,7 +631,7 @@ class Component extends DCLogic {
       allOk: () => this.setState(st => { const next = {}; Object.keys(st.cctvItems).forEach(n => { next[n] = Object.assign({}, st.cctvItems[n], { ok: true }); }); return { cctvItems: next, cctvDirty: true }; }),
       summary: 'NVR ' + (s.cctvNvr || '-') + ' · ' + names.length + ' กล้อง · ใช้งานได้ ' + (names.length - bad) + ' · เสีย ' + bad + (shortN ? ' · ขาดวัน ' + shortN : '') + (empty ? ' · ยังไม่กรอกวัน ' + empty : ''),
       error: s.cctvErr || '', saveLabel: s.cctvBusy ? 'กำลังบันทึก…' : 'บันทึกผลตรวจ NVR ' + (s.cctvNvr || ''), save: this.cctvSave,
-      doneText: s.cctvDone || '', next: () => this.setState({ view: 'cctv', cctvNvr: null, cctvItems: {} })
+      doneText: (s.cctvDone || '') + (pending.length ? ' · สัปดาห์นี้ยังเหลือ NVR ' + pending.join(', ') : ' · สัปดาห์นี้ครบทั้ง 6 NVR แล้ว'), next: () => this.setState({ view: 'cctv', cctvNvr: null, cctvItems: {} })
     };
   }
   closeGroup = () => this.setState({ openGroup: null });

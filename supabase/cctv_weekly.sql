@@ -109,3 +109,15 @@ where k.source = 'excel' and i->>'name' = c.name and (i->>'days') is not null an
 update public.cctv_cameras c set capacity = m.cap
 from (select nvr, mode() within group (order by capacity) cap from public.cctv_cameras where capacity is not null group by nvr) m
 where c.nvr = m.nvr and c.capacity is null;
+
+-- v3: the Excel baseline is a starting point, not a weekly check — it no longer counts as an NVR's last check
+create or replace function public.cctv_latest()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'cams', coalesce((select jsonb_object_agg(name, jsonb_build_object('days', days, 'ok', ok)) from (
+      select distinct on (i->>'name') i->>'name' as name, (i->>'days')::integer as days, (i->>'ok')::boolean as ok
+      from cctv_checks c, jsonb_array_elements(c.items) i
+      order by i->>'name', c.check_date desc, c.submitted_at desc) t), '{}'::jsonb),
+    'nvr', coalesce((select jsonb_object_agg(nvr, last) from (select nvr, max(check_date) last from cctv_checks where source <> 'excel' group by nvr) t), '{}'::jsonb)
+  )
+$$;
