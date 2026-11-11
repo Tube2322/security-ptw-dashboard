@@ -134,3 +134,5 @@ update public.cctv_checks k set items = k.items || coalesce((
     and not k.items @> jsonb_build_array(jsonb_build_object('name', c.name))), '[]'::jsonb)
 where k.source = 'excel';
 update public.cctv_cameras set capacity = 28 where name in ('FD-G-27','FD-G-28','FD-S1-2','FD-S1-3','RF-1-2','RF-1-3');
+-- v5: FD-2-23 does not exist on NVR2 (screen shows 22 then 24); hidden, not deleted
+update public.cctv_cameras set active = false where name = 'FD-2-23';
