@@ -140,3 +140,26 @@ update public.cctv_cameras set active = false where name = 'FD-2-23';
 insert into public.cctv_cameras (name, nvr, sort, active, capacity) values ('FD-G-27 (NVR2)', 2, 64, true, 34) on conflict (name) do nothing;
 -- v7: NVR3 screen (62/62) skips FD-3-27 and FD-3-29; hidden, not deleted
 update public.cctv_cameras set active = false where name in ('FD-3-27','FD-3-29');
+-- v8: NVR5 as its screen lists it (46): FD-S1-1 and FD-S1-2 appear twice, the parking cameras are F-G-29..31,
+-- RF-1-2 / RF-1-3 are not on it. New entries with no reading start at 28 days, like FD-G-27 (NVR2)
+update public.cctv_checks set items = replace(replace(replace(items::text,
+  '"FD-G-29"', '"F-G-29"'), '"FD-G-30"', '"F-G-30"'), '"FD-G-31"', '"F-G-31"')::jsonb
+where items::text like '%"FD-G-29"%' or items::text like '%"FD-G-30"%' or items::text like '%"FD-G-31"%';
+update public.cctv_cameras set name = 'F-' || substr(name, 4) where name in ('FD-G-29','FD-G-30','FD-G-31');
+update public.cctv_cameras set active = false where name in ('RF-1-2','RF-1-3');
+insert into public.cctv_cameras (name, nvr, sort, active, capacity) values
+  ('FD-S1-1 (2)', 5, 0, true, 28), ('FD-S1-2 (2)', 5, 0, true, 28) on conflict (name) do nothing;
+update public.cctv_cameras c set sort = o.n from unnest(array[
+  'FD-11-12','FD-11-CL01','FD-11-CL02','FD-11-PL01','FD-11-PL02','FD-11-PL03','FD-11-PL04','FD-11-SL01','FD-11-SL02',
+  'FD-S1-1','FD-S1-1 (2)','FD-S1-2','FD-S1-2 (2)','FD-S1-3','FD-S1-4','FD-S1-5','FD-S1-6',
+  'FD-S2-1','FD-S2-2','FD-S2-3','FD-S2-4','FD-S2-5','FD-S2-6','FD-S2-7','FD-S2-8','FD-S2-9',
+  'FD-S3-1','FD-S3-2','FD-S3-3','FD-S3-4','FD-S3-5','FD-S3-6','FD-S3-7','FD-S3-8','FD-S3-9',
+  'FD-S4-1','FD-S4-2','FD-S4-3','FD-SR-1','FD-SR-2','F-G-29','F-G-30','F-G-31','RF-1-1','RF-2-1','RF-2-2'
+]) with ordinality o(name, n) where c.name = o.name;
+update public.cctv_cameras set capacity = 28 where name = 'FD-G-27 (NVR2)';
+update public.cctv_checks k set items = k.items || coalesce((
+  select jsonb_agg(jsonb_build_object('name', c.name, 'days', 28, 'ok', true, 'note', '') order by c.sort)
+  from public.cctv_cameras c
+  where c.nvr = k.nvr and c.name in ('FD-G-27 (NVR2)','FD-S1-1 (2)','FD-S1-2 (2)')
+    and not k.items @> jsonb_build_array(jsonb_build_object('name', c.name))), '[]'::jsonb)
+where k.source = 'excel';
