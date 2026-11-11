@@ -1371,6 +1371,15 @@
                   <span style="margin-left: auto; font-size: 12.5px; color: var(--muted);">{{ cctv.lastText }}</span>
                 </div>
 
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid {{ cctv.week.border }}; background: {{ cctv.week.bg }};">
+                  <span style="font-size: 14px; font-weight: 600;">{{ cctv.week.title }}</span>
+                  <div style="display: flex; gap: 5px; margin-left: auto;">
+                    <sc-for list="{{ cctv.week.nvrs }}" as="wn" hint-placeholder-count="6">
+                      <span title="{{ wn.title }}" style="min-width: 30px; height: 26px; padding: 0 6px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: {{ wn.bg }}; color: {{ wn.fg }}; border: {{ wn.border }};">{{ wn.label }}</span>
+                    </sc-for>
+                  </div>
+                </div>
+
                 <!-- what needs attention, in words -->
                 <sc-if value="{{ cctv.hasIssues }}" hint-placeholder-val="{{ false }}">
                   <div style="border-radius: 14px; border: 1px solid var(--line); background: var(--panel); overflow: hidden;">
@@ -6152,7 +6161,7 @@ class Component extends DCLogic {
   }
   buildCctvAdmin() {
     const s = this.state, core = this.core();
-    const empty = { loading: !s.cctvLoaded, ready: false, error: s.cctvError || '', stats: [], issues: [], tabs: [], panels: [], legend: [] };
+    const empty = { loading: !s.cctvLoaded, ready: false, error: s.cctvError || '', stats: [], issues: [], tabs: [], panels: [], legend: [], week: { nvrs: [] } };
     if (!s.cctvLoaded || s.cctvError) return empty;
     const cams = s.cctvCams || [], checks = s.cctvChecks || [];
     /* checks arrive newest first: a camera's first reading is its current state */
@@ -6183,6 +6192,22 @@ class Component extends DCLogic {
         pick: () => this.setState({ cctvFilter: on ? 'all' : k }) };
     });
     const lastAll = checks[0];
+    /* this week = Monday to Sunday, Thai time; the Excel baseline does not count as a weekly check */
+    const now = new Date(Date.now() + 7 * 3600000), dow = (now.getUTCDay() + 6) % 7;
+    const weekStart = new Date(now.getTime() - dow * 86400000).toISOString().slice(0, 10);
+    const weekEnd = new Date(now.getTime() + (6 - dow) * 86400000).toISOString().slice(0, 10);
+    const doneWeek = {};
+    checks.forEach(ch => { if (ch.source !== 'excel' && ch.check_date >= weekStart && !doneWeek[ch.nvr]) doneWeek[ch.nvr] = ch; });
+    const pending = [1, 2, 3, 4, 5, 6].filter(n => !doneWeek[n]);
+    const week = {
+      title: pending.length ? 'สัปดาห์นี้ (' + core.fmtDate(weekStart) + ' – ' + core.fmtDate(weekEnd) + ') ตรวจแล้ว ' + (6 - pending.length) + '/6 · ค้าง NVR ' + pending.join(', ')
+        : '✓ สัปดาห์นี้ตรวจครบทั้ง 6 NVR',
+      bg: pending.length ? 'rgba(217,162,27,0.08)' : 'rgba(63,191,143,0.08)', border: pending.length ? 'rgba(217,162,27,0.4)' : 'rgba(63,191,143,0.35)',
+      nvrs: [1, 2, 3, 4, 5, 6].map(n => ({ label: String(n),
+        title: 'NVR ' + n + (doneWeek[n] ? ' · ตรวจ ' + core.fmtDate(doneWeek[n].check_date) + ' โดย ' + doneWeek[n].checker : ' · ยังไม่ตรวจสัปดาห์นี้'),
+        bg: doneWeek[n] ? 'rgba(63,191,143,0.16)' : 'transparent', fg: doneWeek[n] ? 'color-mix(in srgb, #23966c 85%, var(--text))' : 'var(--muted)',
+        border: doneWeek[n] ? '1px solid rgba(63,191,143,0.4)' : '1px dashed var(--line-2)' }))
+    };
     const issues = cams.filter(c => state(c) === 'bad' || state(c) === 'short').sort((a, b) => (state(a) === 'bad' ? 0 : 1) - (state(b) === 'bad' ? 0 : 1) || a.nvr - b.nvr || a.sort - b.sort)
       .map(c => { const l = latest[c.name], st = state(c);
         return { name: c.name, dot: STY[st].dot, fg: STY[st].fg, where: 'NVR ' + c.nvr + ' · ' + core.fmtDate(l.date),
@@ -6239,9 +6264,10 @@ class Component extends DCLogic {
       };
     }
     return {
-      loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0,
+      loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0, week,
       issues, hasIssues: issues.length > 0, issueCount: issues.length + ' กล้อง',
-      lastText: lastAll ? 'ตรวจล่าสุด ' + core.fmtDate(lastAll.check_date) + ' · ' + Object.keys(nvrLast).length + '/6 NVR' : 'ยังไม่มีผลตรวจ',
+      lastText: (() => { const real = checks.find(c => c.source !== 'excel');
+        return real ? 'ตรวจล่าสุด ' + core.fmtDate(real.check_date) + ' โดย ' + real.checker : (lastAll ? 'ข้อมูลตั้งต้นจากไฟล์ Excel ' + core.fmtDate(lastAll.check_date) : 'ยังไม่มีผลตรวจ'); })(),
       legend: ['ok', 'short', 'bad', 'none'].map(k => ({ label: STY[k].label, bg: STY[k].bg, border: STY[k].border }))
     };
   }
@@ -7490,7 +7516,7 @@ class Component extends DCLogic {
       isRecords: page === 'records',
       isRoster: page === 'roster',
       isCctv: page === 'cctv',
-      cctv: page === 'cctv' ? this.buildCctvAdmin() : { loading: false, ready: false, stats: [], issues: [], tabs: [], panels: [], legend: [] },
+      cctv: page === 'cctv' ? this.buildCctvAdmin() : { loading: false, ready: false, stats: [], issues: [], tabs: [], panels: [], legend: [], week: { nvrs: [] } },
       roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
       isLinks: page === 'links',
       linkLoading: !s.linkLoaded,
