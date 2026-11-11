@@ -539,6 +539,7 @@ class Component extends DCLogic {
   };
   /* picking an NVR starts every camera from its last reading, so a routine week is only the changes */
   cctvPick(nvr) {
+    if (!this.state.cctvCams || this.state.cctvLoading) return;   // the list is still loading
     if (this.state.cctvDirty && this.state.cctvNvr !== nvr && !window.confirm('ข้อมูล NVR ' + this.state.cctvNvr + ' ที่กรอกไว้จะหาย — เปลี่ยน NVR?')) return;
     const last = (this.state.cctvLatest || {}).cams || {};
     const items = {};
