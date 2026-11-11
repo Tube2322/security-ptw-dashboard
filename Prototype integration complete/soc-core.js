@@ -911,6 +911,27 @@
       });
     },
     /* Duty roster (supabase/roster.sql), admin-only. One month at a time: staff, their day codes, targets. */
+    /* ตรวจกล้องประจำสัปดาห์ (supabase/cctv_weekly.sql). The camera list is public; the portal reads each
+       camera's latest reading through cctv_latest() and files a check per NVR through cctv_check_submit(). */
+    cctvCameras: function () {
+      return sb.from('cctv_cameras').select('name,nvr,sort,capacity').eq('active', true).order('nvr').order('sort')
+        .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
+    },
+    cctvLatest: function () {
+      return sb.rpc('cctv_latest').then(function (res) { return res.error ? { cams: {}, nvr: {} } : (res.data || { cams: {}, nvr: {} }); });
+    },
+    cctvSubmit: function (date, nvr, checker, items) {
+      return sb.rpc('cctv_check_submit', { p_date: date, p_nvr: nvr, p_checker: checker, p_items: items })
+        .then(function (res) { return res.error ? res.error.message : ''; });
+    },
+    /* admin view: every check, newest first */
+    cctvChecks: function () {
+      return sb.from('cctv_checks').select('id,check_date,nvr,checker,items,source,submitted_at').order('check_date', { ascending: false }).order('submitted_at', { ascending: false }).limit(400)
+        .then(function (res) { return { error: res.error ? res.error.message : '', rows: res.data || [] }; });
+    },
+    cctvSetCapacity: function (name, n) {
+      return sb.from('cctv_cameras').update({ capacity: n }).eq('name', name).then(function (res) { return res.error ? res.error.message : ''; });
+    },
     rosterLoad: function (year, month) {
       var from = year + '-' + String(month).padStart(2, '0') + '-01';
       var to = year + '-' + String(month).padStart(2, '0') + '-' + String(new Date(year, month, 0).getDate()).padStart(2, '0');

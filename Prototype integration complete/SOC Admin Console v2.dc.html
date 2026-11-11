@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261105b"></script>
+<script src="./soc-core.js?v=20261111a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -1350,6 +1350,101 @@
             </sc-if>
             <sc-if value="{{ isViewerRole }}" hint-placeholder-val="{{ false }}">
               <div style="padding: 13px 0; font-size: 12.5px; color: var(--dim);">{{ builderStatus }} · สิทธิ์ผู้ชม แก้ไขไม่ได้</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- ===== CCTV (ตรวจกล้องประจำสัปดาห์) ===== -->
+        <sc-if value="{{ isCctv }}" hint-placeholder-val="{{ false }}">
+          <div class="rp-page" style="display: flex; flex-direction: column; gap: 18px; min-width: 0;">
+            <sc-if value="{{ cctv.loading }}" hint-placeholder-val="{{ false }}"><div style="padding: 30px; text-align: center; color: var(--muted); font-size: 13px;">กำลังโหลดผลตรวจกล้อง…</div></sc-if>
+            <sc-if value="{{ cctv.error }}" hint-placeholder-val="{{ false }}"><div style="padding: 12px 14px; border-radius: 12px; background: rgba(209,72,58,0.1); color: var(--danger); font-size: 13px;">โหลดไม่สำเร็จ: {{ cctv.error }}</div></sc-if>
+            <sc-if value="{{ cctv.ready }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-direction: column; gap: 18px; min-width: 0;">
+                <!-- one line of status: what is fine, what needs attention -->
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                  <sc-for list="{{ cctv.stats }}" as="st" hint-placeholder-count="4">
+                    <button class="rp-chip" onClick="{{ st.pick }}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 99px; cursor: pointer; border: 1px solid {{ st.border }}; background: {{ st.bg }}; color: var(--text); font-size: 13px;">
+                      <span style="width: 8px; height: 8px; border-radius: 99px; background: {{ st.dot }};"></span>{{ st.label }}<b style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{ st.value }}</b>
+                    </button>
+                  </sc-for>
+                  <span style="margin-left: auto; font-size: 12.5px; color: var(--muted);">{{ cctv.lastText }}</span>
+                </div>
+
+                <!-- what needs attention, in words -->
+                <sc-if value="{{ cctv.hasIssues }}" hint-placeholder-val="{{ false }}">
+                  <div style="border-radius: 14px; border: 1px solid var(--line); background: var(--panel); overflow: hidden;">
+                    <div style="padding: 11px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--line);">ต้องดูแล · {{ cctv.issueCount }}</div>
+                    <sc-for list="{{ cctv.issues }}" as="is" hint-placeholder-count="3">
+                      <button class="rp-btn" onClick="{{ is.pick }}" style="all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 8px minmax(90px, 140px) 1fr auto; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13px;">
+                        <span style="width: 8px; height: 8px; border-radius: 99px; background: {{ is.dot }};"></span>
+                        <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ is.name }}</span>
+                        <span style="color: {{ is.fg }}; min-width: 0; overflow-wrap: anywhere;">{{ is.text }}</span>
+                        <span style="color: var(--dim); font-size: 12px; white-space: nowrap;">{{ is.where }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); overflow-x: auto;">
+                  <sc-for list="{{ cctv.tabs }}" as="tb" hint-placeholder-count="7">
+                    <button onClick="{{ tb.pick }}" style="flex: 1 0 auto; min-height: 36px; padding: 0 14px; border-radius: 9px; border: none; cursor: pointer; font-size: 13px; white-space: nowrap; background: {{ tb.bg }}; color: {{ tb.fg }}; box-shadow: {{ tb.shadow }};">{{ tb.label }}</button>
+                  </sc-for>
+                </div>
+
+                <sc-for list="{{ cctv.panels }}" as="pn" hint-placeholder-count="1">
+                  <section style="display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+                    <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;">
+                      <span style="font-size: 15px; font-weight: 700;">{{ pn.title }}</span>
+                      <span style="font-size: 12.5px; color: var(--muted);">{{ pn.sub }}</span>
+                      <span style="margin-left: auto; font-size: 12px; color: var(--dim);">{{ pn.when }}</span>
+                    </div>
+                    <div style="height: 4px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;">
+                      <div style="width: {{ pn.okW }}; background: #3fbf8f;"></div><div style="width: {{ pn.shortW }}; background: #d9a21b;"></div><div style="width: {{ pn.badW }}; background: #d1483a;"></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px;">
+                      <sc-for list="{{ pn.cams }}" as="cm" hint-placeholder-count="12">
+                        <button onClick="{{ cm.pick }}" title="{{ cm.title }}" aria-label="{{ cm.title }}" style="position: relative; min-width: 0; padding: 8px 9px 7px; border-radius: 10px; cursor: pointer; text-align: left; border: {{ cm.border }}; background: {{ cm.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 2px;">
+                          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ cm.name }}</span>
+                          <span style="display: flex; align-items: baseline; gap: 2px; font-family: 'IBM Plex Mono', monospace;"><b style="font-size: 16px; color: {{ cm.fg }};">{{ cm.value }}</b><span style="font-size: 10.5px; color: var(--dim);">{{ cm.cap }}</span></span>
+                          <sc-if value="{{ cm.badge }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: 6px; right: 6px; padding: 0 5px; border-radius: 99px; font-size: 10px; font-weight: 700; line-height: 16px; background: {{ cm.badgeBg }}; color: #fff;">{{ cm.badge }}</span></sc-if>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </section>
+                </sc-for>
+
+                <sc-if value="{{ cctv.detail }}" hint-placeholder-val="{{ false }}">
+                  <div class="rp-empty" style="border-radius: 14px; border: 1px solid var(--accent-line); background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                      <div><div style="font-size: 16px; font-weight: 700; font-family: 'IBM Plex Mono', monospace;">{{ cctv.detail.title }}</div><div style="font-size: 12.5px; color: var(--muted);">{{ cctv.detail.sub }}</div></div>
+                      <button class="rp-btn" onClick="{{ cctv.detail.close }}" aria-label="ปิด" style="width: 34px; height: 34px; border-radius: 9px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--muted);">×</button>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                      <sc-for list="{{ cctv.detail.facts }}" as="fc" hint-placeholder-count="3">
+                        <div style="flex: 1 1 120px; padding: 10px 12px; border-radius: 10px; background: var(--panel-2);"><div style="font-size: 11.5px; color: var(--muted);">{{ fc.k }}</div><div style="font-size: 17px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: {{ fc.fg }};">{{ fc.v }}</div></div>
+                      </sc-for>
+                    </div>
+                    <div style="overflow-x: auto;">
+                      <div style="display: flex; flex-direction: column; min-width: 440px;">
+                        <sc-for list="{{ cctv.detail.rows }}" as="hr" hint-placeholder-count="3">
+                          <div style="display: grid; grid-template-columns: 105px 72px 1fr 1.2fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px;">
+                            <span style="color: var(--muted);">{{ hr.date }}</span><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ hr.days }}</span><span style="color: {{ hr.fg }};">{{ hr.status }}</span><span style="color: var(--dim); overflow-wrap: anywhere;">{{ hr.who }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                    <sc-if value="{{ cctv.detail.canEdit }}" hint-placeholder-val="{{ false }}">
+                      <label style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted);">กล้องนี้บันทึกได้สูงสุด<input type="number" min="1" max="365" value="{{ cctv.detail.cap }}" onBlur="{{ cctv.detail.saveCap }}" style="width: 90px; min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px;">วัน</label>
+                    </sc-if>
+                  </div>
+                </sc-if>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted);">
+                  <sc-for list="{{ cctv.legend }}" as="lg" hint-placeholder-count="4"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 4px; background: {{ lg.bg }}; border: {{ lg.border }};"></span>{{ lg.label }}</span></sc-for>
+                  <span>ตัวเลข = วันที่ดูย้อนหลังได้ / วันที่กล้องรับได้สูงสุด</span>
+                </div>
+              </div>
             </sc-if>
           </div>
         </sc-if>
@@ -6048,6 +6143,107 @@ class Component extends DCLogic {
     } : null;
     return base;
   }
+  /* ---------- ตรวจกล้องประจำสัปดาห์ (cctv_cameras / cctv_checks) ---------- */
+  loadCctv = () => {
+    const c = this.core();
+    Promise.all([c.cctvCameras(), c.cctvChecks()]).then(([cams, chk]) =>
+      this.setState({ cctvCams: cams.rows, cctvChecks: chk.rows, cctvError: cams.error || chk.error, cctvLoaded: true }));
+  }
+  buildCctvAdmin() {
+    const s = this.state, core = this.core();
+    const empty = { loading: !s.cctvLoaded, ready: false, error: s.cctvError || '', stats: [], issues: [], tabs: [], panels: [], legend: [] };
+    if (!s.cctvLoaded || s.cctvError) return empty;
+    const cams = s.cctvCams || [], checks = s.cctvChecks || [];
+    /* checks arrive newest first: a camera's first reading is its current state */
+    const latest = {}, history = {}, nvrLast = {};
+    checks.forEach(ch => {
+      if (!nvrLast[ch.nvr]) nvrLast[ch.nvr] = ch;
+      (ch.items || []).forEach(it => {
+        const row = { date: ch.check_date, days: it.days, ok: it.ok !== false, note: it.note || '', checker: ch.checker };
+        if (!latest[it.name]) latest[it.name] = row;
+        (history[it.name] = history[it.name] || []).push(row);
+      });
+    });
+    /* a camera is short when it plays back fewer days than it can hold (its capacity) */
+    const shortOf = (c, r) => r && r.ok && r.days != null && c.capacity ? Math.max(0, c.capacity - r.days) : 0;
+    const state = (c) => { const l = latest[c.name]; return !l ? 'none' : !l.ok ? 'bad' : shortOf(c, l) > 0 ? 'short' : 'ok'; };
+    const STY = {
+      ok: { label: 'ครบ', dot: '#3fbf8f', bg: 'var(--panel)', border: '1px solid var(--line)', fg: 'var(--text)' },
+      short: { label: 'ขาดวัน', dot: '#d9a21b', bg: 'rgba(217,162,27,0.10)', border: '1px solid rgba(217,162,27,0.45)', fg: 'color-mix(in srgb, #b7851a 85%, var(--text))' },
+      bad: { label: 'เสีย', dot: '#d1483a', bg: 'rgba(209,72,58,0.08)', border: '1px solid rgba(209,72,58,0.45)', fg: 'var(--danger)' },
+      none: { label: 'ยังไม่ตรวจ', dot: 'var(--dim)', bg: 'transparent', border: '1px dashed var(--line-2)', fg: 'var(--dim)' }
+    };
+    const count = (list, k) => list.filter(c => state(c) === k).length;
+    const filter = s.cctvFilter || 'all', tab = s.cctvTab || 'all';
+    const stats = ['ok', 'short', 'bad', 'none'].map(k => {
+      const on = filter === k;
+      return { label: STY[k].label, value: String(count(cams, k)), dot: STY[k].dot,
+        border: on ? 'var(--accent-line)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--panel)',
+        pick: () => this.setState({ cctvFilter: on ? 'all' : k }) };
+    });
+    const lastAll = checks[0];
+    const issues = cams.filter(c => state(c) === 'bad' || state(c) === 'short').sort((a, b) => (state(a) === 'bad' ? 0 : 1) - (state(b) === 'bad' ? 0 : 1) || a.nvr - b.nvr || a.sort - b.sort)
+      .map(c => { const l = latest[c.name], st = state(c);
+        return { name: c.name, dot: STY[st].dot, fg: STY[st].fg, where: 'NVR ' + c.nvr + ' · ' + core.fmtDate(l.date),
+          text: st === 'bad' ? 'เสีย' + (l.note ? ' — ' + l.note : '') : 'ขาด ' + shortOf(c, l) + ' วัน (ดูได้ ' + l.days + ' จาก ' + c.capacity + ')',
+          pick: () => this.setState({ cctvSel: c.name, cctvTab: c.nvr }) }; });
+    const tabs = ['all', 1, 2, 3, 4, 5, 6].map(t => {
+      const list = t === 'all' ? cams : cams.filter(c => c.nvr === t), on = tab === t, bad = count(list, 'bad') + count(list, 'short');
+      return { label: (t === 'all' ? 'ทั้งหมด' : 'NVR ' + t) + (bad ? ' · ' + bad : ''),
+        bg: on ? 'var(--bg-2)' : 'transparent', fg: on ? 'var(--text)' : 'var(--muted)', shadow: on ? '0 1px 3px rgba(0,0,0,0.18), 0 0 0 1px var(--line)' : 'none',
+        pick: () => this.setState({ cctvTab: t, cctvSel: null }) };
+    });
+    const pct = (n, d) => (d ? Math.round(n / d * 1000) / 10 : 0) + '%';
+    const panels = (tab === 'all' ? [1, 2, 3, 4, 5, 6] : [tab]).map(n => {
+      const list = cams.filter(c => c.nvr === n), shown = list.filter(c => filter === 'all' || state(c) === filter), last = nvrLast[n];
+      const caps = list.map(c => c.capacity).filter(Boolean);
+      return {
+        title: 'NVR ' + n, show: shown.length > 0,
+        sub: list.length + ' กล้อง' + (caps.length ? ' · รับได้สูงสุด ' + Math.max(...caps) + ' วัน' : '')
+          + (count(list, 'short') ? ' · ขาดวัน ' + count(list, 'short') : '') + (count(list, 'bad') ? ' · เสีย ' + count(list, 'bad') : ''),
+        when: last ? 'ตรวจ ' + core.fmtDate(last.check_date) + ' · ' + last.checker : 'ยังไม่เคยตรวจ',
+        okW: pct(count(list, 'ok'), list.length), shortW: pct(count(list, 'short'), list.length), badW: pct(count(list, 'bad'), list.length),
+        cams: shown.map(c => {
+          const l = latest[c.name], st = state(c), sty = STY[st], sel = s.cctvSel === c.name, short = shortOf(c, l);
+          return { name: c.name, fg: sty.fg, bg: sty.bg, border: sel ? '2px solid var(--accent)' : sty.border,
+            value: st === 'bad' ? 'เสีย' : (l && l.days != null ? String(l.days) : '—'), cap: st === 'bad' || !c.capacity ? '' : '/' + c.capacity,
+            badge: short ? '−' + short : '', badgeBg: '#d9a21b',
+            title: c.name + ' · ' + (st === 'short' ? 'ขาด ' + short + ' วัน' : sty.label) + (l && l.days != null ? ' · ดูได้ ' + l.days + ' วัน' : '') + (c.capacity ? ' · รับได้ ' + c.capacity + ' วัน' : ''),
+            pick: () => this.setState({ cctvSel: sel ? null : c.name }) };
+        })
+      };
+    }).filter(pn => pn.show);
+    const sel = s.cctvSel ? cams.find(c => c.name === s.cctvSel) : null;
+    let detail = null;
+    if (sel) {
+      const l = latest[sel.name], st = state(sel);
+      detail = {
+        title: sel.name, sub: 'NVR ' + sel.nvr + ' · ' + STY[st].label + (l && l.note ? ' · ' + l.note : ''),
+        facts: [
+          { k: 'รับได้สูงสุด', v: sel.capacity ? sel.capacity + ' วัน' : '—', fg: 'var(--text)' },
+          { k: 'ตรวจล่าสุดดูได้', v: l && l.days != null ? l.days + ' วัน' : (st === 'bad' ? 'เสีย' : '—'), fg: STY[st].fg },
+          { k: 'ขาด', v: st === 'short' ? shortOf(sel, l) + ' วัน' : '—', fg: st === 'short' ? STY.short.fg : 'var(--dim)' }
+        ],
+        rows: (history[sel.name] || []).map(h => { const sh = shortOf(sel, h);
+          return { date: core.fmtDate(h.date), days: h.days == null ? '—' : h.days + ' วัน',
+            status: !h.ok ? 'เสีย' : sh ? 'ขาด ' + sh + ' วัน' : 'ครบ', fg: !h.ok ? 'var(--danger)' : sh ? STY.short.fg : 'var(--ok)',
+            who: h.checker + (h.note ? ' · ' + h.note : '') }; }),
+        canEdit: core.auth.isAdmin(), cap: String(sel.capacity || ''),
+        saveCap: (e) => {
+          const v = parseInt(e.target.value, 10);
+          if (!(v >= 1 && v <= 365) || v === sel.capacity) return;
+          core.cctvSetCapacity(sel.name, v).then(err => { if (err) this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); else { this.flash(sel.name + ' รับได้สูงสุด ' + v + ' วัน', 'var(--ok)'); this.loadCctv(); } });
+        },
+        close: () => this.setState({ cctvSel: null })
+      };
+    }
+    return {
+      loading: false, ready: true, error: '', stats, tabs, panels, detail,
+      issues, hasIssues: issues.length > 0, issueCount: issues.length + ' กล้อง',
+      lastText: lastAll ? 'ตรวจล่าสุด ' + core.fmtDate(lastAll.check_date) + ' · ' + Object.keys(nvrLast).length + '/6 NVR' : 'ยังไม่มีผลตรวจ',
+      legend: ['ok', 'short', 'bad', 'none'].map(k => ({ label: STY[k].label, bg: STY[k].bg, border: STY[k].border }))
+    };
+  }
   /* ---------- ตามงานซ่อม (repair tracking) ---------- */
   repairJobs() {
     const rows = this.state.repairRows;
@@ -6945,6 +7141,10 @@ class Component extends DCLogic {
         this.setState({ kpiRows: res.rows, kpiError: res.error, kpiLoaded: wantYear });
       });
     }
+    if (page === 'cctv' && !this._cctvLoadStarted) {
+      this._cctvLoadStarted = true;
+      this.loadCctv();
+    }
     if (page === 'roster' && !this._rosterLoadStarted) {
       this._rosterLoadStarted = true;
       this.loadRoster();
@@ -7106,6 +7306,7 @@ class Component extends DCLogic {
       repairs: { kicker: 'Repair Tracking', title: 'ตามงานซ่อม' },
       links: { kicker: 'Form Links', title: 'รวมลิงก์' },
       roster: { kicker: 'Duty Roster', title: 'ตารางเวร' },
+      cctv: { kicker: 'Weekly CCTV Check', title: 'ตรวจกล้องประจำสัปดาห์' },
       pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน PDF' },
       kpi: { kicker: 'Key Performance Indicators', title: 'KPI' },
       settings: { kicker: 'System', title: 'ตั้งค่าระบบ' }
@@ -7269,6 +7470,7 @@ class Component extends DCLogic {
           navItem('builder', 'Form Builder', 'FB', 'var(--muted)'),
           navItem('records', 'Records', 'RC', 'var(--muted)', String(core.MODULES.reduce((n, m) => n + core.recordCount(m.id), 0))),
           navItem('roster', 'ตารางเวร', 'SH', '#5b7cfa', ''),
+          navItem('cctv', 'ตรวจกล้องประจำสัปดาห์', 'CW', '#2fa89a', ''),
           navItem('repairs', 'ตามงานซ่อม', 'RP', '#e0763f', String(this.repairJobs().filter(j => j.status !== 'closed' && j.status !== 'rejected').length)),
           navItem('links', 'รวมลิงก์', 'LK', 'var(--muted)', s.linkLoaded ? String((s.linkRows || []).length) : ''),
           navItem('pdf', 'Export PDF', 'PD', 'var(--muted)')
@@ -7286,6 +7488,8 @@ class Component extends DCLogic {
       isBuilder: page === 'builder',
       isRecords: page === 'records',
       isRoster: page === 'roster',
+      isCctv: page === 'cctv',
+      cctv: page === 'cctv' ? this.buildCctvAdmin() : { loading: false, ready: false, stats: [], issues: [], tabs: [], panels: [], legend: [] },
       roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
       isLinks: page === 'links',
       linkLoading: !s.linkLoaded,
