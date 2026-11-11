@@ -163,3 +163,6 @@ update public.cctv_checks k set items = k.items || coalesce((
   where c.nvr = k.nvr and c.name in ('FD-G-27 (NVR2)','FD-S1-1 (2)','FD-S1-2 (2)')
     and not k.items @> jsonb_build_array(jsonb_build_object('name', c.name))), '[]'::jsonb)
 where k.source = 'excel';
+-- v9: the extra NVR2 entry was FD-2-23 mislabelled on the NVR; FD-2-23 is back in place, FD-G-27 (NVR2) hidden
+update public.cctv_cameras set active = true, sort = 23 where name = 'FD-2-23';
+update public.cctv_cameras set active = false where name = 'FD-G-27 (NVR2)';
