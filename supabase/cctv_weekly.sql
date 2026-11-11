@@ -71,8 +71,8 @@ revoke all on function public.cctv_latest() from public;
 grant execute on function public.cctv_latest() to anon, authenticated;
 
 with r(p, a, b, nvr, grp) as (values
-  ('FD-1-',1,36,1,1),('FD-G-',1,26,1,2),('FD-G-',28,28,1,3),
-  ('FD-2-',1,42,2,1),('FD-3-',1,21,2,2),('FD-G-',27,27,2,3),
+  ('FD-1-',1,36,1,1),('FD-G-',1,28,1,2),
+  ('FD-2-',1,42,2,1),('FD-3-',1,21,2,2),
   ('FD-3-',22,34,3,1),('FD-4-',1,32,3,2),('FD-5-',1,11,3,3),('FD-6-',1,8,3,4),
   ('FD-6-',9,11,4,1),('FD-7-',1,14,4,2),('FD-8-',1,12,4,3),('FD-9-',1,12,4,4),('FD-10-',1,12,4,5),('FD-11-',1,11,4,6),
   ('FD-11-',12,12,5,1),('FD-11-CL0',1,2,5,2),('FD-11-PL0',1,4,5,3),('FD-11-SL0',1,2,5,4),('FD-S1-',1,6,5,5),('FD-S2-',1,9,5,6),
@@ -121,3 +121,16 @@ returns jsonb language sql stable security definer set search_path = public as $
     'nvr', coalesce((select jsonb_object_agg(nvr, last) from (select nvr, max(check_date) last from cctv_checks where source <> 'excel' group by nvr) t), '{}'::jsonb)
   )
 $$;
+
+-- v4: FD-G-27 belongs to NVR1 (64 cameras); cameras with no reading in the sheet start at 28 days
+update public.cctv_cameras set nvr = 1, sort = 63 where name = 'FD-G-27';
+update public.cctv_cameras set sort = 64 where name = 'FD-G-28';
+update public.cctv_checks set items = (select jsonb_agg(i) from jsonb_array_elements(items) i where i->>'name' <> 'FD-G-27')
+where source = 'excel' and nvr = 2 and items @> '[{"name":"FD-G-27"}]';
+update public.cctv_checks k set items = k.items || coalesce((
+  select jsonb_agg(jsonb_build_object('name', c.name, 'days', 28, 'ok', true, 'note', '') order by c.sort)
+  from public.cctv_cameras c
+  where c.nvr = k.nvr and c.name in ('FD-G-27','FD-G-28','FD-S1-2','FD-S1-3','RF-1-2','RF-1-3')
+    and not k.items @> jsonb_build_array(jsonb_build_object('name', c.name))), '[]'::jsonb)
+where k.source = 'excel';
+update public.cctv_cameras set capacity = 28 where name in ('FD-G-27','FD-G-28','FD-S1-2','FD-S1-3','RF-1-2','RF-1-3');
