@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261105b"></script>
+<script src="./soc-core.js?v=20261111a"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -132,6 +132,19 @@
               </div>
             </button>
           </sc-for>
+          <sc-if value="{{ isTopLevel }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ cctvOpen }}" style="width: 100%; text-align: left; cursor: pointer; padding: clamp(16px, 4vw, 20px); border-radius: 16px; border: 1px solid var(--line); background: var(--panel); color: var(--text); display: flex; flex-direction: column; gap: 10px; min-width: 0;" style-hover="background: var(--panel-2); border-color: var(--line-2);" style-active="transform: scale(0.99);">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+                <span style="width: 44px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: rgba(15,70,40,0.06); color: #2fa89a;">CW</span>
+                <span style="min-width: 0; flex: 1; font-size: clamp(17px, 4.4vw, 19px); font-weight: 600; overflow-wrap: anywhere;">ตรวจกล้องประจำสัปดาห์</span>
+              </div>
+              <div style="font-size: 13.5px; color: var(--muted); overflow-wrap: anywhere;">เช็คจำนวนวันที่กล้องบันทึกย้อนหลังได้ และสถานะใช้งานของกล้องทุกตัว แยกตาม NVR</div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim);">6 NVR · กล้องทั้งหมดในระบบ</span>
+                <span style="flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-size: 13.5px; font-weight: 500; width: 96px; height: 74px;">กรอกข้อมูล</span>
+              </div>
+            </button>
+          </sc-if>
         </div>
 
         <div style="margin-top: 24px; padding: 15px 17px; border-radius: 14px; border: 1px solid var(--line); background: rgba(15,70,40,0.035); font-size: 13.5px; color: var(--dim);">ระบบไม่เก็บข้อมูลบัญชีผู้ใช้ · บันทึกเฉพาะคำตอบในแบบฟอร์ม และส่งเข้าศูนย์ข้อมูลกลางทันที</div>
@@ -312,6 +325,75 @@
       </div>
     </sc-if>
 
+    <!-- ===== ตรวจกล้องประจำสัปดาห์ ===== -->
+    <sc-if value="{{ isCctv }}" hint-placeholder-val="{{ false }}">
+      <div style="animation: epUp 220ms ease both; display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+        <div>
+          <h1 style="margin: 4px 0 4px; font-size: clamp(21px, 5.6vw, 25px); font-weight: 600;">ตรวจกล้องประจำสัปดาห์</h1>
+          <p style="margin: 0; font-size: 14px; color: var(--muted);">เลือก NVR แล้วกรอกจำนวนวันที่แต่ละกล้องดูย้อนหลังได้ · ตัวเลขดึงค่าครั้งก่อนมาให้ แก้เฉพาะตัวที่เปลี่ยน</p>
+        </div>
+        <section style="padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px;">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; min-width: 0;">วันที่ตรวจ *<input type="date" value="{{ cctv.date }}" onChange="{{ cctv.setDate }}" style="min-height: 44px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--line-2); background: #ffffff; color: var(--text); font-size: 16px; min-width: 0;"></label>
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; min-width: 0;">ชื่อผู้ตรวจ *<input type="text" value="{{ cctv.name }}" onChange="{{ cctv.setName }}" placeholder="ชื่อ-นามสกุล" style="min-height: 44px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--line-2); background: #ffffff; color: var(--text); font-size: 16px; min-width: 0;"></label>
+        </section>
+        <div>
+          <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">เลือก NVR *</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px;">
+            <sc-for list="{{ cctv.nvrs }}" as="nv" hint-placeholder-count="6">
+              <button onClick="{{ nv.pick }}" style="min-height: 64px; padding: 8px 10px; border-radius: 13px; cursor: pointer; border: {{ nv.border }}; background: {{ nv.bg }}; color: var(--text); text-align: left; display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 15px; font-weight: 600;">{{ nv.label }}</span>
+                <span style="font-size: 11.5px; color: var(--muted);">{{ nv.sub }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{ cctv.loading }}" hint-placeholder-val="{{ false }}"><div style="padding: 24px; text-align: center; color: var(--muted); font-size: 14px;">กำลังโหลดรายชื่อกล้อง…</div></sc-if>
+        <sc-if value="{{ cctv.hasNvr }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+            <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line-2); background: rgba(15,70,40,0.03);">
+              <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted);">ตั้งทุกตัวเป็น (วัน)<input type="number" inputmode="numeric" min="0" value="{{ cctv.bulk }}" onChange="{{ cctv.setBulk }}" placeholder="เช่น 30" style="width: 120px; min-height: 42px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line-2); background: #ffffff; font-size: 16px;"></label>
+              <button onClick="{{ cctv.applyBulk }}" style="min-height: 42px; padding: 0 14px; border-radius: 10px; cursor: pointer; border: 1px solid var(--line-2); background: #ffffff; color: var(--text); font-size: 14px;">ใช้กับทุกตัวที่ใช้งานได้</button>
+              <button onClick="{{ cctv.allOk }}" style="min-height: 42px; padding: 0 14px; border-radius: 10px; cursor: pointer; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-size: 14px;">ทุกตัวใช้งานได้</button>
+            </div>
+            <sc-for list="{{ cctv.rows }}" as="cr" hint-placeholder-count="6">
+              <div style="padding: 10px 12px; border-radius: 13px; border: 1px solid {{ cr.border }}; background: {{ cr.bg }}; display: flex; flex-direction: column; gap: 8px; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0;">
+                  <span style="flex: 1 1 110px; min-width: 0; font-family: 'IBM Plex Mono', monospace; font-size: 14.5px; font-weight: 600;">{{ cr.name }}</span>
+                  <input type="number" inputmode="numeric" min="0" max="365" value="{{ cr.days }}" onChange="{{ cr.setDays }}" placeholder="วัน" aria-label="{{ cr.dayLabel }}" style="width: 78px; min-height: 42px; padding: 0 8px; text-align: center; border-radius: 10px; border: 1px solid var(--line-2); background: #ffffff; font-size: 16px; font-family: 'IBM Plex Mono', monospace;">
+                  <span style="font-size: 12.5px; color: var(--muted); font-family: 'IBM Plex Mono', monospace;">{{ cr.cap }} วัน</span>
+                  <sc-if value="{{ cr.short }}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 9px; border-radius: 99px; font-size: 12.5px; font-weight: 600; background: rgba(217,162,27,0.16); color: #8a6a12;">{{ cr.short }}</span></sc-if>
+                  <div style="display: flex; border-radius: 10px; overflow: hidden; border: 1px solid var(--line-2); flex: none;">
+                    <button onClick="{{ cr.setOk }}" style="min-height: 42px; padding: 0 12px; border: none; cursor: pointer; font-size: 13.5px; background: {{ cr.okBg }}; color: {{ cr.okFg }};">ใช้งานได้</button>
+                    <button onClick="{{ cr.setBad }}" style="min-height: 42px; padding: 0 12px; border: none; border-left: 1px solid var(--line-2); cursor: pointer; font-size: 13.5px; background: {{ cr.badBg }}; color: {{ cr.badFg }};">เสีย</button>
+                  </div>
+                </div>
+                <sc-if value="{{ cr.broken }}" hint-placeholder-val="{{ false }}">
+                  <input type="text" value="{{ cr.note }}" onChange="{{ cr.setNote }}" placeholder="อาการ เช่น ภาพดับ / บันทึกย้อนหลังไม่ได้" style="min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.35); background: #ffffff; font-size: 15px; min-width: 0;">
+                </sc-if>
+                <sc-if value="{{ cr.prev }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11.5px; color: var(--dim);">{{ cr.prev }}</span></sc-if>
+              </div>
+            </sc-for>
+            <div style="position: sticky; bottom: 10px; z-index: 5; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line-2); background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 10px;">
+              <div style="font-size: 13.5px; color: var(--muted);">{{ cctv.summary }}</div>
+              <sc-if value="{{ cctv.error }}" hint-placeholder-val="{{ false }}"><div style="font-size: 13.5px; color: var(--danger);">{{ cctv.error }}</div></sc-if>
+              <button onClick="{{ cctv.save }}" style="min-height: 52px; border-radius: 13px; cursor: pointer; border: 1px solid var(--accent-line); background: var(--accent); color: #ffffff; font-size: 16px; font-weight: 600;">{{ cctv.saveLabel }}</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+    <sc-if value="{{ isCctvDone }}" hint-placeholder-val="{{ false }}">
+      <div style="animation: epUp 240ms ease both; padding: 36px 4px; text-align: center;">
+        <div style="width: 82px; height: 82px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-size: 36px; color: var(--ok); border: 1px solid rgba(22,155,70,0.45); background: rgba(22,155,70,0.14); animation: epPop 420ms cubic-bezier(0.22,1,0.36,1) both;">✓</div>
+        <h1 style="margin: 20px 0 8px; font-size: clamp(21px, 5.6vw, 26px); font-weight: 600;">บันทึกผลตรวจกล้องแล้ว</h1>
+        <p style="margin: 0 auto; max-width: 400px; font-size: 15px; color: var(--muted);">{{ cctv.doneText }}</p>
+        <div style="margin: 26px auto 0; max-width: 380px; display: flex; flex-direction: column; gap: 10px;">
+          <button onClick="{{ cctv.next }}" style="min-height: 54px; border-radius: 13px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: #0d5c2c; cursor: pointer; font-size: 16px; font-weight: 500;">ตรวจ NVR อื่นต่อ</button>
+          <button onClick="{{ goSelect }}" style="min-height: 54px; border-radius: 13px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; font-size: 16px;">กลับหน้าแรก</button>
+        </div>
+      </div>
+    </sc-if>
+
     <!-- ===== สำเร็จ ===== -->
     <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
       <div style="animation: epUp 240ms ease both; padding: 36px 4px; text-align: center;">
@@ -445,6 +527,92 @@ class Component extends DCLogic {
     this.setState({ view: 'select', openGroup: (mod && mod.group) || null, module: null, values: {}, errors: {}, banner: '', confirm: false });
   };
   openGroup = (id) => this.setState({ openGroup: id });
+  /* ---------- ตรวจกล้องประจำสัปดาห์ ---------- */
+  cctvOpen = () => {
+    const core = this.core();
+    this.setState({ view: 'cctv', cctvNvr: null, cctvItems: {}, cctvErr: '', cctvBusy: false, cctvDirty: false,
+      cctvDate: core.isoDay(new Date()), cctvName: this.state.cctvName || '' });
+    if (!this.state.cctvCams) {
+      this.setState({ cctvLoading: true });
+      Promise.all([core.cctvCameras(), core.cctvLatest()]).then(([c, l]) => this.setState({ cctvLoading: false, cctvCams: c.rows, cctvLatest: l, cctvErr: c.error ? 'โหลดรายชื่อกล้องไม่สำเร็จ: ' + c.error : '' }));
+    }
+  };
+  /* picking an NVR starts every camera from its last reading, so a routine week is only the changes */
+  cctvPick(nvr) {
+    if (this.state.cctvDirty && this.state.cctvNvr !== nvr && !window.confirm('ข้อมูล NVR ' + this.state.cctvNvr + ' ที่กรอกไว้จะหาย — เปลี่ยน NVR?')) return;
+    const last = (this.state.cctvLatest || {}).cams || {};
+    const items = {};
+    (this.state.cctvCams || []).filter(c => c.nvr === nvr).forEach(c => {
+      const l = last[c.name] || {};
+      items[c.name] = { days: l.days == null ? '' : String(l.days), ok: l.ok !== false, note: '' };
+    });
+    this.setState({ cctvNvr: nvr, cctvItems: items, cctvErr: '', cctvDirty: false });
+  }
+  cctvPatch(name, p) {
+    this.setState(s => ({ cctvDirty: true, cctvErr: '', cctvItems: Object.assign({}, s.cctvItems, { [name]: Object.assign({}, s.cctvItems[name], p) }) }));
+  }
+  cctvSave = () => {
+    const s = this.state, core = this.core();
+    if (s.cctvBusy) return;
+    const names = Object.keys(s.cctvItems || {});
+    const miss = names.filter(n => s.cctvItems[n].ok && !/^\d{1,3}$/.test(String(s.cctvItems[n].days).trim()));
+    const err = !s.cctvDate ? 'กรุณาเลือกวันที่ตรวจ' : !String(s.cctvName || '').trim() ? 'กรุณากรอกชื่อผู้ตรวจ' : !names.length ? 'กรุณาเลือก NVR'
+      : miss.length ? 'ยังไม่ได้กรอกจำนวนวัน ' + miss.length + ' ตัว: ' + miss.slice(0, 5).join(', ') + (miss.length > 5 ? ' …' : '') : '';
+    if (err) { this.setState({ cctvErr: err }); return; }
+    const items = names.map(n => ({ name: n, days: String(s.cctvItems[n].days).trim(), ok: !!s.cctvItems[n].ok, note: String(s.cctvItems[n].note || '').trim() }));
+    this.setState({ cctvBusy: true });
+    core.cctvSubmit(s.cctvDate, s.cctvNvr, String(s.cctvName).trim(), items).then(e => {
+      if (e) { this.setState({ cctvBusy: false, cctvErr: 'บันทึกไม่สำเร็จ: ' + e }); return; }
+      const bad = items.filter(i => !i.ok).length;
+      core.cctvLatest().then(l => this.setState({ cctvLatest: l }));
+      this.setState({ view: 'cctvDone', cctvBusy: false, cctvDirty: false,
+        cctvDone: 'NVR ' + s.cctvNvr + ' · ' + items.length + ' กล้อง · ใช้งานได้ ' + (items.length - bad) + ' · เสีย ' + bad });
+    });
+  };
+  buildCctv() {
+    const s = this.state;
+    const cams = s.cctvCams || [], items = s.cctvItems || {}, last = (s.cctvLatest || {}).cams || {}, lastNvr = (s.cctvLatest || {}).nvr || {};
+    const core = this.core();
+    const rows = cams.filter(c => c.nvr === s.cctvNvr).map(c => {
+      const it = items[c.name] || {}, l = last[c.name];
+      /* the most this camera can hold; a reading below it is shown as days missing, as it is typed */
+      const d = /^\d{1,3}$/.test(String(it.days).trim()) ? +it.days : null, short = it.ok && d != null && c.capacity ? Math.max(0, c.capacity - d) : 0;
+      return { name: c.name, days: it.days, note: it.note, broken: !it.ok, dayLabel: 'จำนวนวันของ ' + c.name,
+        short: short ? 'ขาด ' + short + ' วัน' : '', cap: c.capacity ? '/ ' + c.capacity : '',
+        border: !it.ok ? 'rgba(209,72,58,0.4)' : short ? 'rgba(217,162,27,0.5)' : 'var(--line)',
+        bg: !it.ok ? 'rgba(209,72,58,0.05)' : short ? 'rgba(217,162,27,0.07)' : 'var(--panel)',
+        okBg: it.ok ? 'var(--accent)' : '#ffffff', okFg: it.ok ? '#ffffff' : 'var(--muted)',
+        badBg: it.ok ? '#ffffff' : 'var(--danger)', badFg: it.ok ? 'var(--muted)' : '#ffffff',
+        prev: (c.capacity ? 'รับได้สูงสุด ' + c.capacity + ' วัน · ' : '') + (l ? 'ครั้งก่อน ' + (l.ok === false ? 'เสีย' : (l.days == null ? '—' : l.days + ' วัน')) : 'ยังไม่เคยตรวจ'),
+        setDays: (e) => this.cctvPatch(c.name, { days: e.target.value }),
+        setNote: (e) => this.cctvPatch(c.name, { note: e.target.value }),
+        setOk: () => this.cctvPatch(c.name, { ok: true }), setBad: () => this.cctvPatch(c.name, { ok: false }) };
+    });
+    const names = Object.keys(items), bad = names.filter(n => !items[n].ok).length;
+    const capOf = {}; cams.forEach(c => { capOf[c.name] = c.capacity; });
+    const shortN = names.filter(n => items[n].ok && /^\d{1,3}$/.test(String(items[n].days).trim()) && capOf[n] && +items[n].days < capOf[n]).length;
+    const empty = names.filter(n => items[n].ok && String(items[n].days).trim() === '').length;
+    return {
+      date: s.cctvDate || '', name: s.cctvName || '', loading: !!s.cctvLoading, hasNvr: !!s.cctvNvr && rows.length > 0, rows,
+      setDate: (e) => this.setState({ cctvDate: e.target.value }),
+      setName: (e) => this.setState({ cctvName: e.target.value }),
+      nvrs: [1, 2, 3, 4, 5, 6].map(n => {
+        const on = s.cctvNvr === n, count = cams.filter(c => c.nvr === n).length;
+        return { label: 'NVR ' + n, sub: count + ' กล้อง' + (lastNvr[n] ? ' · ล่าสุด ' + core.fmtDate(lastNvr[n]) : ''),
+          border: on ? '2px solid var(--accent)' : '1px solid var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--panel)', pick: () => this.cctvPick(n) };
+      }),
+      bulk: s.cctvBulk || '', setBulk: (e) => this.setState({ cctvBulk: e.target.value }),
+      applyBulk: () => {
+        const v = String(this.state.cctvBulk || '').trim();
+        if (!/^\d{1,3}$/.test(v)) { this.setState({ cctvErr: 'ใส่จำนวนวันเป็นตัวเลขก่อน' }); return; }
+        this.setState(st => { const next = {}; Object.keys(st.cctvItems).forEach(n => { next[n] = st.cctvItems[n].ok ? Object.assign({}, st.cctvItems[n], { days: v }) : st.cctvItems[n]; }); return { cctvItems: next, cctvDirty: true, cctvErr: '' }; });
+      },
+      allOk: () => this.setState(st => { const next = {}; Object.keys(st.cctvItems).forEach(n => { next[n] = Object.assign({}, st.cctvItems[n], { ok: true }); }); return { cctvItems: next, cctvDirty: true }; }),
+      summary: 'NVR ' + (s.cctvNvr || '-') + ' · ' + names.length + ' กล้อง · ใช้งานได้ ' + (names.length - bad) + ' · เสีย ' + bad + (shortN ? ' · ขาดวัน ' + shortN : '') + (empty ? ' · ยังไม่กรอกวัน ' + empty : ''),
+      error: s.cctvErr || '', saveLabel: s.cctvBusy ? 'กำลังบันทึก…' : 'บันทึกผลตรวจ NVR ' + (s.cctvNvr || ''), save: this.cctvSave,
+      doneText: s.cctvDone || '', next: () => this.setState({ view: 'cctv', cctvNvr: null, cctvItems: {} })
+    };
+  }
   closeGroup = () => this.setState({ openGroup: null });
   dirty() {
     const v = this.state.values;
@@ -453,7 +621,7 @@ class Component extends DCLogic {
       return Array.isArray(x) ? x.length > 0 : (x !== '' && x != null);
     });
   }
-  requestBack = () => this.dirty() ? this.setState({ confirm: true }) : this.goSelect();
+  requestBack = () => (this.state.view === 'cctv' ? this.state.cctvDirty : this.dirty()) ? this.setState({ confirm: true }) : this.goSelect();
 
   /* Traffic Flow carries the Talay Thong parking-lot form along with it on the entry screen
      (one guard, one gate, one submit) — but the two stay separate modules everywhere else:
@@ -1017,7 +1185,10 @@ class Component extends DCLogic {
       isSelect: s.view === 'select',
       isForm: s.view === 'form',
       isDone: s.view === 'done',
-      inForm: s.view === 'form',
+      inForm: s.view === 'form' || s.view === 'cctv',
+      isCctv: s.view === 'cctv', isCctvDone: s.view === 'cctvDone',
+      cctv: s.view === 'cctv' || s.view === 'cctvDone' ? this.buildCctv() : { nvrs: [], rows: [] },
+      cctvOpen: this.cctvOpen,
 
       modules: mods.map(m => ({
         code: m.code, name: m.name, desc: m.desc, color: m.color,
