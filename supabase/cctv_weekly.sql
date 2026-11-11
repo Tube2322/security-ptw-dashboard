@@ -166,3 +166,13 @@ where k.source = 'excel';
 -- v9: the extra NVR2 entry was FD-2-23 mislabelled on the NVR; FD-2-23 is back in place, FD-G-27 (NVR2) hidden
 update public.cctv_cameras set active = true, sort = 23 where name = 'FD-2-23';
 update public.cctv_cameras set active = false where name = 'FD-G-27 (NVR2)';
+-- v10: NVR5 relabelled on the NVR - no duplicate FD-S1-1/FD-S1-2; RF-1-2 and RF-1-3 are on it (46)
+update public.cctv_cameras set active = false where name in ('FD-S1-1 (2)','FD-S1-2 (2)');
+update public.cctv_cameras set active = true where name in ('RF-1-2','RF-1-3');
+update public.cctv_cameras c set sort = o.n from unnest(array[
+  'FD-11-12','FD-11-CL01','FD-11-CL02','FD-11-PL01','FD-11-PL02','FD-11-PL03','FD-11-PL04','FD-11-SL01','FD-11-SL02',
+  'FD-S1-1','FD-S1-2','FD-S1-3','FD-S1-4','FD-S1-5','FD-S1-6',
+  'FD-S2-1','FD-S2-2','FD-S2-3','FD-S2-4','FD-S2-5','FD-S2-6','FD-S2-7','FD-S2-8','FD-S2-9',
+  'FD-S3-1','FD-S3-2','FD-S3-3','FD-S3-4','FD-S3-5','FD-S3-6','FD-S3-7','FD-S3-8','FD-S3-9',
+  'FD-S4-1','FD-S4-2','FD-S4-3','FD-SR-1','FD-SR-2','F-G-29','F-G-30','F-G-31','RF-1-1','RF-1-2','RF-1-3','RF-2-1','RF-2-2'
+]) with ordinality o(name, n) where c.name = o.name;
