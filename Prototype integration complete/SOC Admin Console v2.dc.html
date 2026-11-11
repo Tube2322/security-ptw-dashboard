@@ -1414,6 +1414,7 @@
                   </section>
                 </sc-for>
 
+                <sc-if value="{{ cctv.noMatch }}" hint-placeholder-val="{{ false }}"><div style="padding: 28px 16px; text-align: center; border: 1px dashed var(--line-2); border-radius: 14px; color: var(--muted); font-size: 13px;">ไม่มีกล้องในกลุ่มนี้</div></sc-if>
                 <sc-if value="{{ cctv.detail }}" hint-placeholder-val="{{ false }}">
                   <div class="rp-empty" style="border-radius: 14px; border: 1px solid var(--accent-line); background: var(--panel); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -6238,7 +6239,7 @@ class Component extends DCLogic {
       };
     }
     return {
-      loading: false, ready: true, error: '', stats, tabs, panels, detail,
+      loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0,
       issues, hasIssues: issues.length > 0, issueCount: issues.length + ' กล้อง',
       lastText: lastAll ? 'ตรวจล่าสุด ' + core.fmtDate(lastAll.check_date) + ' · ' + Object.keys(nvrLast).length + '/6 NVR' : 'ยังไม่มีผลตรวจ',
       legend: ['ok', 'short', 'bad', 'none'].map(k => ({ label: STY[k].label, bg: STY[k].bg, border: STY[k].border }))
