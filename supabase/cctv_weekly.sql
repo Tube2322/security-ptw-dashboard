@@ -138,3 +138,5 @@ update public.cctv_cameras set capacity = 28 where name in ('FD-G-27','FD-G-28',
 update public.cctv_cameras set active = false where name = 'FD-2-23';
 -- v6: NVR2 also records FD-G-27 (last on its screen); names are unique, so it is listed as its own entry
 insert into public.cctv_cameras (name, nvr, sort, active, capacity) values ('FD-G-27 (NVR2)', 2, 64, true, 34) on conflict (name) do nothing;
+-- v7: NVR3 screen (62/62) skips FD-3-27 and FD-3-29; hidden, not deleted
+update public.cctv_cameras set active = false where name in ('FD-3-27','FD-3-29');
