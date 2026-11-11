@@ -136,3 +136,5 @@ where k.source = 'excel';
 update public.cctv_cameras set capacity = 28 where name in ('FD-G-27','FD-G-28','FD-S1-2','FD-S1-3','RF-1-2','RF-1-3');
 -- v5: FD-2-23 does not exist on NVR2 (screen shows 22 then 24); hidden, not deleted
 update public.cctv_cameras set active = false where name = 'FD-2-23';
+-- v6: NVR2 also records FD-G-27 (last on its screen); names are unique, so it is listed as its own entry
+insert into public.cctv_cameras (name, nvr, sort, active, capacity) values ('FD-G-27 (NVR2)', 2, 64, true, 34) on conflict (name) do nothing;
