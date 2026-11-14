@@ -289,6 +289,14 @@
     main table[data-soc-cards] tbody td::before { content: attr(data-label); flex: none; max-width: 45%; text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--dim); }
   }
 
+  .ex-step { display: flex; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 700; color: var(--text); }
+  .ex-step:first-child { padding-top: 0; border-top: none; }
+  .ex-num { width: 24px; height: 24px; flex: none; border-radius: 99px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--accent); color: var(--bg); }
+  .ex-chip { min-height: 40px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; transition: background 120ms ease, border-color 120ms ease, transform 80ms ease; }
+  .ex-chip:hover { border-color: var(--accent-line) !important; }
+  .ex-chip:active { transform: scale(0.97); }
+  .ex-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ex-chip-sm { min-height: 34px; padding: 0 12px; font-size: 12.5px; }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   @media print {
     [data-print-hide] { display: none !important; }
@@ -1369,7 +1377,7 @@
                     </button>
                   </sc-for>
                   <span style="margin-left: auto; font-size: 12.5px; color: var(--muted);">{{ cctv.lastText }}</span>
-                  <button onClick="{{ cctv.exportCsv }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">⬇ Export Excel</button>
+                  <button onClick="{{ cctv.goExport }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">⬇ ส่งออก Excel</button>
                 </div>
 
                 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid {{ cctv.week.border }}; background: {{ cctv.week.bg }};">
@@ -2076,24 +2084,28 @@
         <!-- ===== PDF EXPORT ===== -->
         <sc-if value="{{ isPdf }}" hint-placeholder-val="{{ false }}">
           <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-start; min-width: 0;">
-            <section style="flex: 1 1 min(320px, 100%); min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px;">
-              <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">ตั้งค่าการส่งออก</h2>
-              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 15px;">PDF ใช้ชุดข้อมูลเดียวกับแดชบอร์ด</div>
+            <section style="flex: 1 1 min(340px, 100%); min-width: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: 18px 18px 0;">
+              <h2 style="margin: 0 0 3px; font-size: 17px; font-weight: 700;">ส่งออกรายงาน</h2>
+              <div style="font-size: 12.5px; color: var(--dim); margin-bottom: 16px;">เลือกหัวข้อ ช่วงเวลา และข้อมูลที่ต้องการ แล้วดาวน์โหลดเป็น PDF หรือ Excel — ตัวเลขชุดเดียวกับแดชบอร์ด</div>
 
-              <div style="display: flex; flex-direction: column; gap: 14px;">
-                <div>
-                  <div style="font-size: 12px; color: var(--dim); margin-bottom: 7px;">Module</div>
-                  <div style="display: flex; flex-wrap: wrap; gap: 7px;">
-                    <sc-for list="{{ pdfModules }}" as="m" hint-placeholder-count="4">
-                      <button onClick="{{ m.pick }}" style="min-height: 42px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid {{ m.border }}; background: {{ m.bg }}; color: {{ m.fg }};" style-hover="background: var(--panel-2);">{{ m.label }}</button>
-                    </sc-for>
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div class="ex-step"><span class="ex-num">1</span><span>เลือกหัวข้อ</span></div>
+                <sc-for list="{{ pdfModuleGroups }}" as="mg" hint-placeholder-count="3">
+                  <div>
+                    <div style="font-size: 11.5px; font-weight: 600; letter-spacing: .2px; color: var(--muted); margin-bottom: 7px;">{{ mg.label }}</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                      <sc-for list="{{ mg.items }}" as="m" hint-placeholder-count="4">
+                        <button class="ex-chip" onClick="{{ m.pick }}" style="border: 1px solid {{ m.border }}; background: {{ m.bg }}; color: {{ m.fg }}; font-weight: {{ m.weight }};">{{ m.label }}</button>
+                      </sc-for>
+                    </div>
                   </div>
-                </div>
+                </sc-for>
+
+                <div class="ex-step"><span class="ex-num">2</span><span>ช่วงเวลา</span></div>
                 <div>
-                  <div style="font-size: 12px; color: var(--dim); margin-bottom: 7px;">ช่วงเวลา</div>
                   <div style="display: flex; flex-wrap: wrap; gap: 7px;">
                     <sc-for list="{{ pdfPeriods }}" as="sp" hint-placeholder-count="3">
-                      <button onClick="{{ sp.pick }}" style="min-height: 42px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; border: 1px solid {{ sp.border }}; background: {{ sp.bg }}; color: {{ sp.fg }};" style-hover="background: var(--panel-2);">{{ sp.label }}</button>
+                      <button class="ex-chip" onClick="{{ sp.pick }}" style="border: 1px solid {{ sp.border }}; background: {{ sp.bg }}; color: {{ sp.fg }};">{{ sp.label }}</button>
                     </sc-for>
                   </div>
                 </div>
@@ -2161,6 +2173,38 @@
                   </div>
                 </sc-if>
 
+                <div class="ex-step"><span class="ex-num">3</span><span>เลือกข้อมูลที่จะเอาออก</span><span style="margin-left: auto; font-size: 11.5px; font-weight: 400; color: var(--dim);">ไม่เลือก = เอาทั้งหมด</span></div>
+                <sc-if value="{{ exportNoFilters }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 12.5px; color: var(--muted); padding: 10px 12px; border-radius: 10px; background: var(--bg-2); border: 1px dashed var(--line-2);">หัวข้อนี้ไม่มีตัวกรองเพิ่มเติม — ส่งออกทั้งหมดในช่วงเวลาที่เลือก</div>
+                </sc-if>
+                <sc-for list="{{ exportFilterGroups }}" as="fg" hint-placeholder-count="2">
+                  <div>
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px;">
+                      <span style="font-size: 12.5px; font-weight: 600;">{{ fg.label }}</span>
+                      <span style="font-size: 11.5px; color: var(--dim);">{{ fg.summary }}</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                      <button class="ex-chip ex-chip-sm" onClick="{{ fg.all }}" style="border: 1px solid {{ fg.allBorder }}; background: {{ fg.allBg }}; color: {{ fg.allFg }};">ทั้งหมด</button>
+                      <sc-for list="{{ fg.opts }}" as="fo" hint-placeholder-count="3">
+                        <button class="ex-chip ex-chip-sm" onClick="{{ fo.pick }}" aria-pressed="{{ fo.on }}" style="border: 1px solid {{ fo.border }}; background: {{ fo.bg }}; color: {{ fo.fg }};">{{ fo.mark }}{{ fo.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+
+                <div class="ex-step"><span class="ex-num">4</span><span>รูปแบบไฟล์</span></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <sc-for list="{{ exportFormats }}" as="ef" hint-placeholder-count="2">
+                    <button onClick="{{ ef.pick }}" style="min-height: 58px; border-radius: 12px; cursor: {{ ef.cursor }}; border: 1.5px solid {{ ef.border }}; background: {{ ef.bg }}; color: {{ ef.fg }}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;">
+                      <span style="font-size: 15px; font-weight: 600;">{{ ef.label }}</span><span style="font-size: 11px; opacity: .8;">{{ ef.hint }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ exportExtra }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 12px; color: var(--muted);">หัวข้อนี้ส่งออกได้เฉพาะ Excel — ตารางเรียงแล้ว มีตัวกรองในหัวตาราง</div>
+                </sc-if>
+
+                <sc-if value="{{ exportIsPdf }}" hint-placeholder-val="{{ true }}">
                 <div>
                   <div style="font-size: 12px; color: var(--dim); margin-bottom: 7px;">ธีมรายงาน</div>
                   <div style="display: flex; flex-wrap: wrap; gap: 7px;">
@@ -2180,6 +2224,7 @@
                     </sc-for>
                   </div>
                 </div>
+                </sc-if>
 
                 <sc-if value="{{ exportRecords }}" hint-placeholder-val="{{ true }}">
                 <div>
@@ -2220,19 +2265,17 @@
                 </div>
               </sc-if>
 
-              <div style="margin-top: 14px; font-size: 12px; color: var(--dim); margin-bottom: 7px;">รูปแบบไฟล์</div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 7px;">
-                <sc-for list="{{ exportFormats }}" as="ef" hint-placeholder-count="2">
-                  <button onClick="{{ ef.pick }}" style="min-height: 44px; border-radius: 10px; cursor: {{ ef.cursor }}; font-size: 14px; font-weight: 500; border: 1px solid {{ ef.border }}; background: {{ ef.bg }}; color: {{ ef.fg }};">{{ ef.label }}</button>
-                </sc-for>
+              <!-- download bar stays in view while the steps above scroll -->
+              <div style="position: sticky; bottom: 0; margin: 16px -18px 0; padding: 12px 18px 14px; border-top: 1px solid var(--line); background: var(--bg-2); box-shadow: 0 -8px 18px -12px rgba(0,0,0,.35); border-radius: 0 0 18px 18px; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 12.5px;">
+                  <b style="color: var(--text);">{{ exportSummary.topic }}</b><span style="color: var(--muted);">{{ exportSummary.period }}</span>
+                  <span style="margin-left: auto; color: var(--accent); font-weight: 600;">{{ exportSummary.filters }}</span>
+                </div>
+                <button onClick="{{ exportNow }}" disabled="{{ exportBtn.disabled }}" style="width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ exportBtn.cursor }}; font-size: 15.5px; font-weight: 600; border: 1px solid {{ exportBtn.border }}; background: {{ exportBtn.bg }}; color: {{ exportBtn.fg }};">{{ exportBtn.label }}</button>
+                <sc-if value="{{ exportRecords }}" hint-placeholder-val="{{ true }}">
+                  <div style="text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); overflow-wrap: anywhere;">{{ pdfFileName }}</div>
+                </sc-if>
               </div>
-              <sc-if value="{{ exportExtra }}" hint-placeholder-val="{{ false }}">
-                <div style="margin-top: 8px; font-size: 12px; color: var(--muted);">หัวข้อนี้ส่งออกได้เฉพาะ Excel (ตารางเรียงพร้อมตัวกรอง) · ใช้ช่วงเวลาที่เลือกด้านบน</div>
-              </sc-if>
-              <button onClick="{{ exportNow }}" disabled="{{ exportBtn.disabled }}" style="margin-top: 12px; width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ exportBtn.cursor }}; font-size: 15px; font-weight: 500; border: 1px solid {{ exportBtn.border }}; background: {{ exportBtn.bg }}; color: {{ exportBtn.fg }};">{{ exportBtn.label }}</button>
-              <sc-if value="{{ exportRecords }}" hint-placeholder-val="{{ true }}">
-                <div style="margin-top: 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); overflow-wrap: anywhere;">{{ pdfFileName }}</div>
-              </sc-if>
             </section>
 
             <section style="flex: 2 1 min(420px, 100%); min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px;">
@@ -5138,7 +5181,84 @@ class Component extends DCLogic {
   }
   /* single source of truth for "which records does this export cover" — every period option
      resolves to a SOCCore.query() call, exactly like the dashboard's own scopeRecords(). */
+  /* ---------- per-topic export filters ----------
+     Each topic offers its own filters. Row filters drop whole records (a lift, a shift column on
+     the form); column filters blank the fields that weren't picked (traffic records hold day AND
+     night, car AND motorcycle in one row, so dropping the row would lose the other half).
+     Nothing picked in a group = everything. Options come from the live form where possible. */
+  exportFilterDefs(mod) {
+    const core = this.core(), m = core.module(mod) || {};
+    const optsOf = (fid) => ((core.field(mod, fid) || {}).options || []).map(o => [o, fid === 'elevator_lift' ? liftCode(o) : o]);
+    if (m.kind === 'traffic') return [
+      { key: 'shift', label: 'กะ', opts: [['day', 'กลางวัน 08–20'], ['night', 'กลางคืน 20–08']] },
+      { key: 'veh', label: 'ชนิดรถ', opts: [['car', 'รถยนต์'], ['moto', 'รถจักรยานยนต์']] }];
+    if (mod === 'golf') return [
+      { key: 'shift', label: 'กะ', opts: [['day', 'กะกลางวัน'], ['night', 'กะกลางคืน']] },
+      { key: 'cart', label: 'รถกอล์ฟ', opts: GOLF_CARTS.map((c, i) => [c, 'คันที่ ' + (i + 1)]) }];
+    if (m.kind === 'parking') return [
+      { key: 'cols', label: 'ข้อมูลรถ', opts: core.activeFields(mod).filter(f => f.type === 'number').map(f => [f.fieldId, f.label]) }];
+    if (mod === 'visitors') return [
+      { key: 'type', label: 'ประเภทผู้มาเยือน', opts: [['visitor_general_count', 'ทั่วไป'], ['visitor_contractor_count', 'ผู้รับเหมา']] }];
+    if (m.kind === 'elevator') return [
+      { key: 'elevator_lift', label: 'ลิฟต์', opts: optsOf('elevator_lift') },
+      { key: 'elevator_user_type', label: 'ประเภทผู้ใช้', opts: optsOf('elevator_user_type') }];
+    if (m.kind === 'checkpoint') return [
+      { key: 'checkpoint_shift', label: 'กะ', opts: optsOf('checkpoint_shift') },
+      { key: 'checkpoint_point', label: 'จุดที่ตรวจ', opts: optsOf('checkpoint_point') }];
+    if (mod === 'x_cctv') return [
+      { key: 'nvr', label: 'NVR', opts: [1, 2, 3, 4, 5, 6].map(n => [String(n), 'NVR ' + n]) },
+      { key: 'src', label: 'แหล่งข้อมูล', opts: [['file', 'ไฟล์ NVR'], ['hand', 'ตรวจเอง']] },
+      { key: 'st', label: 'สถานะกล้อง', opts: [['ครบ', 'ครบ'], ['ขาดวัน', 'ขาดวัน'], ['เสีย', 'เสีย'], ['ยังไม่ตรวจ', 'ยังไม่ตรวจ']] }];
+    if (mod === 'x_repairs') return [
+      { key: 'st', label: 'สถานะงาน', opts: [['open', 'ยังไม่เสร็จ'], ['done', 'เสร็จ/ปิดแล้ว'], ['rejected', 'ไม่อนุมัติ']] },
+      { key: 'topic', label: 'หัวข้อ', opts: ['ACC', 'CCTV', 'ถังดับเพลิง', 'ประตูหนีไฟ', 'รถกอล์ฟ', 'อื่นๆ'].map(t => [t, t]) }];
+    return [];
+  }
+  /* picked ids of one filter group, or null when the group is left at "ทั้งหมด" */
+  exportPick(key) {
+    const f = ((this.state.exportFilters || {})[this.state.pdfModule] || {})[key];
+    return Array.isArray(f) && f.length ? f : null;
+  }
+  toggleExportPick(key, id) {
+    const s = this.state, mod = s.pdfModule, all = Object.assign({}, s.exportFilters || {});
+    const cur = Object.assign({}, all[mod] || {});
+    if (id == null) delete cur[key];
+    else { const set = (cur[key] || []).slice(); const i = set.indexOf(id); if (i >= 0) set.splice(i, 1); else set.push(id); cur[key] = set; }
+    all[mod] = cur;
+    this.setState({ exportFilters: all });
+  }
+  applyExportFilters(recs) {
+    const core = this.core(), mod = this.state.pdfModule, m = core.module(mod) || {};
+    const P = (k) => this.exportPick(k);
+    if (!this.exportFilterDefs(mod).some(g => P(g.key))) return recs;
+    const blank = (r, keys, v) => { const d = Object.assign({}, r.data); keys.forEach(k => { d[k] = v; }); return Object.assign({}, r, { data: d }); };
+    if (m.kind === 'traffic') {
+      const sh = P('shift') || ['day', 'night'], vh = P('veh') || ['car', 'moto'], drop = [];
+      ['car', 'moto'].forEach(v => ['in', 'out'].forEach(dir => ['day', 'night'].forEach(x => {
+        if (!sh.includes(x) || !vh.includes(v)) drop.push(m.fieldPrefix + '_' + v + '_' + dir + '_' + x); })));
+      return recs.map(r => blank(r, drop, 0));
+    }
+    if (mod === 'golf') {
+      const sh = P('shift'), carts = P('cart');
+      return recs.filter(r => !sh || sh.includes(/กลางคืน/.test(String((r.data || {}).golf_shift || '')) ? 'night' : 'day'))
+        .map(r => carts ? blank(r, GOLF_CARTS.filter(c => !carts.includes(c)), '') : r);
+    }
+    if (m.kind === 'parking') {
+      const cols = P('cols'), all = core.activeFields(mod).filter(f => f.type === 'number').map(f => f.fieldId);
+      return recs.map(r => blank(r, all.filter(k => !cols.includes(k)), ''));
+    }
+    if (mod === 'visitors') {
+      const t = P('type');
+      return recs.map(r => blank(r, ['visitor_general_count', 'visitor_contractor_count'].filter(k => !t.includes(k)), 0));
+    }
+    /* elevator / checkpoint: every filter is a field on the record, so it's a plain row filter */
+    return recs.filter(r => this.exportFilterDefs(mod).every(g => { const p = P(g.key); return !p || p.includes((r.data || {})[g.key]); }));
+  }
   pdfRecords() {
+    const info = this.pdfRecordsRaw();
+    return Object.assign({}, info, { recs: this.applyExportFilters(info.recs) });
+  }
+  pdfRecordsRaw() {
     const core = this.core();
     const s = this.state;
     const mod = this.pdfModuleParam();
@@ -5237,12 +5357,16 @@ class Component extends DCLogic {
       if (kind === 'x_cctv') {
         const [cams, chk] = await Promise.all([core.cctvCameras(), core.cctvChecks()]);
         const camOf = {}; cams.rows.forEach(c => { camOf[c.name] = c; });
-        const checks = chk.rows.filter(c => inRange(c.check_date));
+        /* same rules as the page: the hand-noted baseline is not exported, and a camera the
+           recorder reports broken carries no hand reading */
+        const checks = chk.rows.filter(c => inRange(c.check_date) && c.source !== 'excel');
         const lastF = {}, lastH = {}, hist = [];
+        checks.forEach(ch => { if (ch.source === 'nvr_export') (ch.items || []).forEach(it => { if (!lastF[it.name]) lastF[it.name] = { ch, it }; }); });
+        const broken = (n) => lastF[n] && lastF[n].it.ok === false;
         checks.forEach(ch => {
           const file = ch.source === 'nvr_export';
           (ch.items || []).forEach(it => {
-            if (file && !lastF[it.name]) lastF[it.name] = { ch, it };
+            if (!file && broken(it.name)) return;
             if (!file && !lastH[it.name]) lastH[it.name] = { ch, it };
             const c = camOf[it.name] || {};
             hist.push([ch.check_date, 'NVR ' + ch.nvr, it.name, file ? 'ไฟล์ NVR' : 'ตรวจเอง', it.ok === false ? '' : it.days, it.ok === false ? 'เสีย' : 'ปกติ', ch.checker, it.note || '', c.sort == null ? 999 : c.sort, ch.nvr]);
@@ -5250,17 +5374,32 @@ class Component extends DCLogic {
         });
         hist.sort((x, y) => (y[0] > x[0] ? 1 : y[0] < x[0] ? -1 : 0) || x[9] - y[9] || x[8] - y[8] || (x[3] > y[3] ? 1 : -1));
         const v = (e) => !e ? '' : e.it.ok === false ? 'เสีย' : e.it.days;
-        const summary = cams.rows.slice().sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).map(c => {
-          const f = lastF[c.name], h = lastH[c.name];
-          return ['NVR ' + c.nvr, c.name, c.capacity || '', v(f), f ? f.ch.check_date : '', v(h), h ? h.ch.check_date : '',
-            [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')];
+        /* status follows the file reading when there is one, else the hand check — same as the page */
+        const status = (c, f, h) => { const r = f || h; if (!r) return 'ยังไม่ตรวจ'; if (r.it.ok === false) return 'เสีย';
+          return c.capacity && r.it.days != null && r.it.days < c.capacity ? 'ขาดวัน' : 'ครบ'; };
+        const fN = this.exportPick('nvr'), fS = this.exportPick('src'), fSt = this.exportPick('st');
+        const wantF = !fS || fS.includes('file'), wantH = !fS || fS.includes('hand');
+        const stOf = {}; cams.rows.forEach(c => { stOf[c.name] = status(c, lastF[c.name], lastH[c.name]); });
+        const keep = (c) => (!fN || fN.includes(String(c.nvr))) && (!fSt || fSt.includes(stOf[c.name]));
+        const summary = cams.rows.filter(keep).sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).map(c => {
+          const f = wantF ? lastF[c.name] : null, h = wantH ? lastH[c.name] : null;
+          return ['NVR ' + c.nvr, c.name].concat(wantF ? [v(f), f ? f.ch.check_date : ''] : [], wantH ? [v(h), h ? h.ch.check_date : ''] : [],
+            [stOf[c.name], [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')]);
         });
-        sheet('สรุปรายกล้อง', ['NVR', 'กล้อง', 'รับได้สูงสุด (วัน)', 'ไฟล์ NVR (วัน)', 'วันที่ไฟล์', 'ตรวจเอง (วัน)', 'วันที่ตรวจเอง', 'หมายเหตุ'], summary, [10, 16, 16, 15, 13, 14, 15, 40]);
-        sheet('ประวัติการตรวจ', ['วันที่', 'NVR', 'กล้อง', 'แหล่งข้อมูล', 'ดูย้อนหลังได้ (วัน)', 'สถานะ', 'ผู้ตรวจ', 'หมายเหตุ'], hist.map(r => r.slice(0, 8)), [12, 9, 16, 13, 18, 9, 34, 40]);
-        count = hist.length; file = 'ตรวจกล้องประจำสัปดาห์';
+        sheet('สรุปรายกล้อง', ['NVR', 'กล้อง'].concat(wantF ? ['ไฟล์ NVR (วัน)', 'วันที่ไฟล์'] : [], wantH ? ['ตรวจเอง (วัน)', 'วันที่ตรวจเอง'] : [], ['สถานะล่าสุด', 'หมายเหตุ']),
+          summary, [10, 16].concat(wantF ? [15, 13] : [], wantH ? [14, 15] : [], [13, 40]));
+        const histRows = hist.filter(r => { const c = camOf[r[2]] || { nvr: r[9], name: r[2] };
+          return keep(c) && (r[3] === 'ไฟล์ NVR' ? wantF : wantH); });
+        sheet('ประวัติการตรวจ', ['วันที่', 'NVR', 'กล้อง', 'แหล่งข้อมูล', 'ดูย้อนหลังได้ (วัน)', 'สถานะ', 'ผู้ตรวจ', 'หมายเหตุ'], histRows.map(r => r.slice(0, 8)), [12, 9, 16, 13, 18, 9, 34, 40]);
+        count = summary.length; file = 'ตรวจกล้องประจำสัปดาห์';
       } else {
         const res = await core.repairJobs();
-        const rows = res.rows.filter(r => inRange(String(r.created_at || '').slice(0, 10)))
+        const fSt = this.exportPick('st'), fT = this.exportPick('topic');
+        const KNOWN = ['ACC', 'CCTV', 'ถังดับเพลิง', 'ประตูหนีไฟ', 'รถกอล์ฟ'];
+        const group = (st) => st === 'rejected' ? 'rejected' : (st === 'done' || st === 'closed') ? 'done' : 'open';
+        const rows = res.rows.filter(r => inRange(String(r.created_at || '').slice(0, 10))
+            && (!fSt || fSt.includes(group(r.status)))
+            && (!fT || fT.includes(KNOWN.includes(r.topic) ? r.topic : 'อื่นๆ')))
           .sort((a, c) => String(c.created_at).localeCompare(String(a.created_at)));
         const STATUS = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', sent: 'ส่งช่างแล้ว', accepted: 'ช่างรับงาน', repairing: 'กำลังซ่อม', done: 'ซ่อมเสร็จ', closed: 'ปิดงาน', rejected: 'ไม่อนุมัติ' };
         sheet('งานซ่อม', ['เลขงาน', 'วันที่แจ้ง', 'หัวข้อ', 'สถานที่', 'อาการ/รายการที่เสีย', 'สถานะ', 'เลขงานช่าง', 'รายละเอียด'],
@@ -6281,6 +6420,8 @@ class Component extends DCLogic {
     const isFile = (ch) => ch.source === 'nvr_export';
     const latest = {}, history = {}, nvrLast = {}, latestFile = {}, latestHand = {}, nvrFile = {}, nvrHand = {};
     checks.forEach(ch => {
+      /* the original hand-noted baseline stays in the database but is not shown as a reading */
+      if (ch.source === 'excel') return;
       const file = isFile(ch);
       if (!nvrLast[ch.nvr]) nvrLast[ch.nvr] = ch;
       if (file && !nvrFile[ch.nvr]) nvrFile[ch.nvr] = ch;
@@ -6297,6 +6438,8 @@ class Component extends DCLogic {
        counts) follows its latest file reading whenever it has one; hand checks decide only for
        cameras with no file reading yet */
     Object.keys(latestFile).forEach(n => { latest[n] = latestFile[n]; });
+    /* a camera the recorder reports broken has no meaningful hand reading to show next to it */
+    Object.keys(latestFile).forEach(n => { if (!latestFile[n].ok) delete latestHand[n]; });
     const readText = (r) => !r ? '—' : !r.ok ? 'เสีย' : r.days == null ? '—' : String(r.days);
     /* a camera is short when it plays back fewer days than it can hold (its capacity) */
     const shortOf = (c, r) => r && r.ok && r.days != null && c.capacity ? Math.max(0, c.capacity - r.days) : 0;
@@ -6381,7 +6524,7 @@ class Component extends DCLogic {
           { k: '✍️ ตรวจเอง', v: readText(latestHand[sel.name]) + (latestHand[sel.name] && latestHand[sel.name].ok && latestHand[sel.name].days != null ? ' วัน' : ''), fg: 'var(--muted)' },
           { k: 'ขาด', v: st === 'short' ? shortOf(sel, l) + ' วัน' : '—', fg: st === 'short' ? STY.short.fg : 'var(--dim)' }
         ],
-        rows: (history[sel.name] || []).map(h => { const sh = shortOf(sel, h);
+        rows: (history[sel.name] || []).filter(h => h.file || !(latestFile[sel.name] && !latestFile[sel.name].ok)).map(h => { const sh = shortOf(sel, h);
           return { date: core.fmtDate(h.date), days: h.days == null ? '—' : h.days + ' วัน',
             src: h.file ? '📄 ไฟล์ NVR' : '✍️ ตรวจเอง', srcFg: h.file ? 'var(--accent)' : 'var(--muted)',
             status: !h.ok ? 'เสีย' : sh ? 'ขาด ' + sh + ' วัน' : 'ครบ', fg: !h.ok ? 'var(--danger)' : sh ? STY.short.fg : 'var(--ok)',
@@ -6395,28 +6538,11 @@ class Component extends DCLogic {
         close: () => this.setState({ cctvSel: null })
       };
     }
-    /* one row per camera, NVR then the camera list's own order, both readings side by side.
-       CSV with a UTF-8 BOM so Excel opens it with Thai intact and no extra library. */
-    const exportCsv = () => {
-      const day = (r) => r && r.ok && r.days != null ? r.days : '';
-      const head = ['NVR', 'กล้อง', 'รับได้สูงสุด (วัน)', 'ไฟล์ NVR (วัน)', 'วันที่ไฟล์', 'ตรวจเอง (วัน)', 'วันที่ตรวจเอง', 'สถานะล่าสุด', 'หมายเหตุ'];
-      const rows = cams.slice().sort((a, b) => a.nvr - b.nvr || a.sort - b.sort).map(c => {
-        const f = latestFile[c.name], h = latestHand[c.name], st = state(c), l = latest[c.name];
-        return ['NVR ' + c.nvr, c.name, c.capacity || '', f ? (f.ok ? day(f) : 'เสีย') : '', f ? f.date : '',
-          h ? (h.ok ? day(h) : 'เสีย') : '', h ? h.date : '', STY[st].label,
-          [f && f.note, h && h.note].filter(Boolean).join(' / ') || (l && l.note) || ''];
-      });
-      const esc = (v) => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
-      const csv = '﻿' + [head].concat(rows).map(r => r.map(esc).join(',')).join('\r\n');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-      a.download = 'ตรวจกล้อง_' + new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10) + '.csv';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      this.flash('✓ ส่งออก ' + rows.length + ' กล้อง');
-    };
+    /* exporting lives on the Report Export page (one place, one column set): this button only
+       opens it with the weekly-CCTV topic already picked */
+    const goExport = () => { this.go('pdf'); this.setState({ pdfModule: 'x_cctv' }); };
     return {
-      exportCsv,
+      goExport,
       loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0, week,
       issues, hasIssues: issues.length > 0, issueCount: issues.length + ' กล้อง',
       lastText: (() => { const real = checks.find(c => c.source !== 'excel');
@@ -7487,7 +7613,7 @@ class Component extends DCLogic {
       links: { kicker: 'Form Links', title: 'รวมลิงก์' },
       roster: { kicker: 'Duty Roster', title: 'ตารางเวร' },
       cctv: { kicker: 'Weekly CCTV Check', title: 'ตรวจกล้องประจำสัปดาห์' },
-      pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน PDF' },
+      pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน' },
       kpi: { kicker: 'Key Performance Indicators', title: 'KPI' },
       settings: { kicker: 'System', title: 'ตั้งค่าระบบ' }
     };
@@ -8051,6 +8177,34 @@ class Component extends DCLogic {
       }),
 
       /* pdf */
+      pdfModuleGroups: (() => {
+        const chip = (id, label) => { const on = s.pdfModule === id;
+          return { label, border: on ? 'var(--accent)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--bg-2)', fg: on ? 'var(--accent)' : 'var(--text)', weight: on ? '600' : '400',
+            pick: () => this.setState({ pdfModule: id }) }; };
+        return [
+          { label: 'ภาพรวม & ฟอร์มรายวัน', items: [chip('overview', '📊 ภาพรวมทั้งหมด')].concat(core.topLevelModules().map(m => chip(m.id, m.name))) },
+          { label: 'ตรวจประจำเดือน', items: core.MODULES.filter(m => m.group).map(m => chip(m.id, m.name)) },
+          { label: 'ระบบอื่น (Excel)', items: [chip('x_cctv', '📹 ตรวจกล้องประจำสัปดาห์'), chip('x_repairs', '🔧 งานซ่อม')] }
+        ];
+      })(),
+      exportFilterGroups: this.exportFilterDefs(s.pdfModule).map(g => {
+        const pick = this.exportPick(g.key);
+        return {
+          label: g.label, summary: pick ? 'เลือก ' + pick.length + ' จาก ' + g.opts.length : 'ทั้งหมด',
+          allBorder: !pick ? 'var(--accent)' : 'var(--line)', allBg: !pick ? 'var(--accent-soft)' : 'transparent', allFg: !pick ? 'var(--accent)' : 'var(--muted)',
+          all: () => this.toggleExportPick(g.key, null),
+          opts: g.opts.map(([id, label]) => { const on = !!pick && pick.includes(id);
+            return { label, on: String(on), mark: on ? '✓ ' : '', border: on ? 'var(--accent)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'var(--bg-2)', fg: on ? 'var(--accent)' : 'var(--text)',
+              pick: () => this.toggleExportPick(g.key, id) }; })
+        };
+      }),
+      exportNoFilters: this.exportFilterDefs(s.pdfModule).length === 0,
+      exportIsPdf: !/^x_/.test(s.pdfModule) && (s.exportFormat || 'pdf') === 'pdf',
+      exportSummary: (() => {
+        const n = this.exportFilterDefs(s.pdfModule).filter(g => this.exportPick(g.key)).length;
+        const name = s.pdfModule === 'overview' ? 'ภาพรวมทั้งหมด' : s.pdfModule === 'x_cctv' ? 'ตรวจกล้องประจำสัปดาห์' : s.pdfModule === 'x_repairs' ? 'งานซ่อม' : (core.module(s.pdfModule) || {}).name || '';
+        return { topic: name, period: this.pdfRecords().label, filters: n ? 'กรอง ' + n + ' เงื่อนไข' : '' };
+      })(),
       pdfModules: [{ id: 'overview', name: 'ภาพรวม (All Operations)' }].concat(core.MODULES)
         .concat([{ id: 'x_cctv', name: '📹 ตรวจกล้องประจำสัปดาห์' }, { id: 'x_repairs', name: '🔧 งานซ่อม' }]).map(m => ({
         label: m.id === 'overview' ? '📄 ' + m.name : m.name,
@@ -8164,9 +8318,9 @@ class Component extends DCLogic {
       /* one format picker + one button; the non-record topics only export to Excel */
       exportExtra: /^x_/.test(s.pdfModule),
       exportRecords: !/^x_/.test(s.pdfModule),
-      exportFormats: [{ id: 'pdf', label: '📄 PDF' }, { id: 'xlsx', label: '📊 Excel' }].map(f => {
+      exportFormats: [{ id: 'pdf', label: '📄 PDF', hint: 'รายงานพร้อมกราฟ พิมพ์/ส่งต่อ' }, { id: 'xlsx', label: '📊 Excel', hint: 'ตารางข้อมูล เอาไปคำนวณต่อ' }].map(f => {
         const fmt = /^x_/.test(s.pdfModule) ? 'xlsx' : (s.exportFormat || 'pdf'), on = fmt === f.id, locked = /^x_/.test(s.pdfModule) && f.id === 'pdf';
-        return { label: f.label, border: on ? 'var(--accent-line)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'transparent',
+        return { label: f.label, hint: locked ? 'ไม่รองรับหัวข้อนี้' : f.hint, border: on ? 'var(--accent)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'transparent',
           fg: locked ? 'var(--dim)' : on ? 'var(--accent)' : 'var(--muted)', cursor: locked ? 'not-allowed' : 'pointer',
           pick: () => { if (!locked) this.setState({ exportFormat: f.id }); } };
       }),
