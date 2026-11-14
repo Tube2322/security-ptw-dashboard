@@ -1369,6 +1369,7 @@
                     </button>
                   </sc-for>
                   <span style="margin-left: auto; font-size: 12.5px; color: var(--muted);">{{ cctv.lastText }}</span>
+                  <button onClick="{{ cctv.exportCsv }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">⬇ Export Excel</button>
                 </div>
 
                 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid {{ cctv.week.border }}; background: {{ cctv.week.bg }};">
@@ -1406,7 +1407,10 @@
                     <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;">
                       <span style="font-size: 15px; font-weight: 700;">{{ pn.title }}</span>
                       <span style="font-size: 12.5px; color: var(--muted);">{{ pn.sub }}</span>
-                      <span style="margin-left: auto; font-size: 12px; color: var(--dim);">{{ pn.when }}</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                      <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 12.5px;"><b style="color: var(--accent);">ไฟล์ NVR</b><span style="color: var(--text);">{{ pn.fileWhen }}</span></span>
+                      <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); font-size: 12.5px;"><b style="color: var(--muted);">ตรวจเอง</b><span style="color: var(--text);">{{ pn.handWhen }}</span></span>
                     </div>
                     <div style="height: 4px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;">
                       <div style="width: {{ pn.okW }}; background: #3fbf8f;"></div><div style="width: {{ pn.shortW }}; background: #d9a21b;"></div><div style="width: {{ pn.badW }}; background: #d1483a;"></div>
@@ -1415,7 +1419,8 @@
                       <sc-for list="{{ pn.cams }}" as="cm" hint-placeholder-count="12">
                         <button onClick="{{ cm.pick }}" title="{{ cm.title }}" aria-label="{{ cm.title }}" style="position: relative; min-width: 0; padding: 8px 9px 7px; border-radius: 10px; cursor: pointer; text-align: left; border: {{ cm.border }}; background: {{ cm.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 2px;">
                           <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ cm.name }}</span>
-                          <span style="display: flex; align-items: baseline; gap: 2px; font-family: 'IBM Plex Mono', monospace;"><b style="font-size: 16px; color: {{ cm.fg }};">{{ cm.value }}</b><span style="font-size: 10.5px; color: var(--dim);">{{ cm.cap }}</span></span>
+                          <span style="display: flex; align-items: baseline; gap: 4px; font-family: 'IBM Plex Mono', monospace;"><span style="font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 9.5px; font-weight: 600; width: 38px; color: var(--accent);">ไฟล์</span><b style="font-size: 15px; color: {{ cm.fileFg }};">{{ cm.fileVal }}</b><span style="font-size: 10px; color: var(--dim);">{{ cm.capText }}</span></span>
+                          <span style="display: flex; align-items: baseline; gap: 4px; font-family: 'IBM Plex Mono', monospace;"><span style="font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 9.5px; font-weight: 600; width: 38px; color: var(--muted);">ตรวจเอง</span><span style="font-size: 12.5px; color: {{ cm.handFg }};">{{ cm.handVal }}</span></span>
                           <sc-if value="{{ cm.badge }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: 6px; right: 6px; padding: 0 5px; border-radius: 99px; font-size: 10px; font-weight: 700; line-height: 16px; background: {{ cm.badgeBg }}; color: #fff;">{{ cm.badge }}</span></sc-if>
                         </button>
                       </sc-for>
@@ -1438,8 +1443,8 @@
                     <div style="overflow-x: auto;">
                       <div style="display: flex; flex-direction: column; min-width: 440px;">
                         <sc-for list="{{ cctv.detail.rows }}" as="hr" hint-placeholder-count="3">
-                          <div style="display: grid; grid-template-columns: 105px 72px 1fr 1.2fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px;">
-                            <span style="color: var(--muted);">{{ hr.date }}</span><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ hr.days }}</span><span style="color: {{ hr.fg }};">{{ hr.status }}</span><span style="color: var(--dim); overflow-wrap: anywhere;">{{ hr.who }}</span>
+                          <div style="display: grid; grid-template-columns: 105px 96px 72px 1fr 1.2fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px;">
+                            <span style="color: var(--muted);">{{ hr.date }}</span><span style="color: {{ hr.srcFg }}; white-space: nowrap;">{{ hr.src }}</span><span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ hr.days }}</span><span style="color: {{ hr.fg }};">{{ hr.status }}</span><span style="color: var(--dim); overflow-wrap: anywhere;">{{ hr.who }}</span>
                           </div>
                         </sc-for>
                       </div>
@@ -1452,7 +1457,7 @@
 
                 <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted);">
                   <sc-for list="{{ cctv.legend }}" as="lg" hint-placeholder-count="4"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 4px; background: {{ lg.bg }}; border: {{ lg.border }};"></span>{{ lg.label }}</span></sc-for>
-                  <span>ตัวเลข = วันที่ดูย้อนหลังได้ / วันที่กล้องรับได้สูงสุด</span>
+                  <span>แถว "ไฟล์" = จากไฟล์ NVR (ดูย้อนหลังได้ / รับได้สูงสุด) · แถว "ตรวจเอง" = ตรวจเองแล้วกรอก · สีช่องตามไฟล์ NVR (ถ้ายังไม่มีไฟล์ ใช้ผลตรวจเอง)</span>
                 </div>
               </div>
             </sc-if>
@@ -2176,6 +2181,7 @@
                   </div>
                 </div>
 
+                <sc-if value="{{ exportRecords }}" hint-placeholder-val="{{ true }}">
                 <div>
                   <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; margin-bottom: 7px;">
                     <span style="font-size: 12px; color: var(--dim);">เลือกเนื้อหาที่ต้องการ Export</span>
@@ -2196,9 +2202,12 @@
                     <div style="margin-top: 8px; font-size: 12px; color: var(--warn);">{{ contentWarning }}</div>
                   </sc-if>
                 </div>
+                </sc-if>
               </div>
 
-              <div style="margin-top: 18px; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-2); font-size: 13px; color: var(--muted);">{{ pdfStatus }}</div>
+              <sc-if value="{{ exportRecords }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top: 18px; padding: 13px 15px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-2); font-size: 13px; color: var(--muted);">{{ pdfStatus }}</div>
+              </sc-if>
 
               <sc-if value="{{ pdfProgressOn }}" hint-placeholder-val="{{ false }}">
                 <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
@@ -2211,9 +2220,19 @@
                 </div>
               </sc-if>
 
-              <button onClick="{{ doExport }}" disabled="{{ pdfBtnDisabled }}" style="margin-top: 14px; width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ pdfCursor }}; font-size: 15px; font-weight: 500; border: 1px solid {{ pdfBtnBorder }}; background: {{ pdfBtnBg }}; color: {{ pdfBtnColor }};">{{ pdfBtnLabel }}</button>
-              <button onClick="{{ doExportExcel }}" disabled="{{ xlsxBtnDisabled }}" style="margin-top: 8px; width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ pdfCursor }}; font-size: 15px; font-weight: 500; border: 1px solid {{ xlsxBtnBorder }}; background: {{ xlsxBtnBg }}; color: {{ xlsxBtnColor }};">{{ xlsxBtnLabel }}</button>
-              <div style="margin-top: 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); overflow-wrap: anywhere;">{{ pdfFileName }}</div>
+              <div style="margin-top: 14px; font-size: 12px; color: var(--dim); margin-bottom: 7px;">รูปแบบไฟล์</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 7px;">
+                <sc-for list="{{ exportFormats }}" as="ef" hint-placeholder-count="2">
+                  <button onClick="{{ ef.pick }}" style="min-height: 44px; border-radius: 10px; cursor: {{ ef.cursor }}; font-size: 14px; font-weight: 500; border: 1px solid {{ ef.border }}; background: {{ ef.bg }}; color: {{ ef.fg }};">{{ ef.label }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ exportExtra }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top: 8px; font-size: 12px; color: var(--muted);">หัวข้อนี้ส่งออกได้เฉพาะ Excel (ตารางเรียงพร้อมตัวกรอง) · ใช้ช่วงเวลาที่เลือกด้านบน</div>
+              </sc-if>
+              <button onClick="{{ exportNow }}" disabled="{{ exportBtn.disabled }}" style="margin-top: 12px; width: 100%; min-height: 52px; border-radius: 12px; cursor: {{ exportBtn.cursor }}; font-size: 15px; font-weight: 500; border: 1px solid {{ exportBtn.border }}; background: {{ exportBtn.bg }}; color: {{ exportBtn.fg }};">{{ exportBtn.label }}</button>
+              <sc-if value="{{ exportRecords }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top: 8px; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--dim); overflow-wrap: anywhere;">{{ pdfFileName }}</div>
+              </sc-if>
             </section>
 
             <section style="flex: 2 1 min(420px, 100%); min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px;">
@@ -5174,6 +5193,97 @@ class Component extends DCLogic {
         return { recs: core.query({ module: mod }), label: 'ข้อมูลทั้งหมด', zeroMsg: 'ไม่พบข้อมูลสำหรับเงื่อนไขที่เลือก กรุณาเลือกช่วงข้อมูลใหม่' };
     }
   }
+  /* the selected export period as plain date bounds ('' = open-ended), for the topics that are
+     not form records (CCTV checks, repair jobs) and so can't go through pdfRecords()'s query */
+  pdfBounds() {
+    const core = this.core(), s = this.state, today = core.isoDay(new Date());
+    const mb = (y, m) => ({ from: y + '-' + core.pad(m + 1) + '-01', to: core.isoDay(new Date(y, m + 1, 0)) });
+    const d = new Date(), p = new Date(); p.setMonth(p.getMonth() - 1);
+    switch (s.pdfPeriod) {
+      case 'today': return { from: today, to: today };
+      case 'yesterday': { const y = this.pdfShiftDay(today, -1); return { from: y, to: y }; }
+      case 'last7': return { from: this.pdfShiftDay(today, -6), to: today };
+      case 'last30': return { from: this.pdfShiftDay(today, -29), to: today };
+      case 'thisMonth': return mb(d.getFullYear(), d.getMonth());
+      case 'lastMonth': return mb(p.getFullYear(), p.getMonth());
+      case 'month': return mb(s.pdfPeriodYear, s.pdfPeriodMonth);
+      case 'day': { const day = this.effectivePdfDay(); return day ? { from: day, to: day } : { from: '9999', to: '0000' }; }
+      case 'range': return s.pdfFrom && s.pdfTo && s.pdfFrom <= s.pdfTo ? { from: s.pdfFrom, to: s.pdfTo } : { from: '9999', to: '0000' };
+      default: return { from: '', to: '' };
+    }
+  }
+  /* Excel for the topics kept outside the records table. Each sheet is one flat, sorted,
+     filterable table — header row frozen and autofiltered so it can be sorted again in Excel. */
+  doExportExtra = async () => {
+    if (this.state.pdfGenerating) return;
+    if (!window.ExcelJS) { this.flash('ไลบรารีสร้าง Excel ยังโหลดไม่เสร็จ กรุณาลองใหม่อีกครั้ง', 'var(--warn)'); return; }
+    const core = this.core(), kind = this.state.pdfModule, b = this.pdfBounds();
+    const inRange = (day) => (!b.from || day >= b.from) && (!b.to || day <= b.to);
+    const label = this.pdfRecords().label;
+    this.setState({ pdfGenerating: true, pdfStep: 'generating', pdfFormat: 'xlsx' });
+    try {
+      const wb = new window.ExcelJS.Workbook();
+      wb.creator = 'SOC Command Center'; wb.created = new Date();
+      const sheet = (name, head, rows, widths) => {
+        const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+        ws.columns = head.map((h, i) => ({ header: h, width: widths[i] || 14 }));
+        rows.forEach(r => ws.addRow(r));
+        ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6F5E' } };
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: head.length } };
+        return ws;
+      };
+      let count = 0, file = '';
+      if (kind === 'x_cctv') {
+        const [cams, chk] = await Promise.all([core.cctvCameras(), core.cctvChecks()]);
+        const camOf = {}; cams.rows.forEach(c => { camOf[c.name] = c; });
+        const checks = chk.rows.filter(c => inRange(c.check_date));
+        const lastF = {}, lastH = {}, hist = [];
+        checks.forEach(ch => {
+          const file = ch.source === 'nvr_export';
+          (ch.items || []).forEach(it => {
+            if (file && !lastF[it.name]) lastF[it.name] = { ch, it };
+            if (!file && !lastH[it.name]) lastH[it.name] = { ch, it };
+            const c = camOf[it.name] || {};
+            hist.push([ch.check_date, 'NVR ' + ch.nvr, it.name, file ? 'ไฟล์ NVR' : 'ตรวจเอง', it.ok === false ? '' : it.days, it.ok === false ? 'เสีย' : 'ปกติ', ch.checker, it.note || '', c.sort == null ? 999 : c.sort, ch.nvr]);
+          });
+        });
+        hist.sort((x, y) => (y[0] > x[0] ? 1 : y[0] < x[0] ? -1 : 0) || x[9] - y[9] || x[8] - y[8] || (x[3] > y[3] ? 1 : -1));
+        const v = (e) => !e ? '' : e.it.ok === false ? 'เสีย' : e.it.days;
+        const summary = cams.rows.slice().sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).map(c => {
+          const f = lastF[c.name], h = lastH[c.name];
+          return ['NVR ' + c.nvr, c.name, c.capacity || '', v(f), f ? f.ch.check_date : '', v(h), h ? h.ch.check_date : '',
+            [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')];
+        });
+        sheet('สรุปรายกล้อง', ['NVR', 'กล้อง', 'รับได้สูงสุด (วัน)', 'ไฟล์ NVR (วัน)', 'วันที่ไฟล์', 'ตรวจเอง (วัน)', 'วันที่ตรวจเอง', 'หมายเหตุ'], summary, [10, 16, 16, 15, 13, 14, 15, 40]);
+        sheet('ประวัติการตรวจ', ['วันที่', 'NVR', 'กล้อง', 'แหล่งข้อมูล', 'ดูย้อนหลังได้ (วัน)', 'สถานะ', 'ผู้ตรวจ', 'หมายเหตุ'], hist.map(r => r.slice(0, 8)), [12, 9, 16, 13, 18, 9, 34, 40]);
+        count = hist.length; file = 'ตรวจกล้องประจำสัปดาห์';
+      } else {
+        const res = await core.repairJobs();
+        const rows = res.rows.filter(r => inRange(String(r.created_at || '').slice(0, 10)))
+          .sort((a, c) => String(c.created_at).localeCompare(String(a.created_at)));
+        const STATUS = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', sent: 'ส่งช่างแล้ว', accepted: 'ช่างรับงาน', repairing: 'กำลังซ่อม', done: 'ซ่อมเสร็จ', closed: 'ปิดงาน', rejected: 'ไม่อนุมัติ' };
+        sheet('งานซ่อม', ['เลขงาน', 'วันที่แจ้ง', 'หัวข้อ', 'สถานที่', 'อาการ/รายการที่เสีย', 'สถานะ', 'เลขงานช่าง', 'รายละเอียด'],
+          rows.map(r => [r.code, String(r.created_at || '').slice(0, 10), r.topic || '', r.place || '',
+            (Array.isArray(r.faults) ? r.faults : []).map(f => f.label + (f.value ? ': ' + f.value : '')).join(' / '),
+            STATUS[r.status] || r.status || '', r.ext_code || '', r.detail || '']),
+          [14, 12, 16, 24, 44, 14, 14, 40]);
+        count = rows.length; file = 'งานซ่อม';
+      }
+      if (!count) { this.flash('ไม่พบข้อมูลในช่วงเวลาที่เลือก', 'var(--warn)'); return; }
+      const buf = await wb.xlsx.writeBuffer();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      a.download = file + '_' + (b.from || 'ทั้งหมด') + (b.to && b.to !== b.from ? '_' + b.to : '') + '.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      this.flash('✓ ส่งออก ' + file + ' (' + label + ') ' + count + ' รายการ');
+    } catch (e) {
+      this.flash('ส่งออกไม่สำเร็จ: ' + (e && e.message || e), 'var(--danger)');
+    } finally {
+      this.setState({ pdfGenerating: false, pdfStep: '' });
+    }
+  }
   pdfThemeObj() {
     return PDF_THEMES.filter(t => t.id === this.state.pdfTheme)[0] || PDF_THEMES[0];
   }
@@ -6165,15 +6275,29 @@ class Component extends DCLogic {
     if (!s.cctvLoaded || s.cctvError) return empty;
     const cams = s.cctvCams || [], checks = s.cctvChecks || [];
     /* checks arrive newest first: a camera's first reading is its current state */
-    const latest = {}, history = {}, nvrLast = {};
+    /* two kinds of reading: exported straight from the NVR's own recording log (exact) and typed by
+       hand (the weekly portal check and the original hand-noted Excel baseline). They are kept apart
+       on screen so a hand-noted number is never mistaken for the recorder's own figure. */
+    const isFile = (ch) => ch.source === 'nvr_export';
+    const latest = {}, history = {}, nvrLast = {}, latestFile = {}, latestHand = {}, nvrFile = {}, nvrHand = {};
     checks.forEach(ch => {
+      const file = isFile(ch);
       if (!nvrLast[ch.nvr]) nvrLast[ch.nvr] = ch;
+      if (file && !nvrFile[ch.nvr]) nvrFile[ch.nvr] = ch;
+      if (!file && !nvrHand[ch.nvr]) nvrHand[ch.nvr] = ch;
       (ch.items || []).forEach(it => {
-        const row = { date: ch.check_date, days: it.days, ok: it.ok !== false, note: it.note || '', checker: ch.checker };
+        const row = { date: ch.check_date, days: it.days, ok: it.ok !== false, note: it.note || '', checker: ch.checker, file };
         if (!latest[it.name]) latest[it.name] = row;
+        if (file && !latestFile[it.name]) latestFile[it.name] = row;
+        if (!file && !latestHand[it.name]) latestHand[it.name] = row;
         (history[it.name] = history[it.name] || []).push(row);
       });
     });
+    /* the recorder's own export is the more exact figure, so a camera's status (colour, issue list,
+       counts) follows its latest file reading whenever it has one; hand checks decide only for
+       cameras with no file reading yet */
+    Object.keys(latestFile).forEach(n => { latest[n] = latestFile[n]; });
+    const readText = (r) => !r ? '—' : !r.ok ? 'เสีย' : r.days == null ? '—' : String(r.days);
     /* a camera is short when it plays back fewer days than it can hold (its capacity) */
     const shortOf = (c, r) => r && r.ok && r.days != null && c.capacity ? Math.max(0, c.capacity - r.days) : 0;
     const state = (c) => { const l = latest[c.name]; return !l ? 'none' : !l.ok ? 'bad' : shortOf(c, l) > 0 ? 'short' : 'ok'; };
@@ -6228,11 +6352,17 @@ class Component extends DCLogic {
         sub: list.length + ' กล้อง' + (caps.length ? ' · รับได้สูงสุด ' + Math.max(...caps) + ' วัน' : '')
           + (count(list, 'short') ? ' · ขาดวัน ' + count(list, 'short') : '') + (count(list, 'bad') ? ' · เสีย ' + count(list, 'bad') : ''),
         when: last ? 'ตรวจ ' + core.fmtDate(last.check_date) + ' · ' + last.checker : 'ยังไม่เคยตรวจ',
+        fileWhen: nvrFile[n] ? core.fmtDate(nvrFile[n].check_date) : 'ยังไม่มี',
+        handWhen: nvrHand[n] ? core.fmtDate(nvrHand[n].check_date) + (nvrHand[n].source === 'excel' ? ' · ข้อมูลตั้งต้น' : ' · ' + nvrHand[n].checker) : 'ยังไม่มี',
         okW: pct(count(list, 'ok'), list.length), shortW: pct(count(list, 'short'), list.length), badW: pct(count(list, 'bad'), list.length),
         cams: shown.map(c => {
           const l = latest[c.name], st = state(c), sty = STY[st], sel = s.cctvSel === c.name, short = shortOf(c, l);
           return { name: c.name, fg: sty.fg, bg: sty.bg, border: sel ? '2px solid var(--accent)' : sty.border,
             value: st === 'bad' ? 'เสีย' : (l && l.days != null ? String(l.days) : '—'), cap: st === 'bad' || !c.capacity ? '' : '/' + c.capacity,
+            fileVal: readText(latestFile[c.name]), handVal: readText(latestHand[c.name]),
+            fileFg: latestFile[c.name] && !latestFile[c.name].ok ? 'var(--danger)' : 'var(--text)',
+            handFg: latestHand[c.name] && !latestHand[c.name].ok ? 'var(--danger)' : 'var(--muted)',
+            capText: c.capacity && latestFile[c.name] && latestFile[c.name].ok ? '/' + c.capacity : '',
             badge: short ? '−' + short : '', badgeBg: '#d9a21b',
             title: c.name + ' · ' + (st === 'short' ? 'ขาด ' + short + ' วัน' : sty.label) + (l && l.days != null ? ' · ดูได้ ' + l.days + ' วัน' : '') + (c.capacity ? ' · รับได้ ' + c.capacity + ' วัน' : ''),
             pick: () => this.setState({ cctvSel: sel ? null : c.name }) };
@@ -6247,11 +6377,13 @@ class Component extends DCLogic {
         title: sel.name, sub: 'NVR ' + sel.nvr + ' · ' + STY[st].label + (l && l.note ? ' · ' + l.note : ''),
         facts: [
           { k: 'รับได้สูงสุด', v: sel.capacity ? sel.capacity + ' วัน' : '—', fg: 'var(--text)' },
-          { k: 'ตรวจล่าสุดดูได้', v: l && l.days != null ? l.days + ' วัน' : (st === 'bad' ? 'เสีย' : '—'), fg: STY[st].fg },
+          { k: '📄 จากไฟล์ NVR', v: readText(latestFile[sel.name]) + (latestFile[sel.name] && latestFile[sel.name].ok && latestFile[sel.name].days != null ? ' วัน' : ''), fg: 'var(--text)' },
+          { k: '✍️ ตรวจเอง', v: readText(latestHand[sel.name]) + (latestHand[sel.name] && latestHand[sel.name].ok && latestHand[sel.name].days != null ? ' วัน' : ''), fg: 'var(--muted)' },
           { k: 'ขาด', v: st === 'short' ? shortOf(sel, l) + ' วัน' : '—', fg: st === 'short' ? STY.short.fg : 'var(--dim)' }
         ],
         rows: (history[sel.name] || []).map(h => { const sh = shortOf(sel, h);
           return { date: core.fmtDate(h.date), days: h.days == null ? '—' : h.days + ' วัน',
+            src: h.file ? '📄 ไฟล์ NVR' : '✍️ ตรวจเอง', srcFg: h.file ? 'var(--accent)' : 'var(--muted)',
             status: !h.ok ? 'เสีย' : sh ? 'ขาด ' + sh + ' วัน' : 'ครบ', fg: !h.ok ? 'var(--danger)' : sh ? STY.short.fg : 'var(--ok)',
             who: h.checker + (h.note ? ' · ' + h.note : '') }; }),
         canEdit: core.auth.isAdmin(), cap: String(sel.capacity || ''),
@@ -6263,7 +6395,28 @@ class Component extends DCLogic {
         close: () => this.setState({ cctvSel: null })
       };
     }
+    /* one row per camera, NVR then the camera list's own order, both readings side by side.
+       CSV with a UTF-8 BOM so Excel opens it with Thai intact and no extra library. */
+    const exportCsv = () => {
+      const day = (r) => r && r.ok && r.days != null ? r.days : '';
+      const head = ['NVR', 'กล้อง', 'รับได้สูงสุด (วัน)', 'ไฟล์ NVR (วัน)', 'วันที่ไฟล์', 'ตรวจเอง (วัน)', 'วันที่ตรวจเอง', 'สถานะล่าสุด', 'หมายเหตุ'];
+      const rows = cams.slice().sort((a, b) => a.nvr - b.nvr || a.sort - b.sort).map(c => {
+        const f = latestFile[c.name], h = latestHand[c.name], st = state(c), l = latest[c.name];
+        return ['NVR ' + c.nvr, c.name, c.capacity || '', f ? (f.ok ? day(f) : 'เสีย') : '', f ? f.date : '',
+          h ? (h.ok ? day(h) : 'เสีย') : '', h ? h.date : '', STY[st].label,
+          [f && f.note, h && h.note].filter(Boolean).join(' / ') || (l && l.note) || ''];
+      });
+      const esc = (v) => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+      const csv = '﻿' + [head].concat(rows).map(r => r.map(esc).join(',')).join('\r\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'ตรวจกล้อง_' + new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      this.flash('✓ ส่งออก ' + rows.length + ' กล้อง');
+    };
     return {
+      exportCsv,
       loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0, week,
       issues, hasIssues: issues.length > 0, issueCount: issues.length + ' กล้อง',
       lastText: (() => { const real = checks.find(c => c.source !== 'excel');
@@ -6859,7 +7012,7 @@ class Component extends DCLogic {
   pdfFileName() {
     const core = this.core();
     const s = this.state;
-    const modLabel = s.pdfModule === 'overview' ? 'AllOperations' : (core.module(s.pdfModule) || {}).en.replace(/\s+/g, '');
+    const modLabel = s.pdfModule === 'overview' ? 'AllOperations' : String((core.module(s.pdfModule) || {}).en || s.pdfModule).replace(/\s+/g, '');
     const info = this.pdfRecords();
     let period = '';
     const today = core.isoDay(new Date());
@@ -7374,7 +7527,7 @@ class Component extends DCLogic {
     const builderGroupId = (core.module(s.builderModule) || {}).group || null;
     const pdfInfo = this.pdfRecords();
     const pdfKpis = this.pdfSummary(pdfInfo.recs);
-    const pdfMod = s.pdfModule === 'overview' ? { name: 'ภาพรวม (All Operations)', en: 'All-Operations' } : (core.module(s.pdfModule) || {});
+    const pdfMod = s.pdfModule === 'overview' ? { name: 'ภาพรวม (All Operations)', en: 'All-Operations' } : (core.module(s.pdfModule) || { x_cctv: { name: 'ตรวจกล้องประจำสัปดาห์', en: 'Weekly CCTV' }, x_repairs: { name: 'งานซ่อม', en: 'Repairs' } }[s.pdfModule] || {});
     const pdfBlocks = this.pdfBuildBlocks(pdfInfo.recs);
     const pdfTheme = this.pdfThemeObj();
     const pdfOrientation = this.pdfOrientation();
@@ -7898,7 +8051,8 @@ class Component extends DCLogic {
       }),
 
       /* pdf */
-      pdfModules: [{ id: 'overview', name: 'ภาพรวม (All Operations)' }].concat(core.MODULES).map(m => ({
+      pdfModules: [{ id: 'overview', name: 'ภาพรวม (All Operations)' }].concat(core.MODULES)
+        .concat([{ id: 'x_cctv', name: '📹 ตรวจกล้องประจำสัปดาห์' }, { id: 'x_repairs', name: '🔧 งานซ่อม' }]).map(m => ({
         label: m.id === 'overview' ? '📄 ' + m.name : m.name,
         border: s.pdfModule === m.id ? 'var(--accent-line)' : 'var(--line)',
         bg: s.pdfModule === m.id ? 'var(--accent-soft)' : 'transparent',
@@ -8007,6 +8161,22 @@ class Component extends DCLogic {
       xlsxBtnBg: !this.xlsxSafetyIssues().length ? 'color-mix(in srgb, var(--ok) 14%, transparent)' : 'var(--panel)',
       xlsxBtnColor: !this.xlsxSafetyIssues().length ? 'var(--ok)' : 'var(--dim)',
       doExportExcel: this.doExportExcel,
+      /* one format picker + one button; the non-record topics only export to Excel */
+      exportExtra: /^x_/.test(s.pdfModule),
+      exportRecords: !/^x_/.test(s.pdfModule),
+      exportFormats: [{ id: 'pdf', label: '📄 PDF' }, { id: 'xlsx', label: '📊 Excel' }].map(f => {
+        const fmt = /^x_/.test(s.pdfModule) ? 'xlsx' : (s.exportFormat || 'pdf'), on = fmt === f.id, locked = /^x_/.test(s.pdfModule) && f.id === 'pdf';
+        return { label: f.label, border: on ? 'var(--accent-line)' : 'var(--line)', bg: on ? 'var(--accent-soft)' : 'transparent',
+          fg: locked ? 'var(--dim)' : on ? 'var(--accent)' : 'var(--muted)', cursor: locked ? 'not-allowed' : 'pointer',
+          pick: () => { if (!locked) this.setState({ exportFormat: f.id }); } };
+      }),
+      exportNow: () => /^x_/.test(s.pdfModule) ? this.doExportExtra() : (s.exportFormat === 'xlsx' ? this.doExportExcel() : this.doExport()),
+      exportBtn: (() => {
+        const extra = /^x_/.test(s.pdfModule), xl = extra || s.exportFormat === 'xlsx';
+        const blocked = extra ? s.pdfGenerating : (xl ? this.xlsxSafetyIssues().length > 0 : pdfSafety.length > 0) || s.pdfGenerating;
+        return { disabled: blocked, label: s.pdfGenerating ? (pdfStepLabels[s.pdfStep] || 'กำลังสร้างไฟล์…') : (xl ? '⬇ ดาวน์โหลดไฟล์ Excel' : '⬇ ดาวน์โหลด PDF'),
+          border: blocked ? 'var(--line)' : 'var(--accent-line)', bg: blocked ? 'var(--panel)' : 'var(--accent-soft)', fg: blocked ? 'var(--dim)' : 'var(--accent)', cursor: blocked ? 'not-allowed' : 'pointer' };
+      })(),
 
       /* preview panel — recomputes on every state change, never stale */
       previewModuleLabel: pdfMod.name,
