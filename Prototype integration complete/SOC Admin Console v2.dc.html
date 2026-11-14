@@ -1425,18 +1425,19 @@
                       <span style="font-size: 13px; color: var(--muted);">{{ pn.sub }}</span>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                      <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 13px;"><b style="color: var(--accent);">ไฟล์ NVR</b><span style="color: var(--text);">{{ pn.fileWhen }}</span></span>
+                      <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 9px; border: 1px solid var(--accent-line); background: var(--accent-soft); font-size: 13px;"><b style="color: var(--accent);">จากระบบ</b><span style="color: var(--text);">{{ pn.fileWhen }}</span></span>
                       <span style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel-2); font-size: 13px;"><b style="color: var(--muted);">ตรวจเอง</b><span style="color: var(--text);">{{ pn.handWhen }}</span></span>
                     </div>
                     <div style="height: 4px; border-radius: 99px; background: var(--panel-2); overflow: hidden; display: flex;">
                       <div style="width: {{ pn.okW }}; background: #3fbf8f;"></div><div style="width: {{ pn.shortW }}; background: #d9a21b;"></div><div style="width: {{ pn.badW }}; background: #d1483a;"></div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px;">
                       <sc-for list="{{ pn.cams }}" as="cm" hint-placeholder-count="12">
-                        <button onClick="{{ cm.pick }}" title="{{ cm.title }}" aria-label="{{ cm.title }}" style="position: relative; min-width: 0; padding: 8px 9px 7px; border-radius: 10px; cursor: pointer; text-align: left; border: {{ cm.border }}; background: {{ cm.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 2px;">
-                          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ cm.name }}</span>
-                          <span style="display: flex; align-items: baseline; gap: 4px; font-family: 'IBM Plex Mono', monospace;"><span style="font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 10px; font-weight: 600; width: 38px; color: var(--accent);">ไฟล์</span><b style="font-size: 16px; color: {{ cm.fileFg }};">{{ cm.fileVal }}</b><span style="font-size: 10px; color: var(--dim);">{{ cm.capText }}</span></span>
-                          <span style="display: flex; align-items: baseline; gap: 4px; font-family: 'IBM Plex Mono', monospace;"><span style="font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 10px; font-weight: 600; width: 38px; color: var(--muted);">ตรวจเอง</span><span style="font-size: 13px; color: {{ cm.handFg }};">{{ cm.handVal }}</span></span>
+                        <button onClick="{{ cm.pick }}" title="{{ cm.title }}" aria-label="{{ cm.title }}" style="position: relative; min-width: 0; padding: 9px 10px; border-radius: 10px; cursor: pointer; text-align: left; border: {{ cm.border }}; background: {{ cm.bg }}; color: var(--text); display: flex; flex-direction: column; gap: 4px;">
+                          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); padding-right: 18px; padding-bottom: 3px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ cm.name }}</span>
+                          <span style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px;"><span style="font-size: 11px; font-weight: 500; white-space: nowrap; color: var(--accent);">จากระบบ</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: {{ cm.fileFg }};">{{ cm.fileVal }}</span></span>
+                          <span style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px;"><span style="font-size: 11px; font-weight: 500; white-space: nowrap; color: var(--muted);">ตรวจเอง</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; color: {{ cm.handFg }};">{{ cm.handVal }}</span></span>
+                          <span style="display: flex; align-items: baseline; justify-content: space-between; gap: 6px;"><span style="font-size: 11px; font-weight: 500; white-space: nowrap; color: var(--dim);">ข้อมูลเดิม</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--dim);">{{ cm.baseVal }}</span></span>
                           <sc-if value="{{ cm.badge }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: 6px; right: 6px; padding: 0 5px; border-radius: 99px; font-size: 10px; font-weight: 700; line-height: 16px; background: {{ cm.badgeBg }}; color: #fff;">{{ cm.badge }}</span></sc-if>
                         </button>
                       </sc-for>
@@ -1473,7 +1474,7 @@
 
                 <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted);">
                   <sc-for list="{{ cctv.legend }}" as="lg" hint-placeholder-count="4"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 4px; background: {{ lg.bg }}; border: {{ lg.border }};"></span>{{ lg.label }}</span></sc-for>
-                  <span>แถว "ไฟล์" = จากไฟล์ NVR (ดูย้อนหลังได้ / รับได้สูงสุด) · แถว "ตรวจเอง" = ตรวจเองแล้วกรอก · สีช่องตามไฟล์ NVR (ถ้ายังไม่มีไฟล์ ใช้ผลตรวจเอง)</span>
+                  <span>แถว "จากระบบ" = จากไฟล์ NVR (ดูย้อนหลังได้ / รับได้สูงสุด) · แถว "ตรวจเอง" = ตรวจเองแล้วกรอก · สีช่องตามค่าจากระบบ (ถ้ายังไม่มีค่าจากระบบ ใช้ผลตรวจเอง)</span>
                 </div>
               </div>
             </sc-if>
@@ -5215,7 +5216,7 @@ class Component extends DCLogic {
       { key: 'checkpoint_point', label: 'จุดที่ตรวจ', opts: optsOf('checkpoint_point') }];
     if (mod === 'x_cctv') return [
       { key: 'nvr', label: 'NVR', opts: [1, 2, 3, 4, 5, 6].map(n => [String(n), 'NVR ' + n]) },
-      { key: 'src', label: 'แหล่งข้อมูล', opts: [['file', 'ไฟล์ NVR'], ['hand', 'ตรวจเอง']] },
+      { key: 'src', label: 'แหล่งข้อมูล', opts: [['file', 'จากระบบ'], ['hand', 'ตรวจเอง']] },
       { key: 'st', label: 'สถานะกล้อง', opts: [['ครบ', 'ครบ'], ['ขาดวัน', 'ขาดวัน'], ['เสีย', 'เสีย'], ['ยังไม่ตรวจ', 'ยังไม่ตรวจ']] }];
     if (mod === 'x_repairs') return [
       { key: 'st', label: 'สถานะงาน', opts: [['open', 'ยังไม่เสร็จ'], ['done', 'เสร็จ/ปิดแล้ว'], ['rejected', 'ไม่อนุมัติ']] },
@@ -5367,39 +5368,49 @@ class Component extends DCLogic {
         const camOf = {}; cams.rows.forEach(c => { camOf[c.name] = c; });
         /* same rules as the page: the hand-noted baseline is not exported, and a camera the
            recorder reports broken carries no hand reading */
-        const checks = chk.rows.filter(c => inRange(c.check_date) && c.source !== 'excel');
-        const lastF = {}, lastH = {}, hist = [];
-        checks.forEach(ch => { if (ch.source === 'nvr_export') (ch.items || []).forEach(it => { if (!lastF[it.name]) lastF[it.name] = { ch, it }; }); });
-        const broken = (n) => lastF[n] && lastF[n].it.ok === false;
-        checks.forEach(ch => {
-          const file = ch.source === 'nvr_export';
-          (ch.items || []).forEach(it => {
-            if (!file && broken(it.name)) return;
-            if (!file && !lastH[it.name]) lastH[it.name] = { ch, it };
-            const c = camOf[it.name] || {};
-            hist.push([ch.check_date, 'NVR ' + ch.nvr, it.name, file ? 'ไฟล์ NVR' : 'ตรวจเอง', it.ok === false ? '' : it.days, it.ok === false ? 'เสีย' : 'ปกติ', ch.checker, it.note || '', c.sort == null ? 999 : c.sort, ch.nvr]);
-          });
-        });
-        hist.sort((x, y) => (y[0] > x[0] ? 1 : y[0] < x[0] ? -1 : 0) || x[9] - y[9] || x[8] - y[8] || (x[3] > y[3] ? 1 : -1));
-        const v = (e) => !e ? '' : e.it.ok === false ? 'เสีย' : e.it.days;
-        /* status follows the file reading when there is one, else the hand check — same as the page */
-        const status = (c, f, h) => { const r = f || h; if (!r) return 'ยังไม่ตรวจ'; if (r.it.ok === false) return 'เสีย';
-          return c.capacity && r.it.days != null && r.it.days < c.capacity ? 'ขาดวัน' : 'ครบ'; };
+        const checks = chk.rows.filter(c => inRange(c.check_date) && c.source !== 'excel')
+          .sort((x, y) => String(y.check_date + (y.submitted_at || '')).localeCompare(String(x.check_date + (x.submitted_at || ''))));
+        /* one sheet per weekly report, named after the Saturday that closes the week (Sun–Sat);
+           several checks in one week: the latest wins */
         const fN = this.exportPick('nvr'), fS = this.exportPick('src'), fSt = this.exportPick('st');
         const wantF = !fS || fS.includes('file'), wantH = !fS || fS.includes('hand');
-        const stOf = {}; cams.rows.forEach(c => { stOf[c.name] = status(c, lastF[c.name], lastH[c.name]); });
-        const keep = (c) => (!fN || fN.includes(String(c.nvr))) && (!fSt || fSt.includes(stOf[c.name]));
-        const summary = cams.rows.filter(keep).sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).map(c => {
-          const f = wantF ? lastF[c.name] : null, h = wantH ? lastH[c.name] : null;
-          return ['NVR ' + c.nvr, c.name].concat(wantF ? [v(f), f ? f.ch.check_date : ''] : [], wantH ? [v(h), h ? h.ch.check_date : ''] : [],
-            [stOf[c.name], [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')]);
+        const MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const satOf = (day) => { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + (6 - d.getDay()));
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+        const thDate = (day, short) => { const [y, m, d] = day.split('-').map(Number); return d + ' ' + MON[m - 1] + ' ' + (short ? String(y + 543).slice(2) : y + 543); };
+        const weeks = {};
+        checks.forEach(ch => { const k = satOf(ch.check_date); (weeks[k] = weeks[k] || []).push(ch); });
+        const keys = Object.keys(weeks).sort();
+        const head = ['NVR', 'วันที่ตรวจ', 'กล้อง'].concat(wantF ? ['ดูย้อนหลังได้ อิงจากระบบ'] : [], wantH ? ['ดูย้อนหลังได้ ที่ตรวจสอบเอง'] : [], ['สรุปวันที่หายไป', 'หมายเหตุ']);
+        const widths = [10, 13, 16].concat(wantF ? [24] : [], wantH ? [26] : [], [17, 40]);
+        keys.forEach(k => {
+          const F = {}, H = {}, dayOf = {};
+          weeks[k].forEach(ch => { (ch.items || []).forEach(it => { const T = ch.source === 'nvr_export' ? F : H; if (!T[it.name]) T[it.name] = { ch, it }; }); });
+          Object.keys(H).forEach(n => { if (F[n] && F[n].it.ok === false) delete H[n]; });
+          const rows = cams.rows.filter(c => (!fN || fN.includes(String(c.nvr))) && (F[c.name] || H[c.name]))
+            .sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).map(c => {
+              const f = F[c.name], h = H[c.name], bad = (f || h).it.ok === false;
+              const st = bad ? 'เสีย' : (c.capacity && Math.min(f ? f.it.days : 1e9, h ? h.it.days : 1e9) < c.capacity ? 'ขาดวัน' : 'ครบ');
+              if (fSt && !fSt.includes(st)) return null;
+              const when = [f, h].filter(Boolean).map(e => e.ch.check_date).sort().pop();
+              const d = f && h && f.it.days != null && h.it.days != null ? h.it.days - f.it.days : null;
+              /* ตรวจเอง counts today, the recorder log does not — one day over is expected */
+              const gap = bad ? 'กล้องเสีย ไม่มีข้อมูล' : d == null ? '' : d > 0 ? 'เกิน ' + d + ' วัน (รวมวันนี้)' : d < 0 ? 'ขาด ' + (-d) + ' วัน' : 'ตรงกัน';
+              return ['NVR ' + c.nvr, thDate(when)].concat([c.name], wantF ? [!f ? '' : f.it.ok === false ? 'เสีย' : f.it.days] : [],
+                wantH ? [!h ? '' : h.it.days] : [], [gap, [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')]);
+            }).filter(Boolean);
+          const ws = sheet('เสาร์ที่ ' + thDate(k, true), head, rows, widths);
+          ws.spliceRows(1, 0, ['รายงานประจำสัปดาห์ เสาร์ที่ ' + thDate(k)]);
+          ws.mergeCells(1, 1, 1, head.length);
+          ws.getRow(1).font = { bold: true, size: 14 }; ws.getRow(1).fill = { type: 'pattern', pattern: 'none' };
+          ws.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+          ws.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6F5E' } };
+          ws.views = [{ state: 'frozen', ySplit: 2 }];
+          ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: head.length } };
+          count += rows.length;
         });
-        sheet('สรุปรายกล้อง', ['NVR', 'กล้อง'].concat(wantF ? ['ไฟล์ NVR (วัน)', 'วันที่ไฟล์'] : [], wantH ? ['ตรวจเอง (วัน)', 'วันที่ตรวจเอง'] : [], ['สถานะล่าสุด', 'หมายเหตุ']),
-          summary, [10, 16].concat(wantF ? [15, 13] : [], wantH ? [14, 15] : [], [13, 40]));
-        const histRows = hist.filter(r => { const c = camOf[r[2]] || { nvr: r[9], name: r[2] };
-          return keep(c) && (r[3] === 'ไฟล์ NVR' ? wantF : wantH); });
-        sheet('ประวัติการตรวจ', ['วันที่', 'NVR', 'กล้อง', 'แหล่งข้อมูล', 'ดูย้อนหลังได้ (วัน)', 'สถานะ', 'ผู้ตรวจ', 'หมายเหตุ'], histRows.map(r => r.slice(0, 8)), [12, 9, 16, 13, 18, 9, 34, 40]);
-        count = summary.length; file = 'ตรวจกล้องประจำสัปดาห์';
+        if (!keys.length) sheet('ไม่มีข้อมูล', ['ไม่มีการตรวจในช่วงที่เลือก'], [], [30]);
+        file = 'รายงานตรวจกล้องประจำสัปดาห์';
       } else {
         const res = await core.repairJobs();
         const fSt = this.exportPick('st'), fT = this.exportPick('topic');
@@ -6500,7 +6511,7 @@ class Component extends DCLogic {
       const caps = list.map(c => c.capacity).filter(Boolean);
       return {
         title: 'NVR ' + n, show: shown.length > 0,
-        sub: list.length + ' กล้อง' + (caps.length ? ' · รับได้สูงสุด ' + Math.max(...caps) + ' วัน' : '')
+        sub: list.length + ' กล้อง' + (caps.length ? ' · ข้อมูลเดิมก่อนปรับ ' + Math.min(...caps) + (Math.max(...caps) !== Math.min(...caps) ? '–' + Math.max(...caps) : '') + ' วัน' : '')
           + (count(list, 'short') ? ' · ขาดวัน ' + count(list, 'short') : '') + (count(list, 'bad') ? ' · เสีย ' + count(list, 'bad') : ''),
         when: last ? 'ตรวจ ' + core.fmtDate(last.check_date) + ' · ' + last.checker : 'ยังไม่เคยตรวจ',
         fileWhen: nvrFile[n] ? core.fmtDate(nvrFile[n].check_date) : 'ยังไม่มี',
@@ -6513,9 +6524,9 @@ class Component extends DCLogic {
             fileVal: readText(latestFile[c.name]), handVal: readText(latestHand[c.name]),
             fileFg: latestFile[c.name] && !latestFile[c.name].ok ? 'var(--danger)' : 'var(--text)',
             handFg: latestHand[c.name] && !latestHand[c.name].ok ? 'var(--danger)' : 'var(--muted)',
-            capText: c.capacity && latestFile[c.name] && latestFile[c.name].ok ? '/' + c.capacity : '',
+            capText: c.capacity && latestFile[c.name] && latestFile[c.name].ok ? '/' + c.capacity : '', baseVal: c.capacity ? String(c.capacity) : '—',
             badge: short ? '−' + short : '', badgeBg: '#d9a21b',
-            title: c.name + ' · ' + (st === 'short' ? 'ขาด ' + short + ' วัน' : sty.label) + (l && l.days != null ? ' · ดูได้ ' + l.days + ' วัน' : '') + (c.capacity ? ' · รับได้ ' + c.capacity + ' วัน' : ''),
+            title: c.name + ' · ' + (st === 'short' ? 'ขาด ' + short + ' วัน' : sty.label) + (l && l.days != null ? ' · ดูได้ ' + l.days + ' วัน' : '') + (c.capacity ? ' · ข้อมูลเดิมก่อนปรับ ' + c.capacity + ' วัน' : ''),
             pick: () => this.setState({ cctvSel: sel ? null : c.name }) };
         })
       };
@@ -6527,14 +6538,14 @@ class Component extends DCLogic {
       detail = {
         title: sel.name, sub: 'NVR ' + sel.nvr + ' · ' + STY[st].label + (l && l.note ? ' · ' + l.note : ''),
         facts: [
-          { k: 'รับได้สูงสุด', v: sel.capacity ? sel.capacity + ' วัน' : '—', fg: 'var(--text)' },
-          { k: 'จากไฟล์ NVR', v: readText(latestFile[sel.name]) + (latestFile[sel.name] && latestFile[sel.name].ok && latestFile[sel.name].days != null ? ' วัน' : ''), fg: 'var(--text)' },
+          { k: 'ข้อมูลเดิมก่อนปรับ', v: sel.capacity ? sel.capacity + ' วัน' : '—', fg: 'var(--text)' },
+          { k: 'จากระบบ', v: readText(latestFile[sel.name]) + (latestFile[sel.name] && latestFile[sel.name].ok && latestFile[sel.name].days != null ? ' วัน' : ''), fg: 'var(--text)' },
           { k: 'ตรวจเอง', v: readText(latestHand[sel.name]) + (latestHand[sel.name] && latestHand[sel.name].ok && latestHand[sel.name].days != null ? ' วัน' : ''), fg: 'var(--muted)' },
           { k: 'ขาด', v: st === 'short' ? shortOf(sel, l) + ' วัน' : '—', fg: st === 'short' ? STY.short.fg : 'var(--dim)' }
         ],
         rows: (history[sel.name] || []).filter(h => h.file || !(latestFile[sel.name] && !latestFile[sel.name].ok)).map(h => { const sh = shortOf(sel, h);
           return { date: core.fmtDate(h.date), days: h.days == null ? '—' : h.days + ' วัน',
-            src: h.file ? 'ไฟล์ NVR' : 'ตรวจเอง', srcFg: h.file ? 'var(--accent)' : 'var(--muted)',
+            src: h.file ? 'จากระบบ' : 'ตรวจเอง', srcFg: h.file ? 'var(--accent)' : 'var(--muted)',
             status: !h.ok ? 'เสีย' : sh ? 'ขาด ' + sh + ' วัน' : 'ครบ', fg: !h.ok ? 'var(--danger)' : sh ? STY.short.fg : 'var(--ok)',
             who: h.checker + (h.note ? ' · ' + h.note : '') }; }),
         canEdit: core.auth.isAdmin(), cap: String(sel.capacity || ''),
