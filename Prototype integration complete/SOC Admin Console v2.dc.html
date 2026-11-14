@@ -5459,7 +5459,7 @@ class Component extends DCLogic {
           ws.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
           ws.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6F5E' } };
           ws.getRow(2).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; ws.getRow(2).height = 36;
-          ws.views = [{ state: 'frozen', ySplit: 2, xSplit: 2 }];
+          ws.views = [{ state: 'frozen', ySplit: 2 }];
           ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: sHead.length } };
           paint(ws, 3, sumCams.map(c => c.nvr), sHead.length);
           sRows.forEach((r, i) => { if (r[r.length - 1]) ws.getRow(3 + i).getCell(sHead.length).font = { bold: true, color: { argb: 'FFC53030' } }; });
