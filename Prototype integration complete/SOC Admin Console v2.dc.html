@@ -6524,9 +6524,9 @@ class Component extends DCLogic {
             fileVal: readText(latestFile[c.name]), handVal: readText(latestHand[c.name]),
             fileFg: latestFile[c.name] && !latestFile[c.name].ok ? 'var(--danger)' : 'var(--text)',
             handFg: latestHand[c.name] && !latestHand[c.name].ok ? 'var(--danger)' : 'var(--muted)',
-            capText: c.capacity && latestFile[c.name] && latestFile[c.name].ok ? '/' + c.capacity : '', baseVal: c.capacity ? String(c.capacity) : '—',
+            capText: c.capacity && latestFile[c.name] && latestFile[c.name].ok ? '/' + c.capacity : '', baseVal: st !== 'bad' && c.capacity ? String(c.capacity) : '—',
             badge: short ? '−' + short : '', badgeBg: '#d9a21b',
-            title: c.name + ' · ' + (st === 'short' ? 'ขาด ' + short + ' วัน' : sty.label) + (l && l.days != null ? ' · ดูได้ ' + l.days + ' วัน' : '') + (c.capacity ? ' · ข้อมูลเดิมก่อนปรับ ' + c.capacity + ' วัน' : ''),
+            title: c.name + ' · ' + (st === 'short' ? 'ขาด ' + short + ' วัน' : sty.label) + (l && l.days != null ? ' · ดูได้ ' + l.days + ' วัน' : '') + (st !== 'bad' && c.capacity ? ' · ข้อมูลเดิมก่อนปรับ ' + c.capacity + ' วัน' : ''),
             pick: () => this.setState({ cctvSel: sel ? null : c.name }) };
         })
       };
@@ -6538,7 +6538,7 @@ class Component extends DCLogic {
       detail = {
         title: sel.name, sub: 'NVR ' + sel.nvr + ' · ' + STY[st].label + (l && l.note ? ' · ' + l.note : ''),
         facts: [
-          { k: 'ข้อมูลเดิมก่อนปรับ', v: sel.capacity ? sel.capacity + ' วัน' : '—', fg: 'var(--text)' },
+          { k: 'ข้อมูลเดิมก่อนปรับ', v: st !== 'bad' && sel.capacity ? sel.capacity + ' วัน' : '—', fg: 'var(--text)' },
           { k: 'จากระบบ', v: readText(latestFile[sel.name]) + (latestFile[sel.name] && latestFile[sel.name].ok && latestFile[sel.name].days != null ? ' วัน' : ''), fg: 'var(--text)' },
           { k: 'ตรวจเอง', v: readText(latestHand[sel.name]) + (latestHand[sel.name] && latestHand[sel.name].ok && latestHand[sel.name].days != null ? ' วัน' : ''), fg: 'var(--muted)' },
           { k: 'ขาด', v: st === 'short' ? shortOf(sel, l) + ' วัน' : '—', fg: st === 'short' ? STY.short.fg : 'var(--dim)' }
