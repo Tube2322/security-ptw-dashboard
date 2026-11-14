@@ -925,8 +925,13 @@
         .then(function (res) { return res.error ? res.error.message : ''; });
     },
     /* admin view: every check, newest first */
-    cctvChecks: function () {
-      return sb.from('cctv_checks').select('id,check_date,nvr,checker,items,source,submitted_at').order('check_date', { ascending: false }).order('submitted_at', { ascending: false }).limit(400)
+    /* optional from/to (YYYY-MM-DD) bound the dates so any past month can be read in full,
+       not just the newest 400 checks */
+    cctvChecks: function (from, to) {
+      var q = sb.from('cctv_checks').select('id,check_date,nvr,checker,items,source,submitted_at');
+      if (from) q = q.gte('check_date', from);
+      if (to) q = q.lte('check_date', to);
+      return q.order('check_date', { ascending: false }).order('submitted_at', { ascending: false }).limit(from ? 5000 : 400)
         .then(function (res) { return { error: res.error ? res.error.message : '', rows: res.data || [] }; });
     },
     cctvSetCapacity: function (name, n) {
