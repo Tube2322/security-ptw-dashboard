@@ -1,0 +1,26 @@
+name: Tests
+
+# Runs the smoke tests (tests/*.test.js) on every push to v2 and main, so a change that breaks the
+# admin console, the entry portal, the offline queue, record paging or row-level security shows up
+# before it reaches the live site. Writes to Supabase are intercepted inside the tests; the only
+# real requests are anonymous reads.
+on:
+  push:
+    branches: [v2, main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.repository == 'Tube2322/security-ptw-dashboard'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm test

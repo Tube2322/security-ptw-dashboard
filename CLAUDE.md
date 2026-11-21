@@ -7,6 +7,11 @@
 - Production: https://security-ptw-dashboard.vercel.app (`/admin`, `/entry`) Vercel team "Shonsey's projects" deploy อัตโนมัติจาก `main`
 - ไม่มี build step ไฟล์ใน repo คือไฟล์ที่ deploy
 
+## ทดสอบ
+- `npm test` (node:test + playwright-core + Chrome ที่ติดตั้งในเครื่อง) ไฟล์ `tests/smoke.test.js` ไม่เขียนฐานข้อมูลจริง (ดักคำขอเขียนทั้งหมด)
+- GitHub Actions `test.yml` รันเองทุก push ไป v2/main **ต้องผ่านก่อนขึ้น main**
+- ครอบคลุม: หน้า Admin/หน้ากรอกโหลดไม่พัง, คิวส่งซ้ำเมื่อเน็ตหลุด, แบ่งหน้าเกิน 1,000 แถว, ผู้ไม่ล็อกอินอ่านข้อมูลไม่ได้ · แก้ส่วนไหนสำคัญ ให้เพิ่มทดสอบส่วนนั้น
+
 ## Branch และการ deploy
 - ทำงานบน `v2` เสมอ push v2 ได้ แต่ **merge เข้า `main` (= ขึ้นเว็บจริง) เฉพาะเมื่อผู้ใช้สั่ง "ขึ้น main"** ทุกครั้ง
 - merge: `git checkout main && git pull && git merge --no-edit v2 && git push origin main && git checkout v2`
