@@ -1341,7 +1341,7 @@
               <div style="display: flex; flex-direction: column; gap: 18px; min-width: 0;">
                 <!-- one line of status: what is fine, what needs attention -->
                 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                  <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel-2); font-size: 13px;">กล้องทั้งหมด<b style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{ cctv.totalCams }}</b></span>
+                  <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel-2); font-size: 13px;">กล้องใช้งานได้<b style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{ cctv.totalCams }}</b></span>
                   <sc-for list="{{ cctv.stats }}" as="st" hint-placeholder-count="4">
                     <button class="rp-chip" onClick="{{ st.pick }}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 99px; cursor: pointer; border: 1px solid {{ st.border }}; background: {{ st.bg }}; color: var(--text); font-size: 13px;">
                       <span style="width: 8px; height: 8px; border-radius: 99px; background: {{ st.dot }};"></span>{{ st.label }}<b style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{ st.value }}</b>
@@ -6513,7 +6513,7 @@ class Component extends DCLogic {
     return {
       goExport,
       loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0, week,
-      issues, hasIssues: issues.length > 0, totalCams: String(cams.length), issueCount: (() => { const nb = cams.filter(c => state(c) === 'bad').length, ns = cams.filter(c => state(c) === 'short').length; return (nb ? 'มีกล้องเสียใช้งานไม่ได้ จำนวน ' + nb + ' กล้อง' : '') + (nb && ns ? ' · ' : '') + (ns ? 'กล้องบันทึกขาดวัน จำนวน ' + ns + ' กล้อง' : ''); })(),
+      issues, hasIssues: issues.length > 0, totalCams: cams.filter(c => state(c) !== 'bad').length + '/' + cams.length, issueCount: (() => { const nb = cams.filter(c => state(c) === 'bad').length, ns = cams.filter(c => state(c) === 'short').length; return (nb ? 'มีกล้องเสียใช้งานไม่ได้ จำนวน ' + nb + ' กล้อง' : '') + (nb && ns ? ' · ' : '') + (ns ? 'กล้องบันทึกขาดวัน จำนวน ' + ns + ' กล้อง' : ''); })(),
       lastText: (() => { const real = checks.find(c => c.source !== 'excel');
         return real ? 'ตรวจล่าสุด ' + core.fmtDate(real.check_date) + ' โดย ' + real.checker : (lastAll ? 'ข้อมูลตั้งต้นจากไฟล์ Excel ' + core.fmtDate(lastAll.check_date) : 'ยังไม่มีผลตรวจ'); })(),
       legend: ['ok', 'short', 'bad', 'none'].map(k => ({ label: STY[k].label, bg: STY[k].bg, border: STY[k].border }))
