@@ -86,7 +86,7 @@ test('repair jobs: newest first, filtered by period, status group and topic', ()
   const wb = new ExcelJS.Workbook();
   const sheet = (name, head, rows) => { const ws = wb.addWorksheet(name); ws.addRow(head); rows.forEach(r => ws.addRow(r)); return ws; };
   const rows = [
-    { code: 'R1', created_at: '2026-11-02T08:00:00', topic: 'CCTV', status: 'done', faults: [{ label: 'ภาพไม่ขึ้น' }] },
+    { code: 'R1', created_at: '2026-11-02T08:00:00', topic: 'CCTV', status: 'done', faults: [{ label: 'ภาพไม่ขึ้น' }], loc: { building: 'อาคารบริการ', floor: 'ชั้น 1', department: 'CCTV' }, reporter: { name: 'ก', phone: '0800000000' }, times: { done: '2026-11-03 10:00' } },
     { code: 'R2', created_at: '2026-11-05T08:00:00', topic: 'ห้องน้ำ', status: 'pending', faults: [] },
     { code: 'R3', created_at: '2026-10-30T08:00:00', topic: 'CCTV', status: 'pending', faults: [] },
     { code: 'R4', created_at: '2026-11-03T08:00:00', topic: 'ACC', status: 'repairing', faults: [] }
@@ -95,7 +95,15 @@ test('repair jobs: newest first, filtered by period, status group and topic', ()
   assert.strictEqual(repairsSheet({ sheet, rows, inRange }), 3);
   const ws = wb.getWorksheet('งานซ่อม');
   assert.deepStrictEqual([2, 3, 4].map(r => ws.getRow(r).getCell(1).value), ['R2', 'R4', 'R1']);
-  assert.strictEqual(ws.getRow(4).getCell(6).value, 'ซ่อมเสร็จ');
+  const r1 = ws.getRow(4).values.slice(1);
+  assert.deepStrictEqual(r1.slice(4, 8), ['อาคารบริการ', 'ชั้น 1', 'CCTV', 'ภาพไม่ขึ้น']);
+  assert.strictEqual(r1[9], 'ก');
+  assert.ok(!r1.includes('0800000000'), 'reporter phone is not exported');
+  assert.strictEqual(r1[10], 'ซ่อมเสร็จ');
+  assert.strictEqual(r1[12], '2026-11-03');
+  const sum = wb.getWorksheet('สรุปรายเดือน');
+  assert.deepStrictEqual(sum.getRow(2).values.slice(1, 5), ['2026-11', 3, 1, 2]);
+  assert.match(sum.getRow(2).getCell(5).value, /CCTV 1/);
   const wb2 = new ExcelJS.Workbook();
   const sheet2 = (name, head, rs) => { const w = wb2.addWorksheet(name); rs.forEach(r => w.addRow(r)); return w; };
   assert.strictEqual(repairsSheet({ sheet: sheet2, rows, inRange, filters: { st: ['open'], topic: ['อื่นๆ'] } }), 1);

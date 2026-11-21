@@ -28,7 +28,7 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261121c"></script>
+<script src="./soc-export.js?v=20261121d"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
 <style>
@@ -1723,7 +1723,10 @@
 
             <!-- open a job by hand -->
             <sc-if value="{{ !repairs.form }}" hint-placeholder-val="{{ true }}">
-              <button class="rp-btn" onClick="{{ repairs.openNew }}" style="align-self: flex-start; min-height: 42px; padding: 0 18px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; border: 1px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent);">＋ แจ้งซ่อมเอง</button>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <button class="rp-btn" onClick="{{ repairs.openNew }}" style="min-height: 42px; padding: 0 18px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; border: 1px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent);">＋ แจ้งซ่อมเอง</button>
+              <button class="rp-btn" onClick="{{ repairs.toggleMonthly }}" style="min-height: 42px; padding: 0 18px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; border: 1px solid {{ repairs.monthlyBorder }}; background: {{ repairs.monthlyBg }}; color: {{ repairs.monthlyFg }};">สรุปรายเดือน</button>
+              </div>
             </sc-if>
             <sc-if value="{{ repairs.form }}" hint-placeholder-val="{{ false }}">
               <div class="rp-empty" style="border-radius: 16px; border: 1px solid var(--accent-line); background: var(--panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0;">
@@ -1804,6 +1807,32 @@
                 <button class="rp-chip" onClick="{{ tp.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px solid {{ tp.border }}; background: {{ tp.bg }}; color: {{ tp.fg }};">{{ tp.label }}</button>
               </sc-for>
               </div>
+            <sc-if value="{{ repairs.showMonthly }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; align-items: center;">
+              <span style="font-size: 12px; color: var(--muted); margin-right: 2px;">เดือนที่แจ้ง</span>
+              <sc-for list="{{ repairs.months }}" as="mo" hint-placeholder-count="3">
+                <button class="rp-chip" onClick="{{ mo.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px solid {{ mo.border }}; background: {{ mo.bg }}; color: {{ mo.fg }};">{{ mo.label }}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ repairs.hasMonthSummary }}" hint-placeholder-val="{{ false }}">
+              <section style="border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+                <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;"><b style="font-size: 16px; font-weight: 600;">{{ repairs.monthSummary.title }}</b><span style="font-size: 13px; color: var(--muted);">{{ repairs.monthSummary.line }}</span></div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 10px;">
+                  <div style="min-width: 0;"><div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">แยกตามหัวข้อ</div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{ repairs.monthSummary.byTopic }}" as="bt" hint-placeholder-count="3"><span style="padding: 3px 10px; border-radius: 99px; background: var(--panel-2); font-size: 13px;">{{ bt.label }} <b>{{ bt.n }}</b></span></sc-for></div></div>
+                  <div style="min-width: 0;"><div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">แยกตามอาคาร/ชั้น</div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{ repairs.monthSummary.byFloor }}" as="bf" hint-placeholder-count="3"><span style="padding: 3px 10px; border-radius: 99px; background: var(--panel-2); font-size: 13px;">{{ bf.label }} <b>{{ bf.n }}</b></span></sc-for></div></div>
+                </div>
+                <div style="display: flex; flex-direction: column; min-width: 0; border-top: 1px solid var(--line);">
+                  <sc-for list="{{ repairs.monthSummary.rows }}" as="mr" hint-placeholder-count="3">
+                    <button onClick="{{ mr.pick }}" style="display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; padding: 9px 2px; border: none; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; cursor: pointer; font-size: 13px;">
+                      <span style="color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ mr.date }}</span>
+                      <span style="min-width: 0;"><span style="display: block; font-weight: 500; overflow-wrap: anywhere;">{{ mr.what }}</span><span style="display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere;">{{ mr.where }} · {{ mr.code }}</span></span>
+                      <span style="font-size: 12px; font-weight: 600; color: {{ mr.stC }}; white-space: nowrap;">{{ mr.status }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </section>
+            </sc-if>
+            </sc-if>
             </div>
 
             <sc-if value="{{ repairs.empty }}" hint-placeholder-val="{{ false }}">
@@ -6737,7 +6766,8 @@ class Component extends DCLogic {
       repairing: { label: 'กำลังซ่อม', test: j => !j.hold && (j.status === 'accepted' || j.status === 'repairing' || j.status === 'done'), dot: '#3fbf8f' },
       held: { label: 'ช่างพักงาน', test: j => !!j.hold, dot: '#d9a21b' },
       overdue: { label: 'เกินกำหนด', test: overdue, dot: 'var(--danger)' },
-      closed: { label: 'ปิดแล้ว', test: j => !open(j), dot: '#8b95a6' }
+      closed: { label: 'ปิดแล้ว', test: j => !open(j), dot: '#8b95a6' },
+      all: { label: 'ทั้งหมด', test: () => true, dot: 'var(--muted)' }
     };
     const stats = Object.keys(groups).map(k => {
       const on = filter === k, n = jobs.filter(groups[k].test).length;
@@ -6774,7 +6804,33 @@ class Component extends DCLogic {
     const ORDER = { pending: 0, approved: 1, sent: 2, accepted: 3, repairing: 4, done: 5, closed: 6, rejected: 0 };
     /* overdue first, then whatever is waiting on us, then by how long it has been open */
     const rank = (j) => (overdue(j) ? 0 : j.status === 'pending' ? 1 : open(j) ? 2 : 3);
-    const list = jobs.filter(groups[filter].test).filter(j => topic === 'all' || j.topic === topic)
+    /* month the job was filed (YYYY-MM); 'all' = every month */
+    const monthOf = (j) => String((j.row && j.row.created_at) || '').slice(0, 7);
+    const showMonthly = !!s.repairMonthly;
+    const month = showMonthly ? (s.repairMonth || 'all') : 'all';
+    const TH_MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const monthName = (ym) => { const [y, m] = ym.split('-').map(Number); return TH_MON[m - 1] + ' ' + (y + 543); };
+    const months = ['all'].concat([...new Set(jobs.map(monthOf).filter(Boolean))].sort().reverse()).map(m => ({ label: m === 'all' ? 'ทุกเดือน' : monthName(m),
+      border: month === m ? 'var(--accent-line)' : 'var(--line)', bg: month === m ? 'var(--accent-soft)' : 'transparent', fg: month === m ? 'var(--accent)' : 'var(--muted)',
+      /* a month view shows every job of that month, whatever its status */
+      pick: () => this.setState({ repairMonth: m, repairFilter: m === 'all' ? 'open' : 'all', repairOpen: null }) }));
+    let monthSummary = null;
+    if (month !== 'all') {
+      const mj = jobs.filter(j => monthOf(j) === month), cnt = (key) => { const o = {}; mj.forEach(j => { const k = key(j) || 'ไม่ระบุ'; o[k] = (o[k] || 0) + 1; });
+        return Object.keys(o).sort((a, b) => o[b] - o[a]).map(k => ({ label: k, n: String(o[k]) })); };
+      const loc = (j) => (j.row && j.row.loc) || {};
+      const nDone = mj.filter(j => j.status === 'done' || !open(j)).length;
+      monthSummary = { title: 'สรุปงานซ่อม ' + monthName(month),
+        line: 'แจ้ง ' + mj.length + ' งาน · ซ่อมเสร็จ/ปิด ' + nDone + ' · ยังไม่เสร็จ ' + (mj.length - nDone),
+        byTopic: cnt(j => j.topic), byFloor: cnt(j => [loc(j).building, loc(j).floor].filter(Boolean).join(' ')),
+        rows: mj.slice().sort((a, b) => String(a.row.created_at).localeCompare(String(b.row.created_at))).map(j => ({
+          date: String(j.row.created_at).slice(8, 10) + ' ' + monthName(month).split(' ')[0],
+          where: [loc(j).building, loc(j).floor, loc(j).department || j.place].filter(Boolean).join(' · ') || '—',
+          what: (j.topic ? j.topic + ' — ' : '') + ((Array.isArray(j.row.faults) ? j.row.faults : []).map(f => f.label + (f.value ? ': ' + f.value : '')).join(' / ') || j.row.detail || ''),
+          status: (j.hold ? STATUS.held : STATUS[j.status] || {}).label || j.status, stC: (j.hold ? STATUS.held : STATUS[j.status] || {}).c || 'var(--muted)',
+          code: j.ext || j.id, pick: () => this.setState({ repairOpen: j.id }) })) };
+    }
+    const list = jobs.filter(groups[filter].test).filter(j => topic === 'all' || j.topic === topic).filter(j => month === 'all' || monthOf(j) === month)
       .filter(j => !q || (j.id + ' ' + j.ext + ' ' + j.title + ' ' + j.place).toLowerCase().includes(q))
       .slice().sort((a, b) => rank(a) - rank(b) || b.days - a.days);
     const cards = list.map((j, idx) => {
@@ -6829,7 +6885,12 @@ class Component extends DCLogic {
       };
     });
     const emptyMsg = !jobs.length ? ['🛠️', 'ยังไม่มีงานซ่อม', 'งานใหม่จะขึ้นที่นี่เมื่อการตรวจประจำเดือนพบปัญหา'] : filter === 'pending' ? ['✨', 'ไม่มีงานรออนุมัติ', 'อนุมัติครบหมดแล้ว'] : filter === 'overdue' ? ['👍', 'ไม่มีงานเกินกำหนด', 'ทุกงานยังอยู่ในเวลา'] : filter === 'held' ? ['▶️', 'ไม่มีงานที่ช่างพักไว้', 'ช่างกำลังทำทุกงาน'] : ['🔍', 'ไม่พบงานที่ตรงเงื่อนไข', 'ลองเปลี่ยนตัวกรองหรือคำค้น'];
-    return { stats, topics, cards, empty: !cards.length, emptyIcon: emptyMsg[0], emptyTitle: emptyMsg[1], emptySub: emptyMsg[2],
+    return { stats, topics, months, monthSummary, hasMonthSummary: !!monthSummary, showMonthly,
+      toggleMonthly: () => this.setState(st => st.repairMonthly
+        ? { repairMonthly: false, repairMonth: 'all', repairFilter: 'open' }
+        : { repairMonthly: true, repairMonth: months[1] ? [...new Set(jobs.map(monthOf).filter(Boolean))].sort().pop() : 'all', repairFilter: 'all', repairOpen: null }),
+      monthlyBorder: showMonthly ? 'var(--accent-line)' : 'var(--line)', monthlyBg: showMonthly ? 'var(--accent-soft)' : 'var(--panel)', monthlyFg: showMonthly ? 'var(--accent)' : 'var(--text)',
+      cards, empty: !cards.length, emptyIcon: emptyMsg[0], emptyTitle: emptyMsg[1], emptySub: emptyMsg[2],
       heroTitle, heroSub, heroAction, heroTint,
       form: this.buildRepairNew(), openNew: this.openRepairNew,
       search: s.repairSearch || '', setSearch: (e) => this.setState({ repairSearch: e.target.value }) };
