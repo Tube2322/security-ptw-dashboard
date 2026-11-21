@@ -28,8 +28,9 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261121a"></script>
+<script src="./soc-export.js?v=20261121c"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
+<script src="./soc-cctv.js?v=20261121a"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -5242,32 +5243,14 @@ class Component extends DCLogic {
     all[mod] = cur;
     this.setState({ exportFilters: all });
   }
+  /* filter rules live in soc-export.js (SOCExport.filterRecords, unit-tested); this only gathers
+     what the current topic and picks are */
   applyExportFilters(recs) {
     const core = this.core(), mod = this.state.pdfModule, m = core.module(mod) || {};
-    const P = (k) => this.exportPick(k);
-    if (!this.exportFilterDefs(mod).some(g => P(g.key))) return recs;
-    const blank = (r, keys, v) => { const d = Object.assign({}, r.data); keys.forEach(k => { d[k] = v; }); return Object.assign({}, r, { data: d }); };
-    if (m.kind === 'traffic') {
-      const sh = P('shift') || ['day', 'night'], vh = P('veh') || ['car', 'moto'], drop = [];
-      ['car', 'moto'].forEach(v => ['in', 'out'].forEach(dir => ['day', 'night'].forEach(x => {
-        if (!sh.includes(x) || !vh.includes(v)) drop.push(m.fieldPrefix + '_' + v + '_' + dir + '_' + x); })));
-      return recs.map(r => blank(r, drop, 0));
-    }
-    if (mod === 'golf') {
-      const sh = P('shift'), carts = P('cart');
-      return recs.filter(r => !sh || sh.includes(/กลางคืน/.test(String((r.data || {}).golf_shift || '')) ? 'night' : 'day'))
-        .map(r => carts ? blank(r, GOLF_CARTS.filter(c => !carts.includes(c)), '') : r);
-    }
-    if (m.kind === 'parking') {
-      const cols = P('cols'), all = core.activeFields(mod).filter(f => f.type === 'number').map(f => f.fieldId);
-      return recs.map(r => blank(r, all.filter(k => !cols.includes(k)), ''));
-    }
-    if (mod === 'visitors') {
-      const t = P('type');
-      return recs.map(r => blank(r, ['visitor_general_count', 'visitor_contractor_count'].filter(k => !t.includes(k)), 0));
-    }
-    /* elevator / checkpoint: every filter is a field on the record, so it's a plain row filter */
-    return recs.filter(r => this.exportFilterDefs(mod).every(g => { const p = P(g.key); return !p || p.includes((r.data || {})[g.key]); }));
+    const defs = this.exportFilterDefs(mod);
+    return window.SOCExport.filterRecords(recs, { mod, kind: m.kind, fieldPrefix: m.fieldPrefix, golfCarts: GOLF_CARTS,
+      groups: defs.map(g => g.key), pick: (k) => this.exportPick(k),
+      parkingFields: m.kind === 'parking' ? core.activeFields(mod).filter(f => f.type === 'number').map(f => f.fieldId) : [] });
   }
   pdfRecords() {
     const info = this.pdfRecordsRaw();
@@ -5379,20 +5362,7 @@ class Component extends DCLogic {
         file = 'รายงานตรวจกล้องประจำสัปดาห์';
       } else {
         const res = await core.repairJobs();
-        const fSt = this.exportPick('st'), fT = this.exportPick('topic');
-        const KNOWN = ['ACC', 'CCTV', 'ถังดับเพลิง', 'ประตูหนีไฟ', 'รถกอล์ฟ'];
-        const group = (st) => st === 'rejected' ? 'rejected' : (st === 'done' || st === 'closed') ? 'done' : 'open';
-        const rows = res.rows.filter(r => inRange(String(r.created_at || '').slice(0, 10))
-            && (!fSt || fSt.includes(group(r.status)))
-            && (!fT || fT.includes(KNOWN.includes(r.topic) ? r.topic : 'อื่นๆ')))
-          .sort((a, c) => String(c.created_at).localeCompare(String(a.created_at)));
-        const STATUS = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', sent: 'ส่งช่างแล้ว', accepted: 'ช่างรับงาน', repairing: 'กำลังซ่อม', done: 'ซ่อมเสร็จ', closed: 'ปิดงาน', rejected: 'ไม่อนุมัติ' };
-        sheet('งานซ่อม', ['เลขงาน', 'วันที่แจ้ง', 'หัวข้อ', 'สถานที่', 'อาการ/รายการที่เสีย', 'สถานะ', 'เลขงานช่าง', 'รายละเอียด'],
-          rows.map(r => [r.code, String(r.created_at || '').slice(0, 10), r.topic || '', r.place || '',
-            (Array.isArray(r.faults) ? r.faults : []).map(f => f.label + (f.value ? ': ' + f.value : '')).join(' / '),
-            STATUS[r.status] || r.status || '', r.ext_code || '', r.detail || '']),
-          [14, 12, 16, 24, 44, 14, 14, 40]);
-        count = rows.length; file = 'งานซ่อม';
+        count = window.SOCExport.repairsSheet({ sheet, rows: res.rows, inRange, filters: { st: this.exportPick('st'), topic: this.exportPick('topic') } }); file = 'งานซ่อม';
       }
       if (!count) { this.flash('ไม่พบข้อมูลในช่วงเวลาที่เลือก', 'var(--warn)'); return; }
       const buf = await wb.xlsx.writeBuffer();
@@ -6402,33 +6372,11 @@ class Component extends DCLogic {
     /* two kinds of reading: exported straight from the NVR's own recording log (exact) and typed by
        hand (the weekly portal check and the original hand-noted Excel baseline). They are kept apart
        on screen so a hand-noted number is never mistaken for the recorder's own figure. */
-    const isFile = (ch) => ch.source === 'nvr_export';
-    const latest = {}, history = {}, nvrLast = {}, latestFile = {}, latestHand = {}, nvrFile = {}, nvrHand = {};
-    checks.forEach(ch => {
-      /* the original hand-noted baseline stays in the database but is not shown as a reading */
-      if (ch.source === 'excel') return;
-      const file = isFile(ch);
-      if (!nvrLast[ch.nvr]) nvrLast[ch.nvr] = ch;
-      if (file && !nvrFile[ch.nvr]) nvrFile[ch.nvr] = ch;
-      if (!file && !nvrHand[ch.nvr]) nvrHand[ch.nvr] = ch;
-      (ch.items || []).forEach(it => {
-        const row = { date: ch.check_date, days: it.days, ok: it.ok !== false, note: it.note || '', checker: ch.checker, file };
-        if (!latest[it.name]) latest[it.name] = row;
-        if (file && !latestFile[it.name]) latestFile[it.name] = row;
-        if (!file && !latestHand[it.name]) latestHand[it.name] = row;
-        (history[it.name] = history[it.name] || []).push(row);
-      });
-    });
-    /* the recorder's own export is the more exact figure, so a camera's status (colour, issue list,
-       counts) follows its latest file reading whenever it has one; hand checks decide only for
-       cameras with no file reading yet */
-    Object.keys(latestFile).forEach(n => { latest[n] = latestFile[n]; });
-    /* a camera the recorder reports broken has no meaningful hand reading to show next to it */
-    Object.keys(latestFile).forEach(n => { if (!latestFile[n].ok) delete latestHand[n]; });
-    const readText = (r) => !r ? '—' : !r.ok ? 'เสีย' : r.days == null ? '—' : String(r.days);
-    /* a camera is short when it plays back fewer days than it can hold (its capacity) */
-    const shortOf = (c, r) => r && r.ok && r.days != null && c.capacity ? Math.max(0, c.capacity - r.days) : 0;
-    const state = (c) => { const l = latest[c.name]; return !l ? 'none' : !l.ok ? 'bad' : shortOf(c, l) > 0 ? 'short' : 'ok'; };
+    /* readings and status rules live in soc-cctv.js (shared, unit-tested) */
+    const R = window.SOCCctv, rd = R.readings(checks);
+    const latest = rd.latest, history = rd.history, nvrLast = rd.nvrLast, latestFile = rd.latestFile, latestHand = rd.latestHand, nvrFile = rd.nvrFile, nvrHand = rd.nvrHand;
+    const readText = R.readText, shortOf = R.shortOf;
+    const state = (c) => R.status(c, latest[c.name]);
     const STY = {
       ok: { label: 'ครบ', dot: '#3fbf8f', bg: 'var(--panel)', border: '1px solid var(--line)', fg: 'var(--text)' },
       short: { label: 'ขาดวัน', dot: '#d9a21b', bg: 'rgba(217,162,27,0.10)', border: '1px solid rgba(217,162,27,0.45)', fg: 'color-mix(in srgb, #b7851a 85%, var(--text))' },
