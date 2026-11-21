@@ -7777,7 +7777,7 @@ class Component extends DCLogic {
     const recordQuery = (s.recordSearch || '').trim().toLowerCase();
     const recordsFound = recordQuery ? recordScope.filter(r => this.recordHaystack(r).indexOf(recordQuery) !== -1) : recordScope;
     const recordsAll = this.sortRecords(recordsFound, s.recordSort);
-    const REC_PER_PAGE = 25;
+    const REC_PER_PAGE = Infinity; /* every record on one page, no pager */
     const recordPages = Math.max(1, Math.ceil(recordsAll.length / REC_PER_PAGE));
     const recordPage = Math.min(s.recordPage, recordPages - 1);
     const recordSlice = recordsAll.slice(recordPage * REC_PER_PAGE, (recordPage + 1) * REC_PER_PAGE);
