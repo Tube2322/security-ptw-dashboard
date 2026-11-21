@@ -3286,6 +3286,21 @@ class Component extends DCLogic {
   };
 
   go = (page) => {
+    /* the shared date follows the daily forms, so opening a monthly inspection (or its group) usually
+       landed on a day with no inspection and showed an empty page. If this topic has nothing on the
+       current date, open on the latest date it does have instead. */
+    const core = this.core(), mod = core.module(page), grp = core.group(page);
+    const ids = grp ? core.groupModules(page).map(m => m.id) : mod && mod.kind === 'monthly' ? [page] : null;
+    if (ids && this.state.date) {
+      const ym = this.state.year + '-' + String(Number(this.state.month) + 1).padStart(2, '0');
+      const byMonth = this.state.dashGranularity === 'month';
+      const has = ids.some(id => { const d = core.dayCounts(id) || {};
+        return byMonth ? Object.keys(d).some(k => k.slice(0, 7) === ym) : d[this.state.date]; });
+      if (!has) {
+        const best = ids.map(id => this.latestDateFor(id)).filter(l => l.date).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+        if (best) this.setState({ date: best.date, year: best.year, month: best.month });
+      }
+    }
     this.setState({ page, drawerOpen: false, loading: true, builderDraft: null });
     if (this._loadT) clearTimeout(this._loadT);
     this._loadT = setTimeout(() => this.setState({ loading: false }), 260);
