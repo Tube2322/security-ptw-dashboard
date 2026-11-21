@@ -27,6 +27,7 @@
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
+<script src="./vendor/echarts.min.js"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -869,57 +870,10 @@
                         </div>
                       </sc-if>
 
-                      <!-- LINE / AREA -->
+                      <!-- LINE / AREA — drawn by ECharts (syncECharts): drag or pinch to zoom, slider to
+                           scroll long ranges, tap a point for its exact value -->
                       <sc-if value="{{ c.isLine }}" hint-placeholder-val="{{ false }}">
-                        <div class="soc-line-card" style="min-width: 0; position: relative; padding-right: {{ c.gutter }};">
-                          <sc-if value="{{ c.avgLine }}" hint-placeholder-val="{{ false }}">
-                            <div style="position: absolute; right: 0; top: calc({{ c.avgLine.pct }}% - 8px); width: 60px; text-align: left; font-family: 'IBM Plex Mono', monospace; font-size: 10px; line-height: 1.35; color: var(--chart-muted); pointer-events: none;">{{ c.avgLine.label }}</div>
-                          </sc-if>
-                          <svg viewBox="0 0 620 220" preserveAspectRatio="none" style="width: 100%; height: 230px; display: block; overflow: visible;">
-                            <sc-for list="{{ c.grid }}" as="g" hint-placeholder-count="4">
-                              <line class="soc-line-grid" x1="0" x2="620" y1="{{ g.y }}" y2="{{ g.y }}" stroke-width="1"></line>
-                            </sc-for>
-                            <sc-if value="{{ c.avgLine }}" hint-placeholder-val="{{ false }}">
-                              <line x1="0" x2="620" y1="{{ c.avgLine.y }}" y2="{{ c.avgLine.y }}" stroke="var(--chart-muted)" stroke-width="1" stroke-dasharray="5 4" opacity="0.55"></line>
-                            </sc-if>
-                            <sc-for list="{{ c.series }}" as="sr" hint-placeholder-count="1">
-                              <g>
-                                <defs>
-                                  <linearGradient id="chartgrad-{{ c.id }}" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="{{ sr.color }}" stop-opacity="0.2"></stop>
-                                    <stop offset="100%" stop-color="{{ sr.color }}" stop-opacity="0"></stop>
-                                  </linearGradient>
-                                </defs>
-                                <sc-if value="{{ c.showArea }}" hint-placeholder-val="{{ false }}">
-                                  <path class="soc-line-area" d="{{ sr.area }}" fill="url(#chartgrad-{{ c.id }})" stroke="none"></path>
-                                </sc-if>
-                                <path class="soc-line-path" pathLength="1" d="{{ sr.path }}" fill="none" stroke="{{ sr.color }}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
-                                <sc-for list="{{ sr.points }}" as="p" hint-placeholder-count="6">
-                                  <g class="soc-pt">
-                                    <title>{{ p.tipLabel }}: {{ p.tipValue }}</title>
-                                    <sc-if value="{{ p.isLast }}" hint-placeholder-val="{{ false }}">
-                                      <circle class="soc-pt-pulse" cx="{{ p.cx }}" cy="{{ p.cy }}" r="4" fill="none" stroke="{{ sr.color }}" stroke-width="1.6"></circle>
-                                    </sc-if>
-                                    <circle class="soc-pt-ring" cx="{{ p.cx }}" cy="{{ p.cy }}" r="{{ p.ringR }}" fill="none" stroke="{{ sr.color }}" stroke-width="1.6" opacity="{{ p.ring }}"></circle>
-                                    <circle class="soc-pt-dot" cx="{{ p.cx }}" cy="{{ p.cy }}" r="2.4" fill="{{ sr.color }}"></circle>
-                                    <circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="9" fill="transparent" stroke="none"></circle>
-                                    <circle class="soc-pt-visible" cx="{{ p.cx }}" cy="{{ p.cy }}" r="3.6" stroke="{{ sr.color }}" stroke-width="2"></circle>
-                                  </g>
-                                </sc-for>
-                              </g>
-                            </sc-for>
-                          </svg>
-                          <sc-for list="{{ c.series }}" as="sr2" hint-placeholder-count="1">
-                            <sc-for list="{{ sr2.points }}" as="p2" hint-placeholder-count="6">
-                              <div style="position: absolute; left: {{ p2.leftPct }}; top: {{ p2.labelTop }}; transform: {{ p2.labelTransform }}; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--chart-text); pointer-events: none; white-space: nowrap;">{{ p2.labelText }}</div>
-                            </sc-for>
-                          </sc-for>
-                          <div style="display: flex; gap: 4px; margin-top: 6px;">
-                            <sc-for list="{{ c.xLabels }}" as="x" hint-placeholder-count="6">
-                              <div title="{{ x }}" class="soc-line-xlabel" style="flex: 1 1 0; min-width: 0; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--chart-muted); white-space: nowrap; overflow: {{ c.xLabelOverflow }}; text-overflow: ellipsis;">{{ x }}</div>
-                            </sc-for>
-                          </div>
-                        </div>
+                        <div data-echart="{{ c.id }}" style="width: 100%; height: 280px; min-width: 0;"></div>
                       </sc-if>
 
                       <!-- DONUT -->
@@ -3086,7 +3040,51 @@ class Component extends DCLogic {
     if (l.date) this._autoPicked = true;
     this.setState({ year: l.year, month: l.month, date: l.date, pdfPeriodYear: l.year, pdfPeriodMonth: l.month, pdfPeriodDay: l.date });
   }
+  /* Renders every [data-echart] placeholder with ECharts, from the spec buildChart() stored for it.
+     Runs after each DOM change (observer below); a chart is only re-drawn when its data changed. */
+  syncECharts = () => {
+    const E = window.echarts;
+    if (!E) return;
+    const css = getComputedStyle(document.documentElement);
+    const v = (name, fb) => (css.getPropertyValue(name) || '').trim() || fb;
+    const resolve = (c) => { const m = /^var\((--[^,)]+)/.exec(c || ''); return m ? v(m[1], '#2f6f5e') : (c || v('--accent', '#2f6f5e')); };
+    const text = v('--muted', '#667'), line = v('--line', '#ddd'), panel = v('--panel', '#fff');
+    document.querySelectorAll('[data-echart]').forEach(el => {
+      const spec = (this._echartSpecs || {})[el.getAttribute('data-echart')];
+      if (!spec || !el.clientWidth) return;
+      const key = JSON.stringify(spec) + text + panel;
+      const inst = E.getInstanceByDom(el) || E.init(el, null, { renderer: 'canvas' });
+      if (el._echartKey === key) return;
+      el._echartKey = key;
+      const n = spec.values.length, color = resolve(spec.color);
+      const avg = n ? spec.values.reduce((a, x) => a + x, 0) / n : 0;
+      const long = n > 14; /* slider for anything past two weeks; opens on the latest 31 points */
+      inst.setOption({
+        animationDuration: 400,
+        grid: { left: 8, right: 16, top: 28, bottom: long ? 56 : 24, containLabel: true },
+        tooltip: { trigger: 'axis', confine: true, backgroundColor: panel, borderColor: line, textStyle: { color: v('--text', '#111'), fontFamily: 'IBM Plex Sans Thai' },
+          valueFormatter: (x) => Number(x).toLocaleString() + (spec.unit ? ' ' + spec.unit : '') },
+        xAxis: { type: 'category', data: spec.labels, boundaryGap: !!spec.bar, axisLine: { lineStyle: { color: line } }, axisTick: { show: false },
+          axisLabel: { color: text, hideOverlap: true, fontFamily: 'IBM Plex Mono', fontSize: 11 } },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: line, type: 'dashed' } }, axisLabel: { color: text, fontSize: 11 } },
+        dataZoom: [{ type: 'inside', start: long ? Math.max(0, 100 - 3100 / n) : 0, end: 100 }].concat(long ? [{ type: 'slider', height: 18, bottom: 10, borderColor: line, textStyle: { color: text } }] : []),
+        series: [spec.bar ? { type: 'bar', barMaxWidth: 28, data: spec.values.map((x, i) => ({ value: x, itemStyle: { color: resolve((spec.barColors || [])[i] || spec.color), borderRadius: [4, 4, 0, 0] } })),
+          markLine: n > 1 ? { silent: true, symbol: 'none', lineStyle: { color: text, type: 'dashed', opacity: 0.6 }, label: { color: text, formatter: 'เฉลี่ย ' + Math.round(avg).toLocaleString(), position: 'insideEndTop' }, data: [{ yAxis: avg }] } : undefined }
+          : { type: 'line', data: spec.values, smooth: 0.3, symbol: 'circle', symbolSize: n > 60 ? 0 : 6, showSymbol: n <= 60,
+          lineStyle: { width: 2, color }, itemStyle: { color },
+          areaStyle: spec.area && /^#[0-9a-f]{6}$/i.test(color) ? { color: new E.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + '40' }, { offset: 1, color: color + '00' }]) } : spec.area ? { color, opacity: 0.15 } : undefined,
+          markLine: n > 1 ? { silent: true, symbol: 'none', lineStyle: { color: text, type: 'dashed', opacity: 0.6 },
+            label: { color: text, formatter: 'เฉลี่ย ' + Math.round(avg).toLocaleString(), position: 'insideEndTop' }, data: [{ yAxis: avg }] } : undefined }]
+      }, true);
+    });
+  };
   componentDidMount() {
+    if (typeof MutationObserver !== 'undefined' && !this._echartObs) {
+      let raf = 0;
+      this._echartObs = new MutationObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(this.syncECharts); });
+      this._echartObs.observe(document.body, { childList: true, subtree: true });
+      window.addEventListener('resize', () => document.querySelectorAll('[data-echart]').forEach(el => { const i = window.echarts && window.echarts.getInstanceByDom(el); if (i) i.resize(); }));
+    }
     const core = window.SOCCore;
     if (core) {
       /* The date the console opens on has to be chosen when data actually arrives, not at a fixed
@@ -3456,7 +3454,8 @@ class Component extends DCLogic {
       warning: cfg.warning || '',
       empty: recordCount === 0,
       emptyNote: cfg.emptyNote || 'ไม่พบข้อมูลสำหรับวันที่ที่เลือก',
-      isBar: type === 'bar', isRank: type === 'rank', isLine: type === 'area',
+      /* time series (bar or line) are drawn by ECharts: zoom, scroll, exact values on tap */
+      isBar: type === 'bar' && family !== 'timeseries', isRank: type === 'rank', isLine: type === 'area' || (type === 'bar' && family === 'timeseries'),
       isDonut: type === 'donut', isPie: type === 'pie', showArea: type === 'area', /* every line-family chart is area now */
       bars: [], series: [], grid: [], xLabels: [], slices: [], wedges: [], legend: [],
       centerValue: core.fmtNum(total), centerLabel: cfg.centerLabel || 'รวม',
@@ -3598,6 +3597,11 @@ class Component extends DCLogic {
     const areaPath = pts.length
       ? path + ' L ' + pts[pts.length - 1].cx + ' ' + (H - PAD) + ' L ' + pts[0].cx + ' ' + (H - PAD) + ' Z'
       : '';
+    /* the line/area view itself is drawn by ECharts from this spec (see syncECharts) */
+    this._echartSpecs = this._echartSpecs || {};
+    this._echartSpecs[cfg.id] = { labels: data.map(d => d.label.split(String.fromCharCode(10)).join(' ')), values: data.map(d => d.value || 0),
+      unit: (data[0] && data[0].unit) || '', color: cfg.lineColor || (data[0] && data[0].color) || '', area: type === 'area', bar: type === 'bar',
+      barColors: type === 'bar' ? data.map(d => d.color || '') : null };
     out.series = [{ path: path, area: areaPath, color: cfg.lineColor || 'var(--accent)', fill: cfg.lineFill || 'rgba(70,200,216,0.16)', points: pts }];
     out.grid = [0, 0.25, 0.5, 0.75, 1].map(t => ({ y: (PAD + t * (H - PAD * 2)).toFixed(1) }));
     out.xLabels = data.map((d, i) => (axisStride === 1 || i % axisStride === 0 || i === n - 1 && (n - 1) % axisStride >= Math.ceil(axisStride / 2))
