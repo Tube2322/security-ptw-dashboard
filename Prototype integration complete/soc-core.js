@@ -608,6 +608,27 @@
   /* Supabase meters egress per org (Nov 2026: ptw-room-track's reloads got the whole org
      suspended). A record change is therefore applied from the realtime payload itself — no
      refetch — and a hidden tab applies nothing, only re-syncing once when it is shown again. */
+  /* Failed submissions are logged to submit_failures (supabase/submit_failures.sql) so a "I sent it
+     but it's missing" report can be checked. A failure from a dead connection can't be logged then,
+     so it waits in localStorage and is written on the next load once the network is back. */
+  var FAIL_KEY = 'soc_submit_failures';
+  function pendingFailures() { try { return JSON.parse(localStorage.getItem(FAIL_KEY) || '[]'); } catch (e) { return []; } }
+  function flushSubmitFailures() {
+    var list = pendingFailures();
+    if (!list.length) return;
+    sb.from('submit_failures').insert(list).then(function (res) {
+      if (!res.error) try { localStorage.removeItem(FAIL_KEY); } catch (e) {}
+    });
+  }
+  function logSubmitFailure(rec, message) {
+    var row = { failed_at: new Date().toISOString(), module: rec.module, report_date: rec.reportDate || null,
+      submitted_by: rec.submittedBy || null, error: String(message || '').slice(0, 500), payload: rec.data || null,
+      user_agent: (typeof navigator !== 'undefined' && navigator.userAgent || '').slice(0, 300) };
+    var list = pendingFailures().concat([row]).slice(-50);
+    try { localStorage.setItem(FAIL_KEY, JSON.stringify(list)); } catch (e) {}
+    flushSubmitFailures();
+  }
+  try { flushSubmitFailures(); if (typeof window !== 'undefined') window.addEventListener('online', flushSubmitFailures); } catch (e) {}
   var staleWhileHidden = false, lastResync = 0, deletedHere = {};
   function monthOf(day) { return String(day || '').slice(0, 7); }
   function indexAdd(module, day, n) {
@@ -892,6 +913,11 @@
        repairApi below (api/repair-ticket.js), which acts with the admin's own session. */
     /* last-24h API call count vs the alert limit (supabase/usage_alert.sql); null when the
        function isn't installed yet or the caller isn't an admin */
+    /* admin: newest failed submissions (see logSubmitFailure) */
+    submitFailures: function () {
+      return sb.from('submit_failures').select('*').order('failed_at', { ascending: false }).limit(200)
+        .then(function (res) { return res.error ? [] : (res.data || []); });
+    },
     usageStatus: function () {
       return sb.rpc('usage_status').then(function (res) { return res.error ? null : res.data; }, function () { return null; });
     },
@@ -1086,6 +1112,7 @@
           indexAdd(module, rec.reportDate, -1);
           bump();
           notifyError('บันทึกข้อมูลไม่สำเร็จ: ' + res.error.message);
+          logSubmitFailure(rec, res.error.message);
         }
         return res;
       });
