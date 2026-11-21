@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121e"></script>
+<script src="./soc-core.js?v=20261121f"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -2325,6 +2325,14 @@
         <!-- ===== SETTINGS ===== -->
         <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
           <div style="display: flex; flex-direction: column; gap: 15px; min-width: 0;">
+          <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}"><section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
+            <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">บันทึกการส่งที่ล้มเหลว</h2>
+            <p style="margin: 0 0 12px; font-size: 12px; color: var(--muted);">ทุกครั้งที่กดส่งจากหน้ากรอกแล้วบันทึกไม่สำเร็จ · รายการเหล่านี้ระบบเก็บไว้ในเครื่องผู้กรอกและส่งซ้ำให้เอง ถ้าข้อมูลวันนั้นเข้าระบบแล้ว ไม่ต้องทำอะไร</p>
+            <sc-if value="{{ failEmpty }}" hint-placeholder-val="{{ true }}"><div style="font-size: 13px; color: var(--muted);">ยังไม่มีการส่งล้มเหลว</div></sc-if>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <sc-for list="{{ failRows }}" as="f" hint-placeholder-count="2"><div style="display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); font-size: 13px;"><b style="font-weight: 600;">{{ f.when }}</b><span>{{ f.what }}</span><span style="color: {{ f.landFg }};">{{ f.landed }}</span><span style="flex-basis: 100%; color: var(--muted); font-size: 12px; overflow-wrap: anywhere;">{{ f.error }}</span></div></sc-for>
+            </div>
+          </section></sc-if>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 15px; min-width: 0;">
             <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 17px; min-width: 0;">
               <h2 style="margin: 0 0 4px; font-size: 16px; font-weight: 600;">Appearance — ธีมการแสดงผล</h2>
@@ -7617,6 +7625,7 @@ class Component extends DCLogic {
       this._outboxLoaded = true;
       core.msFormsOutbox().then(rows => this.setState({ msOutbox: rows }));
       core.msFormsSendLog().then(rows => this.setState({ msSendLog: rows }));
+      core.submitFailures().then(rows => this.setState({ submitFails: rows }));
       core.msFormsJobs().then(rows => this.setState({ msJobs: rows }));
       core.msFormsHealth().then(rows => this.setState({ msHealth: rows }));
     }
@@ -7828,6 +7837,15 @@ class Component extends DCLogic {
 
     return {
       usageWarn: s.usageWarn || false,
+      failEmpty: !(s.submitFails || []).length,
+      failRows: (s.submitFails || []).map(f => {
+        /* landed = a record for that module and day is in the system now (the queue re-sent it,
+           or someone filled it in again) */
+        const landed = f.module && f.report_date && core.dayCounts(f.module)[f.report_date] > 0;
+        return { when: core.fmtDate(String(f.failed_at).slice(0, 10)) + ' ' + String(new Date(f.failed_at).toTimeString()).slice(0, 5),
+          what: ((core.module(f.module) || {}).name || f.module || '') + (f.report_date ? ' · ข้อมูลวันที่ ' + core.fmtDate(f.report_date) : '') + (f.submitted_by ? ' · ' + f.submitted_by : ''),
+          landed: landed ? 'เข้าระบบแล้ว' : 'ยังไม่เข้าระบบ', landFg: landed ? 'var(--accent)' : 'var(--danger)', error: f.error || '' };
+      }),
       dataGaps: page === 'overview' && core.auth.user() ? this.buildDataGaps() : [],
       hasDataGaps: page === 'overview' && core.auth.user() ? this.buildDataGaps().length > 0 : false,
       /* auth */
