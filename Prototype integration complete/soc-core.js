@@ -629,6 +629,46 @@
     flushSubmitFailures();
   }
   try { flushSubmitFailures(); if (typeof window !== 'undefined') window.addEventListener('online', flushSubmitFailures); } catch (e) {}
+  /* Submissions that failed to save wait in localStorage and are re-sent on load, when the browser
+     comes back online, and every minute while any are waiting (visible tab only). The upsert
+     ignores an id that already exists, so a send that actually landed but lost its reply is never
+     duplicated. After 30 failed tries a row stays only in submit_failures for an admin to look at. */
+  var QUEUE_KEY = 'soc_pending_records', queueTimer = null, flushing = false;
+  function pendingRecords() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch (e) { return []; } }
+  function savePending(list) { try { list.length ? localStorage.setItem(QUEUE_KEY, JSON.stringify(list)) : localStorage.removeItem(QUEUE_KEY); } catch (e) {} }
+  function queueRecord(rec) {
+    var list = pendingRecords().filter(function (q) { return q.row.id !== rec.id; });
+    list.push({ row: recordToRow(rec), tries: 0 });
+    savePending(list);
+    if (!queueTimer) queueTimer = setInterval(flushPendingRecords, 60000);
+  }
+  function flushPendingRecords() {
+    var list = pendingRecords();
+    if (!list.length) { if (queueTimer) { clearInterval(queueTimer); queueTimer = null; } return Promise.resolve(); }
+    if (flushing || (typeof document !== 'undefined' && document.hidden)) return Promise.resolve();
+    flushing = true;
+    return Promise.all(list.map(function (q) {
+      return sb.from('records').upsert(q.row, { onConflict: 'id', ignoreDuplicates: true }).then(function (res) {
+        if (!res.error) {
+          var rec = recordFromRow(q.row);
+          try { window.dispatchEvent(new CustomEvent('soc-record-flushed', { detail: rec })); } catch (e) {}
+          return null;
+        }
+        q.tries += 1;
+        return q.tries >= 30 ? null : q;
+      }, function () { q.tries += 1; return q; });
+    })).then(function (left) {
+      flushing = false;
+      left = left.filter(Boolean);
+      savePending(left);
+      if (!left.length && queueTimer) { clearInterval(queueTimer); queueTimer = null; }
+    });
+  }
+  try {
+    flushPendingRecords();
+    if (pendingRecords().length) queueTimer = setInterval(flushPendingRecords, 60000);
+    if (typeof window !== 'undefined') window.addEventListener('online', flushPendingRecords);
+  } catch (e) {}
   var staleWhileHidden = false, lastResync = 0, deletedHere = {};
   function monthOf(day) { return String(day || '').slice(0, 7); }
   function indexAdd(module, day, n) {
@@ -914,6 +954,7 @@
     /* last-24h API call count vs the alert limit (supabase/usage_alert.sql); null when the
        function isn't installed yet or the caller isn't an admin */
     /* admin: newest failed submissions (see logSubmitFailure) */
+    pendingCount: function () { return pendingRecords().length; },
     submitFailures: function () {
       return sb.from('submit_failures').select('*').order('failed_at', { ascending: false }).limit(200)
         .then(function (res) { return res.error ? [] : (res.data || []); });
@@ -1108,11 +1149,10 @@
          can keep ignoring it exactly like before. */
       rec._saved = sb.from('records').insert(recordToRow(rec)).then(function (res) {
         if (res.error) {
-          state.records = state.records.filter(function (r) { return r.id !== rec.id; });
-          indexAdd(module, rec.reportDate, -1);
-          bump();
-          notifyError('บันทึกข้อมูลไม่สำเร็จ: ' + res.error.message);
+          /* not dropped: parked on this device and re-sent until it lands (see queueRecord) */
+          queueRecord(rec);
           logSubmitFailure(rec, res.error.message);
+          notifyError('ส่งข้อมูลไม่สำเร็จ ระบบเก็บไว้ในเครื่องนี้แล้ว และจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้ (อย่าล้างข้อมูลเบราว์เซอร์)');
         }
         return res;
       });

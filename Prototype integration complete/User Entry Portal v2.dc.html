@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121c"></script>
+<script src="./soc-core.js?v=20261121d"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -485,6 +485,10 @@ class Component extends DCLogic {
     if (core) {
       this._unsub = core.subscribe(() => this.setState(s => ({ rev: s.rev + 1 })));
       this._unsubPortal = core.subscribePortal(() => this.setState(s => ({ rev: s.rev + 1 })));
+      /* a submission parked by a failed save has just landed: forward it to MS Forms now, the
+         step its first attempt never reached */
+      this._onFlushed = (e) => { const rec = e.detail; if (rec) this.forwardToMsForms(rec.module, rec.data, Promise.resolve()); };
+      window.addEventListener('soc-record-flushed', this._onFlushed);
       /* NOTE: by the time a background insert/update actually fails, the optimistic local
          write has usually already carried the guard to the "done" screen, so there is no
          reliable UI moment left to surface this to them. Logged, not yet shown — offline/retry
