@@ -2088,8 +2088,8 @@
             <sc-if value="{{ recordPagerOn }}" hint-placeholder-val="{{ false }}">
               <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 15px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel);">
                 <span style="flex: 1 1 200px; min-width: 0; font-size: 13px; color: var(--muted);">{{ recordPagerLabel }}</span>
-                <button onClick="{{ recordPrev }}" disabled="{{ recordPrevDisabled }}" style="min-height: 42px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: {{ recordPrevColor }}; cursor: {{ recordPrevCursor }}; font-size: 13px;">← ก่อนหน้า</button>
-                <button onClick="{{ recordNext }}" disabled="{{ recordNextDisabled }}" style="min-height: 42px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: {{ recordNextColor }}; cursor: {{ recordNextCursor }}; font-size: 13px;">ถัดไป →</button>
+                <button onClick="{{ recordPrev }}" disabled="{{ recordPrevDisabled }}" style="min-height: 42px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: {{ recordPrevColor }}; cursor: {{ recordPrevCursor }}; font-size: 13px;">แสดงทั้งหมด</button>
+                <button onClick="{{ recordNext }}" disabled="{{ recordNextDisabled }}" style="min-height: 42px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: {{ recordNextColor }}; cursor: {{ recordNextCursor }}; font-size: 13px;">แสดงเพิ่มอีก 100</button>
               </div>
             </sc-if>
           </div>
@@ -7825,10 +7825,11 @@ class Component extends DCLogic {
     const recordQuery = (s.recordSearch || '').trim().toLowerCase();
     const recordsFound = recordQuery ? recordScope.filter(r => this.recordHaystack(r).indexOf(recordQuery) !== -1) : recordScope;
     const recordsAll = this.sortRecords(recordsFound, s.recordSort);
-    const REC_PER_PAGE = Infinity; /* every record on one page, no pager */
-    const recordPages = Math.max(1, Math.ceil(recordsAll.length / REC_PER_PAGE));
-    const recordPage = Math.min(s.recordPage, recordPages - 1);
-    const recordSlice = recordsAll.slice(recordPage * REC_PER_PAGE, (recordPage + 1) * REC_PER_PAGE);
+    /* no cap on what can be shown, but rendered 100 at a time: a thousand cards at once took ~1s to
+       open and ~0.4s per search keystroke. recordPage = extra batches shown; -1 = everything */
+    const REC_BATCH = 100;
+    const recordShown = s.recordPage < 0 ? recordsAll.length : Math.min(recordsAll.length, (s.recordPage + 1) * REC_BATCH);
+    const recordSlice = recordsAll.slice(0, recordShown);
 
     const authReady = core.auth.ready();
     const authUser = core.auth.user();
@@ -8302,16 +8303,12 @@ class Component extends DCLogic {
       recordCountLabel: recordQuery
         ? 'พบ ' + core.fmtNum(recordsAll.length) + ' จาก ' + core.fmtNum(recordScope.length) + ' รายการ'
         : core.fmtNum(recordScope.length) + ' รายการ',
-      recordPagerOn: recordPages > 1,
-      recordPagerLabel: 'รายการที่ ' + core.fmtNum(recordPage * REC_PER_PAGE + 1) + '–' + core.fmtNum(recordPage * REC_PER_PAGE + recordSlice.length) + ' จาก ' + core.fmtNum(recordsAll.length) + ' · หน้า ' + (recordPage + 1) + '/' + recordPages,
-      recordPrevDisabled: recordPage <= 0,
-      recordNextDisabled: recordPage >= recordPages - 1,
-      recordPrevCursor: recordPage <= 0 ? 'not-allowed' : 'pointer',
-      recordNextCursor: recordPage >= recordPages - 1 ? 'not-allowed' : 'pointer',
-      recordPrevColor: recordPage <= 0 ? 'var(--dim)' : 'var(--text)',
-      recordNextColor: recordPage >= recordPages - 1 ? 'var(--dim)' : 'var(--text)',
-      recordPrev: () => this.setState(st => ({ recordPage: Math.max(0, st.recordPage - 1), openRecord: null, editRecord: null })),
-      recordNext: () => this.setState(st => ({ recordPage: Math.min(recordPages - 1, st.recordPage + 1), openRecord: null, editRecord: null })),
+      recordPagerOn: recordShown < recordsAll.length,
+      recordPagerLabel: 'แสดง ' + core.fmtNum(recordShown) + ' จาก ' + core.fmtNum(recordsAll.length) + ' รายการ',
+      recordPrevDisabled: false, recordNextDisabled: false, recordPrevCursor: 'pointer', recordNextCursor: 'pointer',
+      recordPrevColor: 'var(--text)', recordNextColor: 'var(--text)',
+      recordPrev: () => this.setState({ recordPage: -1 }),
+      recordNext: () => this.setState(st => ({ recordPage: Math.max(0, st.recordPage) + 1 })),
       recordList: recordSlice.map(r => {
         const m = core.module(r.module) || {};
         const open = s.openRecord === r.id;
