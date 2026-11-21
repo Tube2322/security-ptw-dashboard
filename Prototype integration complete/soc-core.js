@@ -954,6 +954,14 @@
     /* last-24h API call count vs the alert limit (supabase/usage_alert.sql); null when the
        function isn't installed yet or the caller isn't an admin */
     /* admin: newest failed submissions (see logSubmitFailure) */
+    /* entry portal (guest): how many records a module already has for a day, and when the last
+       came in — no figures. null when unreachable, so the caller just carries on. */
+    entryExisting: function (module, day) {
+      return sb.rpc('entry_existing', { p_module: module, p_day: day })
+        .then(function (res) { return res.error ? null : res.data; }, function () { return null; });
+    },
+    /* dateIndex for one module: { 'YYYY-MM-DD': count } — what the missing-data alert reads */
+    dayCounts: function (module) { return state.dateIndex[module] || {}; },
     pendingCount: function () { return pendingRecords().length; },
     submitFailures: function () {
       return sb.from('submit_failures').select('*').order('failed_at', { ascending: false }).limit(200)

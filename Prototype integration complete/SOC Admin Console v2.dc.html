@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121d"></script>
+<script src="./soc-core.js?v=20261121e"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -433,6 +433,10 @@
            header lives inside this element, so it is capped and centred with the content and
            the two stay aligned. -->
       <main style="flex: 1; min-width: 0; width: 100%; max-width: 1500px; margin: 0 auto; padding: clamp(14px, 2.6vw, 22px) clamp(12px, 2.6vw, 20px) 60px;">
+        <sc-if value="{{ hasDataGaps }}" hint-placeholder-val="{{ false }}"><div role="status" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(217,162,27,0.45); background: rgba(217,162,27,0.08); font-size: 13px;">
+          <div style="font-weight: 600; color: color-mix(in srgb, #b7851a 85%, var(--text)); margin-bottom: 6px;">ข้อมูลขาด — ตรวจสอบกับผู้กรอก</div>
+          <sc-for list="{{ dataGaps }}" as="g" hint-placeholder-count="2"><div style="display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 3px 0; color: var(--text);"><b style="font-weight: 600;">{{ g.name }}</b><span>{{ g.text }}</span><span style="color: var(--muted);">· {{ g.why }}</span></div></sc-for>
+        </div></sc-if>
         <sc-if value="{{ usageWarn }}" hint-placeholder-val="{{ false }}"><div role="alert" style="margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.45); background: rgba(209,72,58,0.08); color: var(--danger); font-size: 13px; font-weight: 500;">{{ usageWarn }}</div></sc-if>
 
         <!-- Page header — rendered on EVERY page, not just dashboards, so the ☰ drawer trigger
@@ -7522,6 +7526,41 @@ class Component extends DCLogic {
     }
   };
 
+  /* Missing-data alert for the overview. Daily once-a-day forms: each of the last 14 days with no
+     record (today never counts; yesterday only after noon, since it is normally sent next morning).
+     Monthly inspections: none yet this month although last month had one, once this month has
+     passed the day last month's check came in (+3 days grace). Reads only the cheap date index. */
+  buildDataGaps() {
+    const core = this.core();
+    const now = new Date(Date.now() + 7 * 3600000), iso = (d) => d.toISOString().slice(0, 10);
+    const today = iso(now), out = [];
+    const daily = ['traffic', 'traffic_tt', 'golf'];
+    daily.forEach(id => {
+      const have = core.dayCounts(id), first = Object.keys(have).sort()[0];
+      if (!first) return;
+      const miss = [];
+      for (let i = 1; i <= 14; i++) {
+        const d = iso(new Date(now.getTime() - i * 86400000));
+        if (d < first) break;
+        if (i === 1 && now.getUTCHours() < 12) continue;
+        if (!have[d]) miss.push(d);
+      }
+      if (miss.length) out.push({ name: (core.module(id) || {}).name || id,
+        text: 'ไม่มีข้อมูลวันที่ ' + miss.sort().map(d => core.fmtDateShort ? core.fmtDateShort(d) : d).join(', '),
+        why: 'ปกติกรอกทุกวัน (14 วันล่าสุด)' });
+    });
+    const ym = today.slice(0, 7), prevD = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)), pym = iso(prevD).slice(0, 7);
+    core.MODULES.filter(m => m.kind === 'monthly').forEach(m => {
+      const days = Object.keys(core.dayCounts(m.id));
+      if (days.some(d => d.slice(0, 7) === ym)) return;
+      const last = days.filter(d => d.slice(0, 7) === pym).sort()[0];
+      if (!last) return;
+      const due = Number(last.slice(8)) + 3;
+      if (Number(today.slice(8)) < due) return;
+      out.push({ name: m.name, text: 'ยังไม่มีการตรวจเดือนนี้', why: 'เดือนก่อนตรวจวันที่ ' + core.fmtDate(last) });
+    });
+    return out;
+  }
   renderVals() {
     const s = this.state;
     const core = this.core();
@@ -7789,6 +7828,8 @@ class Component extends DCLogic {
 
     return {
       usageWarn: s.usageWarn || false,
+      dataGaps: page === 'overview' && core.auth.user() ? this.buildDataGaps() : [],
+      hasDataGaps: page === 'overview' && core.auth.user() ? this.buildDataGaps().length > 0 : false,
       /* auth */
       authChecking: !authReady,
       showLogin: authReady && !authUser,
