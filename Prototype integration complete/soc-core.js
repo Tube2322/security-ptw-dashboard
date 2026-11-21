@@ -444,8 +444,23 @@
      history. Cheap enough (a few hundred KB/year at this app's real volume) to always load in
      full, and is the only thing monthsIndex()/pickLatestDate() actually need — they never
      require the full row payload just to know which days have data. */
+  /* PostgREST hands back at most 1000 rows per request (the project's max-rows setting), so any
+     read that can grow past that must page with .range() or it silently stops at row 1000 —
+     which hid every record after the 1000th (from 13 Nov 2026) from the calendar and full view. */
+  var PAGE = 1000;
+  function selectAllRows(cols) {
+    var rows = [];
+    function next(from) {
+      return sb.from('records').select(cols).order('id').range(from, from + PAGE - 1).then(function (res) {
+        if (res.error) return { error: res.error, data: null };
+        rows = rows.concat(res.data || []);
+        return (res.data || []).length < PAGE ? { error: null, data: rows } : next(from + PAGE);
+      });
+    }
+    return next(0);
+  }
   function loadDateIndex() {
-    return sb.from('records').select('module, report_date').then(function (res) {
+    return selectAllRows('id, module, report_date').then(function (res) {
       if (res.error) { notifyError('โหลดปฏิทินข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
       var idx = {};
       MODULES.forEach(function (m) { idx[m.id] = {}; });
@@ -514,7 +529,7 @@
   function ensureAll() {
     if (state.allLoaded) return Promise.resolve();
     if (allInFlight) return allInFlight; /* same in-flight guard as fetchMonth, same reason */
-    allInFlight = sb.from('records').select('*').then(function (res) {
+    allInFlight = selectAllRows('*').then(function (res) {
       if (res.error) { notifyError('โหลดข้อมูลไม่สำเร็จ: ' + res.error.message); return; }
       state.records = (res.data || []).map(recordFromRow);
       state.allLoaded = true;
