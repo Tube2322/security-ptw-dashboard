@@ -20,7 +20,7 @@
 ## ไฟล์หลัก
 - `Prototype integration complete/SOC Admin Console v2.dc.html` — Admin ทั้งหน้า (~8,500 บรรทัด, LF) logic class อยู่ท้ายไฟล์ ค่าที่ใช้ใน markup `{{ }}` ต้องคืนจาก `renderVals()`
 - `User Entry Portal v2.dc.html` — หน้ากรอก
-- `soc-export.js` — สร้าง Excel ตรวจกล้อง (`SOCExport.cctvWorkbook`) · `soc-charts.js` — ตั้งค่า ECharts (`SOCCharts.option`) ทั้งสองเป็นฟังก์ชันล้วน ทดสอบใน Node ได้ (`tests/export.test.js`, `tests/charts.test.js`) แก้แล้วเปลี่ยน `?v=` ใน .dc.html ด้วย
+- `soc-export.js` — Excel ตรวจกล้อง (`cctvWorkbook`), Excel งานซ่อม (`repairsSheet`), ตัวกรอง export (`filterRecords`) · `soc-cctv.js` — สถานะกล้องตรวจประจำสัปดาห์ (`readings`, `status`) · `soc-charts.js` — ตั้งค่า ECharts (`SOCCharts.option`) ทั้งสองเป็นฟังก์ชันล้วน ทดสอบใน Node ได้ (`tests/export.test.js`, `tests/charts.test.js`, `tests/cctv.test.js`) แก้แล้วเปลี่ยน `?v=` ใน .dc.html ด้วย
 - `soc-core.js` — data layer เดียวของระบบ (Supabase, cache, realtime, คิวส่งซ้ำ) หน้าเว็บไม่เรียก Supabase ตรง
 - `support.js` — runtime ของ .dc.html (generated ห้ามแก้)
 - `vendor/` — exceljs, jspdf, html2canvas, qrcode, supabase-js, echarts 5.5.1

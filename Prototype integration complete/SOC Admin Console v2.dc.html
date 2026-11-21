@@ -28,7 +28,7 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261121a"></script>
+<script src="./soc-export.js?v=20261121c"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
 <style>
@@ -5243,32 +5243,14 @@ class Component extends DCLogic {
     all[mod] = cur;
     this.setState({ exportFilters: all });
   }
+  /* filter rules live in soc-export.js (SOCExport.filterRecords, unit-tested); this only gathers
+     what the current topic and picks are */
   applyExportFilters(recs) {
     const core = this.core(), mod = this.state.pdfModule, m = core.module(mod) || {};
-    const P = (k) => this.exportPick(k);
-    if (!this.exportFilterDefs(mod).some(g => P(g.key))) return recs;
-    const blank = (r, keys, v) => { const d = Object.assign({}, r.data); keys.forEach(k => { d[k] = v; }); return Object.assign({}, r, { data: d }); };
-    if (m.kind === 'traffic') {
-      const sh = P('shift') || ['day', 'night'], vh = P('veh') || ['car', 'moto'], drop = [];
-      ['car', 'moto'].forEach(v => ['in', 'out'].forEach(dir => ['day', 'night'].forEach(x => {
-        if (!sh.includes(x) || !vh.includes(v)) drop.push(m.fieldPrefix + '_' + v + '_' + dir + '_' + x); })));
-      return recs.map(r => blank(r, drop, 0));
-    }
-    if (mod === 'golf') {
-      const sh = P('shift'), carts = P('cart');
-      return recs.filter(r => !sh || sh.includes(/กลางคืน/.test(String((r.data || {}).golf_shift || '')) ? 'night' : 'day'))
-        .map(r => carts ? blank(r, GOLF_CARTS.filter(c => !carts.includes(c)), '') : r);
-    }
-    if (m.kind === 'parking') {
-      const cols = P('cols'), all = core.activeFields(mod).filter(f => f.type === 'number').map(f => f.fieldId);
-      return recs.map(r => blank(r, all.filter(k => !cols.includes(k)), ''));
-    }
-    if (mod === 'visitors') {
-      const t = P('type');
-      return recs.map(r => blank(r, ['visitor_general_count', 'visitor_contractor_count'].filter(k => !t.includes(k)), 0));
-    }
-    /* elevator / checkpoint: every filter is a field on the record, so it's a plain row filter */
-    return recs.filter(r => this.exportFilterDefs(mod).every(g => { const p = P(g.key); return !p || p.includes((r.data || {})[g.key]); }));
+    const defs = this.exportFilterDefs(mod);
+    return window.SOCExport.filterRecords(recs, { mod, kind: m.kind, fieldPrefix: m.fieldPrefix, golfCarts: GOLF_CARTS,
+      groups: defs.map(g => g.key), pick: (k) => this.exportPick(k),
+      parkingFields: m.kind === 'parking' ? core.activeFields(mod).filter(f => f.type === 'number').map(f => f.fieldId) : [] });
   }
   pdfRecords() {
     const info = this.pdfRecordsRaw();
@@ -5380,20 +5362,7 @@ class Component extends DCLogic {
         file = 'รายงานตรวจกล้องประจำสัปดาห์';
       } else {
         const res = await core.repairJobs();
-        const fSt = this.exportPick('st'), fT = this.exportPick('topic');
-        const KNOWN = ['ACC', 'CCTV', 'ถังดับเพลิง', 'ประตูหนีไฟ', 'รถกอล์ฟ'];
-        const group = (st) => st === 'rejected' ? 'rejected' : (st === 'done' || st === 'closed') ? 'done' : 'open';
-        const rows = res.rows.filter(r => inRange(String(r.created_at || '').slice(0, 10))
-            && (!fSt || fSt.includes(group(r.status)))
-            && (!fT || fT.includes(KNOWN.includes(r.topic) ? r.topic : 'อื่นๆ')))
-          .sort((a, c) => String(c.created_at).localeCompare(String(a.created_at)));
-        const STATUS = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', sent: 'ส่งช่างแล้ว', accepted: 'ช่างรับงาน', repairing: 'กำลังซ่อม', done: 'ซ่อมเสร็จ', closed: 'ปิดงาน', rejected: 'ไม่อนุมัติ' };
-        sheet('งานซ่อม', ['เลขงาน', 'วันที่แจ้ง', 'หัวข้อ', 'สถานที่', 'อาการ/รายการที่เสีย', 'สถานะ', 'เลขงานช่าง', 'รายละเอียด'],
-          rows.map(r => [r.code, String(r.created_at || '').slice(0, 10), r.topic || '', r.place || '',
-            (Array.isArray(r.faults) ? r.faults : []).map(f => f.label + (f.value ? ': ' + f.value : '')).join(' / '),
-            STATUS[r.status] || r.status || '', r.ext_code || '', r.detail || '']),
-          [14, 12, 16, 24, 44, 14, 14, 40]);
-        count = rows.length; file = 'งานซ่อม';
+        count = window.SOCExport.repairsSheet({ sheet, rows: res.rows, inRange, filters: { st: this.exportPick('st'), topic: this.exportPick('topic') } }); file = 'งานซ่อม';
       }
       if (!count) { this.flash('ไม่พบข้อมูลในช่วงเวลาที่เลือก', 'var(--warn)'); return; }
       const buf = await wb.xlsx.writeBuffer();

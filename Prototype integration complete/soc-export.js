@@ -135,7 +135,55 @@
     if (!keys.length && !baseDay) sheet('ไม่มีข้อมูล', ['ไม่มีการตรวจในช่วงที่เลือก'], [], [30]);
     return count;
   }
-  const api = { cctvWorkbook: cctvWorkbook };
+  /* repair jobs, newest first, filtered by period, status group and topic; returns rows written */
+  function repairsSheet(opts) {
+    const sheet = opts.sheet, inRange = opts.inRange, f = opts.filters || {}, fSt = f.st, fT = f.topic;
+    const res = { rows: opts.rows || [] };
+    const KNOWN = ['ACC', 'CCTV', 'ถังดับเพลิง', 'ประตูหนีไฟ', 'รถกอล์ฟ'];
+    const group = (st) => st === 'rejected' ? 'rejected' : (st === 'done' || st === 'closed') ? 'done' : 'open';
+    const rows = res.rows.filter(r => inRange(String(r.created_at || '').slice(0, 10))
+        && (!fSt || fSt.includes(group(r.status)))
+        && (!fT || fT.includes(KNOWN.includes(r.topic) ? r.topic : 'อื่นๆ')))
+      .sort((a, c) => String(c.created_at).localeCompare(String(a.created_at)));
+    const STATUS = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', sent: 'ส่งช่างแล้ว', accepted: 'ช่างรับงาน', repairing: 'กำลังซ่อม', done: 'ซ่อมเสร็จ', closed: 'ปิดงาน', rejected: 'ไม่อนุมัติ' };
+    sheet('งานซ่อม', ['เลขงาน', 'วันที่แจ้ง', 'หัวข้อ', 'สถานที่', 'อาการ/รายการที่เสีย', 'สถานะ', 'เลขงานช่าง', 'รายละเอียด'],
+      rows.map(r => [r.code, String(r.created_at || '').slice(0, 10), r.topic || '', r.place || '',
+        (Array.isArray(r.faults) ? r.faults : []).map(f => f.label + (f.value ? ': ' + f.value : '')).join(' / '),
+        STATUS[r.status] || r.status || '', r.ext_code || '', r.detail || '']),
+      [14, 12, 16, 24, 44, 14, 14, 40]);
+    return rows.length;
+  }
+  /* Per-topic export filters. Row filters drop whole records; column filters blank the fields that
+     weren't picked (a traffic record holds day AND night, car AND motorcycle, so dropping the row would
+     lose the other half). Nothing picked in a group = everything.
+     ctx: { mod, kind, fieldPrefix, golfCarts, groups: [filter keys], pick(key) -> ids|null, parkingFields } */
+  function filterRecords(recs, ctx) {
+    const P = ctx.pick, mod = ctx.mod;
+    if (!(ctx.groups || []).some(k => P(k))) return recs;
+    const blank = (r, keys, v) => { const d = Object.assign({}, r.data); keys.forEach(k => { d[k] = v; }); return Object.assign({}, r, { data: d }); };
+    if (ctx.kind === 'traffic') {
+      const sh = P('shift') || ['day', 'night'], vh = P('veh') || ['car', 'moto'], drop = [];
+      ['car', 'moto'].forEach(v => ['in', 'out'].forEach(dir => ['day', 'night'].forEach(x => {
+        if (!sh.includes(x) || !vh.includes(v)) drop.push(ctx.fieldPrefix + '_' + v + '_' + dir + '_' + x); })));
+      return recs.map(r => blank(r, drop, 0));
+    }
+    if (mod === 'golf') {
+      const sh = P('shift'), carts = P('cart');
+      return recs.filter(r => !sh || sh.includes(/กลางคืน/.test(String((r.data || {}).golf_shift || '')) ? 'night' : 'day'))
+        .map(r => carts ? blank(r, ctx.golfCarts.filter(c => !carts.includes(c)), '') : r);
+    }
+    if (ctx.kind === 'parking') {
+      const cols = P('cols');
+      return recs.map(r => blank(r, ctx.parkingFields.filter(k => !cols.includes(k)), ''));
+    }
+    if (mod === 'visitors') {
+      const t = P('type');
+      return recs.map(r => blank(r, ['visitor_general_count', 'visitor_contractor_count'].filter(k => !t.includes(k)), 0));
+    }
+    /* every other filter is a field on the record itself: a plain row filter */
+    return recs.filter(r => ctx.groups.every(k => { const p = P(k); return !p || p.includes((r.data || {})[k]); }));
+  }
+  const api = { cctvWorkbook: cctvWorkbook, repairsSheet: repairsSheet, filterRecords: filterRecords };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SOCExport = api;
 })(typeof window !== 'undefined' ? window : globalThis);

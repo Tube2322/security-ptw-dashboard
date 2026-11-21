@@ -80,3 +80,56 @@ test('nothing checked in the period gives a single explanatory sheet', () => {
   assert.deepStrictEqual(wb.worksheets.map(w => w.name), ['ไม่มีข้อมูล']);
   assert.strictEqual(count, 0);
 });
+
+const { repairsSheet } = require(path.join(__dirname, '..', 'Prototype integration complete', 'soc-export.js'));
+test('repair jobs: newest first, filtered by period, status group and topic', () => {
+  const wb = new ExcelJS.Workbook();
+  const sheet = (name, head, rows) => { const ws = wb.addWorksheet(name); ws.addRow(head); rows.forEach(r => ws.addRow(r)); return ws; };
+  const rows = [
+    { code: 'R1', created_at: '2026-11-02T08:00:00', topic: 'CCTV', status: 'done', faults: [{ label: 'ภาพไม่ขึ้น' }] },
+    { code: 'R2', created_at: '2026-11-05T08:00:00', topic: 'ห้องน้ำ', status: 'pending', faults: [] },
+    { code: 'R3', created_at: '2026-10-30T08:00:00', topic: 'CCTV', status: 'pending', faults: [] },
+    { code: 'R4', created_at: '2026-11-03T08:00:00', topic: 'ACC', status: 'repairing', faults: [] }
+  ];
+  const inRange = (d) => d >= '2026-11-01' && d <= '2026-11-30';
+  assert.strictEqual(repairsSheet({ sheet, rows, inRange }), 3);
+  const ws = wb.getWorksheet('งานซ่อม');
+  assert.deepStrictEqual([2, 3, 4].map(r => ws.getRow(r).getCell(1).value), ['R2', 'R4', 'R1']);
+  assert.strictEqual(ws.getRow(4).getCell(6).value, 'ซ่อมเสร็จ');
+  const wb2 = new ExcelJS.Workbook();
+  const sheet2 = (name, head, rs) => { const w = wb2.addWorksheet(name); rs.forEach(r => w.addRow(r)); return w; };
+  assert.strictEqual(repairsSheet({ sheet: sheet2, rows, inRange, filters: { st: ['open'], topic: ['อื่นๆ'] } }), 1);
+});
+
+const { filterRecords } = require(path.join(__dirname, '..', 'Prototype integration complete', 'soc-export.js'));
+const ctxOf = (mod, kind, picks, extra) => Object.assign({ mod, kind, fieldPrefix: 'traffic', golfCarts: ['golf_cart_1', 'golf_cart_2'],
+  groups: Object.keys(picks).concat(['_unused']), pick: (k) => picks[k] || null, parkingFields: [] }, extra);
+
+test('filters: nothing picked returns the records untouched', () => {
+  const recs = [{ data: { a: 1 } }];
+  assert.strictEqual(filterRecords(recs, ctxOf('traffic', 'traffic', {})), recs);
+});
+
+test('filters: traffic day + car blanks night and motorcycle columns, keeps the row', () => {
+  const r = { data: { traffic_car_in_day: 5, traffic_car_in_night: 7, traffic_moto_in_day: 9 } };
+  const [out] = filterRecords([r], ctxOf('traffic', 'traffic', { shift: ['day'], veh: ['car'] }));
+  assert.strictEqual(out.data.traffic_car_in_day, 5);
+  assert.strictEqual(out.data.traffic_car_in_night, 0);
+  assert.strictEqual(out.data.traffic_moto_in_day, 0);
+  assert.strictEqual(r.data.traffic_car_in_night, 7, 'original record not changed');
+});
+
+test('filters: golf by shift drops rows, by cart blanks the other carts', () => {
+  const recs = [{ data: { golf_shift: 'กะกลางวัน', golf_cart_1: 3, golf_cart_2: 4 } }, { data: { golf_shift: 'กะกลางคืน', golf_cart_1: 1, golf_cart_2: 2 } }];
+  const out = filterRecords(recs, ctxOf('golf', 'golf', { shift: ['night'], cart: ['golf_cart_2'] }));
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].data.golf_cart_1, '');
+  assert.strictEqual(out[0].data.golf_cart_2, 2);
+});
+
+test('filters: visitors by type and parking by column', () => {
+  const [v] = filterRecords([{ data: { visitor_general_count: 3, visitor_contractor_count: 2 } }], ctxOf('visitors', 'visitors', { type: ['visitor_contractor_count'] }));
+  assert.deepStrictEqual([v.data.visitor_general_count, v.data.visitor_contractor_count], [0, 2]);
+  const [p] = filterRecords([{ data: { tt_staff_cars: 5, tt_other_cars: 1 } }], ctxOf('traffic_tt', 'parking', { cols: ['tt_staff_cars'] }, { parkingFields: ['tt_staff_cars', 'tt_other_cars'] }));
+  assert.deepStrictEqual([p.data.tt_staff_cars, p.data.tt_other_cars], [5, '']);
+});
