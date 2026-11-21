@@ -30,6 +30,7 @@
 <script src="./vendor/echarts.min.js"></script>
 <script src="./soc-export.js?v=20261121a"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
+<script src="./soc-cctv.js?v=20261121a"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -6402,33 +6403,11 @@ class Component extends DCLogic {
     /* two kinds of reading: exported straight from the NVR's own recording log (exact) and typed by
        hand (the weekly portal check and the original hand-noted Excel baseline). They are kept apart
        on screen so a hand-noted number is never mistaken for the recorder's own figure. */
-    const isFile = (ch) => ch.source === 'nvr_export';
-    const latest = {}, history = {}, nvrLast = {}, latestFile = {}, latestHand = {}, nvrFile = {}, nvrHand = {};
-    checks.forEach(ch => {
-      /* the original hand-noted baseline stays in the database but is not shown as a reading */
-      if (ch.source === 'excel') return;
-      const file = isFile(ch);
-      if (!nvrLast[ch.nvr]) nvrLast[ch.nvr] = ch;
-      if (file && !nvrFile[ch.nvr]) nvrFile[ch.nvr] = ch;
-      if (!file && !nvrHand[ch.nvr]) nvrHand[ch.nvr] = ch;
-      (ch.items || []).forEach(it => {
-        const row = { date: ch.check_date, days: it.days, ok: it.ok !== false, note: it.note || '', checker: ch.checker, file };
-        if (!latest[it.name]) latest[it.name] = row;
-        if (file && !latestFile[it.name]) latestFile[it.name] = row;
-        if (!file && !latestHand[it.name]) latestHand[it.name] = row;
-        (history[it.name] = history[it.name] || []).push(row);
-      });
-    });
-    /* the recorder's own export is the more exact figure, so a camera's status (colour, issue list,
-       counts) follows its latest file reading whenever it has one; hand checks decide only for
-       cameras with no file reading yet */
-    Object.keys(latestFile).forEach(n => { latest[n] = latestFile[n]; });
-    /* a camera the recorder reports broken has no meaningful hand reading to show next to it */
-    Object.keys(latestFile).forEach(n => { if (!latestFile[n].ok) delete latestHand[n]; });
-    const readText = (r) => !r ? '—' : !r.ok ? 'เสีย' : r.days == null ? '—' : String(r.days);
-    /* a camera is short when it plays back fewer days than it can hold (its capacity) */
-    const shortOf = (c, r) => r && r.ok && r.days != null && c.capacity ? Math.max(0, c.capacity - r.days) : 0;
-    const state = (c) => { const l = latest[c.name]; return !l ? 'none' : !l.ok ? 'bad' : shortOf(c, l) > 0 ? 'short' : 'ok'; };
+    /* readings and status rules live in soc-cctv.js (shared, unit-tested) */
+    const R = window.SOCCctv, rd = R.readings(checks);
+    const latest = rd.latest, history = rd.history, nvrLast = rd.nvrLast, latestFile = rd.latestFile, latestHand = rd.latestHand, nvrFile = rd.nvrFile, nvrHand = rd.nvrHand;
+    const readText = R.readText, shortOf = R.shortOf;
+    const state = (c) => R.status(c, latest[c.name]);
     const STY = {
       ok: { label: 'ครบ', dot: '#3fbf8f', bg: 'var(--panel)', border: '1px solid var(--line)', fg: 'var(--text)' },
       short: { label: 'ขาดวัน', dot: '#d9a21b', bg: 'rgba(217,162,27,0.10)', border: '1px solid rgba(217,162,27,0.45)', fg: 'color-mix(in srgb, #b7851a 85%, var(--text))' },
