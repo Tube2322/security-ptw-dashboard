@@ -28,6 +28,8 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
+<script src="./soc-export.js?v=20261121a"></script>
+<script src="./soc-charts.js?v=20261121a"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -3056,26 +3058,7 @@ class Component extends DCLogic {
       const inst = E.getInstanceByDom(el) || E.init(el, null, { renderer: 'canvas' });
       if (el._echartKey === key) return;
       el._echartKey = key;
-      const n = spec.values.length, color = resolve(spec.color);
-      const avg = n ? spec.values.reduce((a, x) => a + x, 0) / n : 0;
-      const long = n > 14; /* slider for anything past two weeks; opens on the latest 31 points */
-      inst.setOption({
-        animationDuration: 400,
-        grid: { left: 8, right: 16, top: 28, bottom: long ? 56 : 24, containLabel: true },
-        tooltip: { trigger: 'axis', confine: true, backgroundColor: panel, borderColor: line, textStyle: { color: v('--text', '#111'), fontFamily: 'IBM Plex Sans Thai' },
-          valueFormatter: (x) => Number(x).toLocaleString() + (spec.unit ? ' ' + spec.unit : '') },
-        xAxis: { type: 'category', data: spec.labels, boundaryGap: !!spec.bar, axisLine: { lineStyle: { color: line } }, axisTick: { show: false },
-          axisLabel: { color: text, hideOverlap: true, fontFamily: 'IBM Plex Mono', fontSize: 11 } },
-        yAxis: { type: 'value', splitLine: { lineStyle: { color: line, type: 'dashed' } }, axisLabel: { color: text, fontSize: 11 } },
-        dataZoom: [{ type: 'inside', start: long ? Math.max(0, 100 - 3100 / n) : 0, end: 100 }].concat(long ? [{ type: 'slider', height: 18, bottom: 10, borderColor: line, textStyle: { color: text } }] : []),
-        series: [spec.bar ? { type: 'bar', barMaxWidth: 28, data: spec.values.map((x, i) => ({ value: x, itemStyle: { color: resolve((spec.barColors || [])[i] || spec.color), borderRadius: [4, 4, 0, 0] } })),
-          markLine: n > 1 ? { silent: true, symbol: 'none', lineStyle: { color: text, type: 'dashed', opacity: 0.6 }, label: { color: text, formatter: 'เฉลี่ย ' + Math.round(avg).toLocaleString(), position: 'insideEndTop' }, data: [{ yAxis: avg }] } : undefined }
-          : { type: 'line', data: spec.values, smooth: 0.3, symbol: 'circle', symbolSize: n > 60 ? 0 : 6, showSymbol: n <= 60,
-          lineStyle: { width: 2, color }, itemStyle: { color },
-          areaStyle: spec.area && /^#[0-9a-f]{6}$/i.test(color) ? { color: new E.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color + '40' }, { offset: 1, color: color + '00' }]) } : spec.area ? { color, opacity: 0.15 } : undefined,
-          markLine: n > 1 ? { silent: true, symbol: 'none', lineStyle: { color: text, type: 'dashed', opacity: 0.6 },
-            label: { color: text, formatter: 'เฉลี่ย ' + Math.round(avg).toLocaleString(), position: 'insideEndTop' }, data: [{ yAxis: avg }] } : undefined }]
-      }, true);
+      inst.setOption(window.SOCCharts.option(spec, { text, line, panel, fg: v('--text', '#111'), resolve }, E), true);
     });
   };
   componentDidMount() {
@@ -5391,130 +5374,8 @@ class Component extends DCLogic {
            past month exports in full however much history has piled up */
         const pre = b.from ? this.pdfShiftDay(b.from, -62) : '';
         const [cams, chk] = await Promise.all([core.cctvCameras(), core.cctvChecks(pre || undefined, b.to || undefined)]);
-        const camOf = {}; cams.rows.forEach(c => { camOf[c.name] = c; });
-        /* a camera renamed or retired since still shows in the months it was checked */
-        chk.rows.filter(c => inRange(c.check_date) && c.source !== 'excel').forEach(ch => (ch.items || []).forEach(it => {
-          if (!camOf[it.name]) { camOf[it.name] = { name: it.name, nvr: ch.nvr, sort: 9999, capacity: null }; cams.rows.push(camOf[it.name]); } }));
-        /* same rules as the page: the hand-noted baseline is not exported, and a camera the
-           recorder reports broken carries no hand reading */
-        const checks = chk.rows.filter(c => inRange(c.check_date) && c.source !== 'excel')
-          .sort((x, y) => String(y.check_date + (y.submitted_at || '')).localeCompare(String(x.check_date + (x.submitted_at || ''))));
-        /* one sheet per weekly report, named after the Saturday that closes the week (Sun–Sat);
-           several checks in one week: the latest wins */
-        const fN = this.exportPick('nvr'), fS = this.exportPick('src'), fSt = this.exportPick('st');
-        const wantF = !fS || fS.includes('file'), wantH = !fS || fS.includes('hand');
-        const MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-        const satOf = (day) => { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + (6 - d.getDay()));
-          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-        const thDate = (day, short) => { const [y, m, d] = day.split('-').map(Number); return d + ' ' + MON[m - 1] + ' ' + (short ? String(y + 543).slice(2) : y + 543); };
-        const weeks = {};
-        checks.forEach(ch => { const k = satOf(ch.check_date); (weeks[k] = weeks[k] || []).push(ch); });
-        const keys = Object.keys(weeks).sort();
-        const head = ['NVR', 'วันที่ตรวจ', 'กล้อง'].concat(wantF ? ['ดูย้อนหลังได้ อิงจากระบบ'] : [], wantH ? ['ดูย้อนหลังได้ ที่ตรวจสอบเอง'] : [], ['สรุปวันที่หายไป', 'หมายเหตุ']);
-        const widths = [10, 13, 16].concat(wantF ? [24] : [], wantH ? [26] : [], [17, 40]);
-        /* one colour per NVR zone: dark band on the NVR cell, light tint across the row,
-           a heavier rule where a new NVR starts */
-        const BAND = { 1: 'FF2B6CB0', 2: 'FF2F855A', 3: 'FFB7791F', 4: 'FF805AD5', 5: 'FFC05621', 6: 'FF2C7A7B' };
-        const TINT = { 1: 'FFE3F0FB', 2: 'FFE6F4EA', 3: 'FFFFF4D6', 4: 'FFF3E5F5', 5: 'FFFDE7DD', 6: 'FFE0F4F4' };
-        const paint = (ws, first, nvrs, cols) => nvrs.forEach((nv, i) => {
-          const row = ws.getRow(first + i), start = i === 0 || nvrs[i - 1] !== nv;
-          for (let c = 1; c <= cols; c++) { const cell = row.getCell(c);
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c === 1 ? BAND[nv] : TINT[nv] } };
-            if (start) cell.border = { top: { style: 'medium', color: { argb: BAND[nv] } } }; }
-          row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        });
-        /* report finish: one readable Thai face, hairline grid, centred numbers, A4 landscape
-           print that fits the width and repeats the header on every page */
-        const NL = String.fromCharCode(10), FONT = 'Tahoma', GRID = { style: 'thin', color: { argb: 'FFBFC5CC' } };
-        const finish = (ws, cols, textCols) => {
-          ws.getRow(1).font = { name: FONT, bold: true, size: 14 }; ws.getRow(1).height = 26;
-          ws.getRow(1).alignment = { vertical: 'middle' };
-          const h = ws.getRow(2);
-          h.font = { name: FONT, bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
-          h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.height = 36;
-          ws.eachRow((row, r) => { if (r < 2) return;
-            if (r > 2) row.height = 18;
-            for (let c = 1; c <= cols; c++) { const cell = row.getCell(c);
-              const top = cell.border && cell.border.top && cell.border.top.style === 'medium' ? cell.border.top : GRID;
-              cell.border = { top: r === 2 ? GRID : top, left: GRID, bottom: GRID, right: GRID };
-              if (r > 2) { cell.font = Object.assign({ name: FONT, size: 10 }, cell.font || {}, { name: FONT, size: 10 });
-                cell.alignment = { vertical: 'middle', horizontal: textCols.includes(c) ? 'left' : 'center', indent: textCols.includes(c) ? 1 : 0 }; } } });
-          ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '2:2',
-            margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 } };
-          ws.headerFooter = { oddFooter: '&L&8' + 'SOC Command Center' + '&R&8หน้า &P / &N' };
-        };
-        const maps = {};
-        keys.forEach(k => {
-          const F = {}, H = {};
-          weeks[k].forEach(ch => { (ch.items || []).forEach(it => { const T = ch.source === 'nvr_export' ? F : H; if (!T[it.name]) T[it.name] = { ch, it }; }); });
-          Object.keys(H).forEach(n => { if (F[n] && F[n].it.ok === false) delete H[n]; });
-          maps[k] = { F, H };
-        });
-        /* monthly summary first: camera × week, the system reading (own check where the system has
-           none), led by the original pre-adjustment figures when that baseline falls in the period */
-        /* lead column: the original baseline when it falls inside the period, otherwise each camera's
-           last reading before the period starts, so every month picks up where the last one ended */
-        const base = chk.rows.filter(c => c.source === 'excel' && inRange(c.check_date));
-        const prior = b.from ? chk.rows.filter(c => c.check_date < b.from) : [];
-        const leadSrc = base.length ? base : prior;
-        const B = {}; leadSrc.slice().sort((x, y) => (y.source === 'nvr_export') - (x.source === 'nvr_export'))
-          .sort((x, y) => (y.check_date > x.check_date) - (y.check_date < x.check_date))
-          .forEach(ch => (ch.items || []).forEach(it => { if (!(it.name in B)) B[it.name] = it; }));
-        const baseDay = base.length ? base.map(c => c.check_date).sort()[0] : prior.length ? prior.map(c => c.check_date).sort().pop() : null;
-        const leadLabel = base.length ? 'ข้อมูลเดิม' : 'ยกมาจากครั้งก่อน';
-        if (keys.length || baseDay) {
-          const lastK = keys[keys.length - 1];
-          const sumCams = cams.rows.filter(c => (!fN || fN.includes(String(c.nvr)))).sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).filter(c => {
-            if (!fSt || !lastK) return true; const e = maps[lastK].F[c.name] || maps[lastK].H[c.name]; if (!e) return fSt.includes('ยังไม่ตรวจ');
-            return fSt.includes(e.it.ok === false ? 'เสีย' : c.capacity && e.it.days < c.capacity ? 'ขาดวัน' : 'ครบ'); });
-          const sHead = ['NVR', 'กล้อง'].concat(baseDay ? ['สัปดาห์ 1' + NL + thDate(baseDay) + ' (' + leadLabel + ')']: [], keys.map((k, i) => 'สัปดาห์ ' + (i + 1 + (baseDay ? 1 : 0)) + NL + 'เสาร์ที่ ' + thDate(k)), ['หมายเหตุ']);
-          const sRows = sumCams.map(c => {
-            const cells = keys.map(k => { const e = maps[k].F[c.name] || maps[k].H[c.name]; return !e ? '' : e.it.ok === false ? 'เสีย' : e.it.days; });
-            const lastBad = lastK && (maps[lastK].F[c.name] || {}).it && maps[lastK].F[c.name].it.ok === false;
-            const b = B[c.name];
-            return ['NVR ' + c.nvr, c.name].concat(baseDay ? [!b ? '' : b.ok === false ? 'เสีย' : b.days] : [], cells,
-              [lastBad ? 'กล้องเสีย ไม่มีข้อมูล' + (maps[lastK].F[c.name].it.note ? ' — ' + maps[lastK].F[c.name].it.note : '') : c.sort === 9999 ? 'ไม่อยู่ในรายชื่อกล้องปัจจุบัน' : '']);
-          });
-          const ws = sheet('สรุปรายเดือน', sHead, sRows, [10, 16].concat(baseDay ? [22] : [], keys.map(() => 20), [40]));
-          ws.spliceRows(1, 0, ['ตรวจสอบการบันทึกย้อนหลังกล้อง CCTV · ' + label]);
-          ws.mergeCells(1, 1, 1, sHead.length);
-          ws.getRow(1).font = { bold: true, size: 14 }; ws.getRow(1).fill = { type: 'pattern', pattern: 'none' };
-          ws.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-          ws.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6F5E' } };
-          ws.getRow(2).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; ws.getRow(2).height = 36;
-          ws.views = [{ state: 'frozen', ySplit: 2 }];
-          ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: sHead.length } };
-          paint(ws, 3, sumCams.map(c => c.nvr), sHead.length);
-          sRows.forEach((r, i) => { if (r[r.length - 1]) ws.getRow(3 + i).getCell(sHead.length).font = { bold: true, color: { argb: 'FFC53030' } }; });
-          finish(ws, sHead.length, [2, sHead.length]);
-        }
-        keys.forEach(k => {
-          const { F, H } = maps[k];
-          const rows = cams.rows.filter(c => (!fN || fN.includes(String(c.nvr))) && (F[c.name] || H[c.name]))
-            .sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).map(c => {
-              const f = F[c.name], h = H[c.name], bad = (f || h).it.ok === false;
-              const st = bad ? 'เสีย' : (c.capacity && Math.min(f ? f.it.days : 1e9, h ? h.it.days : 1e9) < c.capacity ? 'ขาดวัน' : 'ครบ');
-              if (fSt && !fSt.includes(st)) return null;
-              const when = [f, h].filter(Boolean).map(e => e.ch.check_date).sort().pop();
-              const d = f && h && f.it.days != null && h.it.days != null ? h.it.days - f.it.days : null;
-              /* ตรวจเอง counts today, the recorder log does not — one day over is expected */
-              const gap = bad ? 'กล้องเสีย ไม่มีข้อมูล' : d == null ? '' : d > 0 ? 'เกิน ' + d + ' วัน (รวมวันนี้)' : d < 0 ? 'ขาด ' + (-d) + ' วัน' : 'ตรงกัน';
-              return ['NVR ' + c.nvr, thDate(when)].concat([c.name], wantF ? [!f ? '' : f.it.ok === false ? 'เสีย' : f.it.days] : [],
-                wantH ? [!h ? '' : h.it.days] : [], [gap, [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')]);
-            }).filter(Boolean);
-          const ws = sheet('เสาร์ที่ ' + thDate(k, true), head, rows, widths);
-          ws.spliceRows(1, 0, ['รายงานประจำสัปดาห์ เสาร์ที่ ' + thDate(k)]);
-          ws.mergeCells(1, 1, 1, head.length);
-          ws.getRow(1).font = { bold: true, size: 14 }; ws.getRow(1).fill = { type: 'pattern', pattern: 'none' };
-          ws.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-          ws.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6F5E' } };
-          ws.views = [{ state: 'frozen', ySplit: 2 }];
-          ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: head.length } };
-          paint(ws, 3, rows.map(r => Number(r[0].slice(4))), head.length);
-          finish(ws, head.length, [3, head.length - 1, head.length]);
-          count += rows.length;
-        });
-        if (!keys.length && !baseDay) sheet('ไม่มีข้อมูล', ['ไม่มีการตรวจในช่วงที่เลือก'], [], [30]);
+        count = window.SOCExport.cctvWorkbook({ sheet, cams, chk, b, inRange, label,
+          filters: { nvr: this.exportPick('nvr'), src: this.exportPick('src'), st: this.exportPick('st') } });
         file = 'รายงานตรวจกล้องประจำสัปดาห์';
       } else {
         const res = await core.repairJobs();
