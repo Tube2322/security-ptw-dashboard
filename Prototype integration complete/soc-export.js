@@ -146,11 +146,32 @@
         && (!fT || fT.includes(KNOWN.includes(r.topic) ? r.topic : 'อื่นๆ')))
       .sort((a, c) => String(c.created_at).localeCompare(String(a.created_at)));
     const STATUS = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', sent: 'ส่งช่างแล้ว', accepted: 'ช่างรับงาน', repairing: 'กำลังซ่อม', done: 'ซ่อมเสร็จ', closed: 'ปิดงาน', rejected: 'ไม่อนุมัติ' };
-    sheet('งานซ่อม', ['เลขงาน', 'วันที่แจ้ง', 'หัวข้อ', 'สถานที่', 'อาการ/รายการที่เสีย', 'สถานะ', 'เลขงานช่าง', 'รายละเอียด'],
-      rows.map(r => [r.code, String(r.created_at || '').slice(0, 10), r.topic || '', r.place || '',
-        (Array.isArray(r.faults) ? r.faults : []).map(f => f.label + (f.value ? ': ' + f.value : '')).join(' / '),
-        STATUS[r.status] || r.status || '', r.ext_code || '', r.detail || '']),
-      [14, 12, 16, 24, 44, 14, 14, 40]);
+    const loc = (r) => r.loc || {};
+    const day = (t) => String(t || '').slice(0, 10);
+    /* one row per job: where (building / floor / department or spot), what was broken, how it went */
+    const ws = sheet('งานซ่อม', ['เลขงาน', 'เลขงานช่าง', 'วันที่แจ้ง', 'หัวข้อ', 'อาคาร', 'ชั้น', 'แผนก/จุด', 'สิ่งที่ซ่อม',
+        'รายละเอียด', 'ผู้แจ้ง', 'สถานะ', 'สถานะฝั่งช่าง', 'ซ่อมเสร็จ', 'ปิดงาน'],
+      rows.map(r => { const t = r.times || {};
+        return [r.code, r.ext_code || '', day(r.created_at), r.topic || '', loc(r).building || '', loc(r).floor || '',
+          loc(r).department || r.place || '',
+          (Array.isArray(r.faults) ? r.faults : []).map(x => x.label + (x.value ? ': ' + x.value : '')).join(' / '),
+          r.detail || '', (r.reporter || {}).name || '', STATUS[r.status] || r.status || '', r.ext_status || '',
+          day(t.done), day(t.closed)]; }),
+      [14, 14, 12, 14, 18, 12, 24, 40, 40, 20, 13, 18, 12, 12]);
+    /* summary per month of the period: how many jobs, by topic and by floor */
+    const months = {};
+    rows.forEach(r => { const m = day(r.created_at).slice(0, 7); const o = months[m] || (months[m] = { n: 0, done: 0, topic: {}, floor: {} });
+      o.n++; if (r.status === 'done' || r.status === 'closed') o.done++;
+      const tp = r.topic || 'อื่นๆ', fl = [loc(r).building, loc(r).floor].filter(Boolean).join(' ') || '—';
+      o.topic[tp] = (o.topic[tp] || 0) + 1; o.floor[fl] = (o.floor[fl] || 0) + 1; });
+    const list = (o) => Object.keys(o).sort((a, c) => o[c] - o[a]).map(k => k + ' ' + o[k]).join(', ');
+    if (rows.length && opts.summary !== false) {
+      sheet('สรุปรายเดือน', ['เดือน', 'แจ้งซ่อม (งาน)', 'ซ่อมเสร็จ/ปิด', 'ยังไม่เสร็จ', 'แยกตามหัวข้อ', 'แยกตามอาคาร/ชั้น'],
+        Object.keys(months).sort().reverse().map(m => { const o = months[m];
+          return [m, o.n, o.done, o.n - o.done, list(o.topic), list(o.floor)]; }),
+        [10, 14, 14, 12, 40, 50]);
+    }
+    void ws;
     return rows.length;
   }
   /* Per-topic export filters. Row filters drop whole records; column filters blank the fields that
