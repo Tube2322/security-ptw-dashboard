@@ -6459,7 +6459,7 @@ class Component extends DCLogic {
           pick: () => this.setState({ cctvSel: c.name, cctvTab: c.nvr }) }; });
     const tabs = ['all', 1, 2, 3, 4, 5, 6].map(t => {
       const list = t === 'all' ? cams : cams.filter(c => c.nvr === t), on = tab === t, bad = count(list, 'bad') + count(list, 'short');
-      return { label: (t === 'all' ? 'ทั้งหมด' : 'NVR ' + t) + (bad ? ' · ' + bad : ''),
+      return { label: (t === 'all' ? 'ทั้งหมด' : 'NVR ' + t),
         bg: on ? 'var(--bg-2)' : 'transparent', fg: on ? 'var(--text)' : 'var(--muted)', shadow: on ? '0 1px 3px rgba(0,0,0,0.18), 0 0 0 1px var(--line)' : 'none',
         pick: () => this.setState({ cctvTab: t, cctvSel: null }) };
     });
