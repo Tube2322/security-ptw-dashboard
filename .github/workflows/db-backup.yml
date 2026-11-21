@@ -1,0 +1,42 @@
+name: Back up the database
+
+# Every Sunday (and on demand): dumps every table to JSON, packs it, encrypts it with the
+# BACKUP_PASSPHRASE secret (this repository is public, so the archive must be unreadable without it)
+# and keeps it as a workflow artifact for 90 days. A failed run e-mails the repository owner.
+# Restore: download the artifact, then
+#   openssl enc -d -aes-256-cbc -pbkdf2 -in backup.tar.gz.enc -out backup.tar.gz && tar xzf backup.tar.gz
+on:
+  schedule:
+    - cron: '30 20 * * 6'   # Sunday 03:30 Thai time
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    if: github.repository == 'Tube2322/security-ptw-dashboard'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Dump tables
+        run: node scripts/backup-db.js
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Pack and encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE secret is not set"; exit 1; }
+          tar czf backup.tar.gz backup
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in backup.tar.gz -out backup.tar.gz.enc -pass env:BACKUP_PASSPHRASE
+          rm -rf backup backup.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: backup.tar.gz.enc
+          retention-days: 90
