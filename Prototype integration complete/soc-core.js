@@ -605,13 +605,53 @@
     function () { setSession(null); }
   ).then(loadBootstrap);
 
+  /* Supabase meters egress per org (Nov 2026: ptw-room-track's reloads got the whole org
+     suspended). A record change is therefore applied from the realtime payload itself — no
+     refetch — and a hidden tab applies nothing, only re-syncing once when it is shown again. */
+  var staleWhileHidden = false, lastResync = 0, deletedHere = {};
+  function monthOf(day) { return String(day || '').slice(0, 7); }
+  function indexAdd(module, day, n) {
+    if (!state.dateIndex || !module || !day) return;
+    var m = state.dateIndex[module] || (state.dateIndex[module] = {});
+    m[day] = (m[day] || 0) + n;
+    if (m[day] <= 0) delete m[day];
+    state.counts[module] = Math.max(0, (state.counts[module] || 0) + n);
+  }
+  function applyRecordChange(payload) {
+    if (typeof document !== 'undefined' && document.hidden) { staleWhileHidden = true; return; }
+    var type = payload && payload.eventType;
+    var oldId = payload && payload.old && payload.old.id;
+    var prev = null;
+    state.records.forEach(function (r) { if (r.id === ((payload.new && payload.new.id) || oldId)) prev = r; });
+    if (type === 'DELETE') {
+      if (!prev) { if (deletedHere[oldId]) { delete deletedHere[oldId]; return; } /* this tab deleted it */
+        loadDateIndex(); loadCounts(); return; } /* not cached here: rare, re-read the cheap index */
+      state.records = state.records.filter(function (r) { return r !== prev; });
+      indexAdd(prev.module, prev.reportDate, -1);
+    } else if (payload.new) {
+      var rec = recordFromRow(payload.new);
+      if (prev) indexAdd(prev.module, prev.reportDate, -1);
+      else if (type === 'UPDATE') { loadDateIndex(); loadCounts(); } /* old date unknown: re-read the index */
+      indexAdd(rec.module, rec.reportDate, 1);
+      var keep = state.allLoaded || state.loadedMonths[monthOf(rec.reportDate)];
+      state.records = state.records.filter(function (r) { return r.id !== rec.id; });
+      if (keep) state.records.push(rec);
+    }
+    bump();
+  }
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', function () {
+    if (document.hidden || !staleWhileHidden || Date.now() - lastResync < 60000) return;
+    staleWhileHidden = false; lastResync = Date.now();
+    refreshLoaded(); loadCounts();
+  });
+
   /* Refetches only what's actually cached (see refreshLoaded above), rather than the whole
      table — a change anywhere shouldn't cost every open Admin tab a full-table download,
      only a re-pull of whatever month(s) that tab is actually looking at. */
   try {
     sb.channel('soc-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, function (payload) {
-        refreshLoaded(); loadCounts();
+        applyRecordChange(payload);
         if (payload && payload.eventType === 'INSERT' && payload.new) notifyInsert(recordFromRow(payload.new));
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'form_fields' }, function () { loadFormFields(); })
@@ -850,6 +890,11 @@
     /* repair_jobs (supabase/repair_tracking.sql): jobs opened by the records trigger from monthly
        inspections, or by hand. Admin-only via RLS. The technicians' site is reached only through
        repairApi below (api/repair-ticket.js), which acts with the admin's own session. */
+    /* last-24h API call count vs the alert limit (supabase/usage_alert.sql); null when the
+       function isn't installed yet or the caller isn't an admin */
+    usageStatus: function () {
+      return sb.rpc('usage_status').then(function (res) { return res.error ? null : res.data; }, function () { return null; });
+    },
     repairJobs: function () {
       return sb.from('repair_jobs').select('*').order('created_at', { ascending: false }).limit(300)
         .then(function (res) { return res.error ? { error: res.error.message, rows: [] } : { error: '', rows: res.data || [] }; });
@@ -1029,7 +1074,7 @@
         data: Object.assign({}, data)
       };
       state.records.push(rec);
-      state.counts[module] = (state.counts[module] || 0) + 1;
+      indexAdd(module, rec.reportDate, 1);
       bump();
       /* stashed on the returned object (not just fired-and-forgotten) so a caller that needs the
          row to actually exist in Postgres before doing anything else — the traffic/golf forward
@@ -1038,7 +1083,7 @@
       rec._saved = sb.from('records').insert(recordToRow(rec)).then(function (res) {
         if (res.error) {
           state.records = state.records.filter(function (r) { return r.id !== rec.id; });
-          state.counts[module] = Math.max(0, (state.counts[module] || 0) - 1);
+          indexAdd(module, rec.reportDate, -1);
           bump();
           notifyError('บันทึกข้อมูลไม่สำเร็จ: ' + res.error.message);
         }
@@ -1071,9 +1116,11 @@
         return next;
       });
       if (!next) return;
+      indexAdd(prev.module, prev.reportDate, -1); indexAdd(next.module, next.reportDate, 1);
       bump();
       sb.from('records').update(recordToRow(next)).eq('id', id).then(function (res) {
         if (res.error) {
+          indexAdd(next.module, next.reportDate, -1); indexAdd(prev.module, prev.reportDate, 1);
           state.records = state.records.map(function (r) { return r.id === id ? prev : r; });
           bump();
           notifyError('บันทึกการแก้ไขไม่สำเร็จ: ' + res.error.message);
@@ -1084,12 +1131,14 @@
       var removed = state.records.filter(function (r) { return r.id === id; })[0];
       if (!removed) return;
       state.records = state.records.filter(function (r) { return r.id !== id; });
-      state.counts[removed.module] = Math.max(0, (state.counts[removed.module] || 0) - 1);
+      indexAdd(removed.module, removed.reportDate, -1);
+      deletedHere[id] = true;
       bump();
       sb.from('records').delete().eq('id', id).then(function (res) {
         if (res.error) {
           state.records.push(removed);
-          state.counts[removed.module] = (state.counts[removed.module] || 0) + 1;
+          indexAdd(removed.module, removed.reportDate, 1);
+          delete deletedHere[id];
           bump();
           notifyError('ลบรายการไม่สำเร็จ: ' + res.error.message);
         }
