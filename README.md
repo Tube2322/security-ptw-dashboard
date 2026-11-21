@@ -89,7 +89,7 @@ python -m http.server 4173
 
 หลัง deploy จะเข้าได้ที่ `/` (หน้าเลือก), `/admin` และ `/entry`
 
-**Production:** https://security-ptw-web.vercel.app (Vercel project ภายใต้ team "Shonsey's projects")
+**Production:** https://security-ptw-dashboard.vercel.app (Vercel project ภายใต้ team "Shonsey's projects")
 
 **สร้างบัญชี Admin คนแรก:** Supabase Dashboard ของโปรเจกต์ → Authentication → Users → Add user
 (ติ๊ก Auto Confirm User) แล้วรัน SQL เพิ่มแถวใน `profiles` ให้ `role = 'admin'` (ดูหัวข้อ Supabase schema)

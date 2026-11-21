@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121a"></script>
+<script src="./soc-core.js?v=20261121b"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -433,6 +433,7 @@
            header lives inside this element, so it is capped and centred with the content and
            the two stay aligned. -->
       <main style="flex: 1; min-width: 0; width: 100%; max-width: 1500px; margin: 0 auto; padding: clamp(14px, 2.6vw, 22px) clamp(12px, 2.6vw, 20px) 60px;">
+        <sc-if value="{{ usageWarn }}" hint-placeholder-val="{{ false }}"><div role="alert" style="margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.45); background: rgba(209,72,58,0.08); color: var(--danger); font-size: 13px; font-weight: 500;">{{ usageWarn }}</div></sc-if>
 
         <!-- Page header — rendered on EVERY page, not just dashboards, so the ☰ drawer trigger
              stays reachable in narrow mode (below 1080px the sidebar is hidden and ☰ is the only
@@ -3103,7 +3104,13 @@ class Component extends DCLogic {
       });
       this._unsubError = core.onError((msg) => this.flash(msg, 'var(--danger)'));
       this._unsubInsert = core.onInsert((rec) => this.pushReportToast(rec));
-      this._unsubProfile = core.auth.subscribeProfile(() => this.setState(s => ({ rev: s.rev + 1 })));
+      this._unsubProfile = core.auth.subscribeProfile(() => {
+        this.setState(s => ({ rev: s.rev + 1 }));
+        /* once per session, admins only: warn before Supabase's quota suspends the org */
+        if (core.auth.isAdmin() && !this._usageChecked) { this._usageChecked = true;
+          core.usageStatus().then(u => { if (u && u.day_calls != null && u.day_calls > u.limit)
+            this.setState({ usageWarn: 'ระบบเรียกฐานข้อมูลถี่ผิดปกติ: 24 ชม. ล่าสุด ' + u.day_calls.toLocaleString() + ' ครั้ง (เกณฑ์ ' + u.limit.toLocaleString() + ') เสี่ยงเกินโควต้า Supabase จนระบบถูกระงับ ตรวจหน้า Usage ใน Supabase และแจ้งผู้พัฒนา' }); }); }
+      });
     }
     this._resize = () => {
       const narrow = window.innerWidth < 1080;
@@ -7781,6 +7788,7 @@ class Component extends DCLogic {
     const myRole = core.auth.role();
 
     return {
+      usageWarn: s.usageWarn || false,
       /* auth */
       authChecking: !authReady,
       showLogin: authReady && !authUser,
