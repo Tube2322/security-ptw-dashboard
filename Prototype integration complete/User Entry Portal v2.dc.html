@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121d"></script>
+<script src="./soc-core.js?v=20261121e"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -733,6 +733,24 @@ class Component extends DCLogic {
       this.setState({ errors, banner: 'กรอกข้อมูลไม่ครบถ้วน ' + bad.length + ' รายการ — ระบบเลื่อนไปยังช่องแรกที่ต้องแก้ไข' });
       const el = this._els[bad[0]];
       if (el) setTimeout(() => { try { el.focus({ preventScroll: false }); } catch (e) { el.focus(); } }, 50);
+      return;
+    }
+    /* once-a-day forms: if that day is already in the system, say so and let the guard decide,
+       so a "did it go through?" resend doesn't double the day's totals. Unreachable check (offline)
+       just lets the submission through. */
+    const ONE_A_DAY = { traffic: 'traffic_date', traffic_tt: 'tt_date', golf: 'golf_date' };
+    const dayKey = ONE_A_DAY[this.state.module], day = dayKey && this.state.values[dayKey];
+    if (day && !this._dupChecked) {
+      if (this._dupChecking) return;
+      this._dupChecking = true;
+      core.entryExisting(this.state.module, day).then(ex => {
+        this._dupChecking = false;
+        if (ex && ex.count > 0) {
+          const when = ex.last_at ? new Date(ex.last_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+          if (!window.confirm('วันที่ ' + core.fmtDate(day) + ' มีข้อมูลในระบบแล้ว ' + ex.count + ' รายการ' + (when ? ' (ส่งล่าสุด ' + when + ')' : '') + '\n\nถ้าส่งอีก ยอดของวันนี้จะถูกนับซ้ำ ต้องการส่งซ้ำหรือไม่?')) return;
+        }
+        this._dupChecked = true; this.submit(); this._dupChecked = false;
+      });
       return;
     }
     this.setState({ submitting: true });
