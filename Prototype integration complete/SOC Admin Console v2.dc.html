@@ -1339,8 +1339,16 @@
             <sc-if value="{{ cctv.error }}" hint-placeholder-val="{{ false }}"><div style="padding: 12px 14px; border-radius: 12px; background: rgba(209,72,58,0.1); color: var(--danger); font-size: 13px;">โหลดไม่สำเร็จ: {{ cctv.error }}</div></sc-if>
             <sc-if value="{{ cctv.ready }}" hint-placeholder-val="{{ false }}">
               <div style="display: flex; flex-direction: column; gap: 18px; min-width: 0;">
+                <!-- one button per weekly check (week closing on Saturday): the page shows that week -->
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+                  <span style="font-size: 12px; color: var(--muted); margin-right: 2px;">สัปดาห์ที่ตรวจ</span>
+                  <sc-for list="{{ cctv.weeks }}" as="wk" hint-placeholder-count="2">
+                    <button onClick="{{ wk.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px solid {{ wk.border }}; background: {{ wk.bg }}; color: {{ wk.fg }};">{{ wk.label }}</button>
+                  </sc-for>
+                </div>
                 <!-- one line of status: what is fine, what needs attention -->
                 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                  <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel-2); font-size: 13px;">กล้องใช้งานได้<b style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{ cctv.totalCams }}</b></span>
                   <sc-for list="{{ cctv.stats }}" as="st" hint-placeholder-count="4">
                     <button class="rp-chip" onClick="{{ st.pick }}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 99px; cursor: pointer; border: 1px solid {{ st.border }}; background: {{ st.bg }}; color: var(--text); font-size: 13px;">
                       <span style="width: 8px; height: 8px; border-radius: 99px; background: {{ st.dot }};"></span>{{ st.label }}<b style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{ st.value }}</b>
@@ -1350,19 +1358,10 @@
                   <button onClick="{{ cctv.goExport }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">⬇ ส่งออก Excel</button>
                 </div>
 
-                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid {{ cctv.week.border }}; background: {{ cctv.week.bg }};">
-                  <span style="font-size: 14px; font-weight: 600;">{{ cctv.week.title }}</span>
-                  <div style="display: flex; gap: 5px; margin-left: auto;">
-                    <sc-for list="{{ cctv.week.nvrs }}" as="wn" hint-placeholder-count="6">
-                      <span title="{{ wn.title }}" style="min-width: 30px; height: 26px; padding: 0 6px; border-radius: 7px; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: {{ wn.bg }}; color: {{ wn.fg }}; border: {{ wn.border }};">{{ wn.label }}</span>
-                    </sc-for>
-                  </div>
-                </div>
-
                 <!-- what needs attention, in words -->
                 <sc-if value="{{ cctv.hasIssues }}" hint-placeholder-val="{{ false }}">
                   <div style="border-radius: 14px; border: 1px solid var(--line); background: var(--panel); overflow: hidden;">
-                    <div style="padding: 11px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--line);">ต้องดูแล · {{ cctv.issueCount }}</div>
+                    <div style="padding: 11px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--line);">{{ cctv.issueCount }}</div>
                     <sc-for list="{{ cctv.issues }}" as="is" hint-placeholder-count="3">
                       <button class="rp-btn" onClick="{{ is.pick }}" style="all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 8px minmax(90px, 140px) 1fr auto; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13px;">
                         <span style="width: 8px; height: 8px; border-radius: 99px; background: {{ is.dot }};"></span>
@@ -6411,7 +6410,18 @@ class Component extends DCLogic {
     const s = this.state, core = this.core();
     const empty = { loading: !s.cctvLoaded, ready: false, error: s.cctvError || '', stats: [], issues: [], tabs: [], panels: [], legend: [], week: { nvrs: [] } };
     if (!s.cctvLoaded || s.cctvError) return empty;
-    const cams = s.cctvCams || [], checks = s.cctvChecks || [];
+    const cams = s.cctvCams || [], allChecks = s.cctvChecks || [];
+    /* weeks close on Saturday; one button per week with a check (latest by default) */
+    const satOf = (day) => { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + (6 - d.getDay()));
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    const weekKeys = [...new Set(allChecks.filter(c => c.source !== 'excel').map(c => satOf(c.check_date)))].sort();
+    const wkSel = weekKeys.includes(s.cctvWeek) ? s.cctvWeek : weekKeys[weekKeys.length - 1];
+    /* only that week's checks, so each week stands on its own */
+    const checks = wkSel ? allChecks.filter(c => c.source !== 'excel' && satOf(c.check_date) === wkSel) : allChecks;
+    const weeks = weekKeys.map((k, i) => { const on = k === wkSel;
+      const day = allChecks.filter(c => c.source !== 'excel' && satOf(c.check_date) === k).map(c => c.check_date).sort().pop();
+      return { label: 'สัปดาห์ที่ ' + (i + 1) + ' · ตรวจ ' + core.fmtDate(day), border: on ? 'var(--accent-line)' : 'var(--line)',
+        bg: on ? 'var(--accent-soft)' : 'var(--panel)', fg: on ? 'var(--accent)' : 'var(--text)', pick: () => this.setState({ cctvWeek: k, cctvSel: null }) }; });
     /* checks arrive newest first: a camera's first reading is its current state */
     /* two kinds of reading: exported straight from the NVR's own recording log (exact) and typed by
        hand (the weekly portal check and the original hand-noted Excel baseline). They are kept apart
@@ -6459,7 +6469,7 @@ class Component extends DCLogic {
           pick: () => this.setState({ cctvSel: c.name, cctvTab: c.nvr }) }; });
     const tabs = ['all', 1, 2, 3, 4, 5, 6].map(t => {
       const list = t === 'all' ? cams : cams.filter(c => c.nvr === t), on = tab === t, bad = count(list, 'bad') + count(list, 'short');
-      return { label: (t === 'all' ? 'ทั้งหมด' : 'NVR ' + t) + (bad ? ' · ' + bad : ''),
+      return { label: (t === 'all' ? 'ทั้งหมด' : 'NVR ' + t),
         bg: on ? 'var(--bg-2)' : 'transparent', fg: on ? 'var(--text)' : 'var(--muted)', shadow: on ? '0 1px 3px rgba(0,0,0,0.18), 0 0 0 1px var(--line)' : 'none',
         pick: () => this.setState({ cctvTab: t, cctvSel: null }) };
     });
@@ -6521,7 +6531,7 @@ class Component extends DCLogic {
     return {
       goExport,
       loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0, week,
-      issues, hasIssues: issues.length > 0, issueCount: issues.length + ' กล้อง',
+      issues, hasIssues: issues.length > 0, weeks, totalCams: cams.filter(c => state(c) !== 'bad').length + '/' + cams.length, issueCount: (() => { const nb = cams.filter(c => state(c) === 'bad').length, ns = cams.filter(c => state(c) === 'short').length; return (nb ? 'มีกล้องเสียใช้งานไม่ได้ จำนวน ' + nb + ' กล้อง' : '') + (nb && ns ? ' · ' : '') + (ns ? 'กล้องบันทึกขาดวัน จำนวน ' + ns + ' กล้อง' : ''); })(),
       lastText: (() => { const real = checks.find(c => c.source !== 'excel');
         return real ? 'ตรวจล่าสุด ' + core.fmtDate(real.check_date) + ' โดย ' + real.checker : (lastAll ? 'ข้อมูลตั้งต้นจากไฟล์ Excel ' + core.fmtDate(lastAll.check_date) : 'ยังไม่มีผลตรวจ'); })(),
       legend: ['ok', 'short', 'bad', 'none'].map(k => ({ label: STY[k].label, bg: STY[k].bg, border: STY[k].border }))
