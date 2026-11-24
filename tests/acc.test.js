@@ -30,3 +30,20 @@ test('a record naming its door lights that door', () => {
   assert.strictEqual(doors.find(d => d.code === '1-DMC-3').state, 'bad');
   assert.strictEqual(doors.find(d => d.code === '1-DMC-1').state, 'none');
 });
+
+const ExcelJS = require(path.join(__dirname, '..', 'Prototype integration complete', 'vendor', 'exceljs.min.js'));
+const { accWorkbook } = require(path.join(__dirname, '..', 'Prototype integration complete', 'soc-export.js'));
+test('Excel: a floor summary and a door list per month, faults shown', () => {
+  const wb = new ExcelJS.Workbook();
+  const sheet = (name, head, rows, widths) => { const ws = wb.addWorksheet(name); ws.columns = head.map((h, i) => ({ header: h, width: widths[i] })); rows.forEach(r => ws.addRow(r)); return ws; };
+  const view = A.monthView([rec('1', { mi_acc_door: '1-DMC-3', mi_acc_magnet: 'ไม่ทำงาน' }), rec('3'), rec('3')]);
+  const n = accWorkbook({ sheet, views: [{ label: 'พ.ย. 69', view }] });
+  assert.deepStrictEqual(wb.worksheets.map(w => w.name), ['สรุปรายชั้น พ.ย. 69', 'รายประตู พ.ย. 69']);
+  assert.strictEqual(n, view.total);
+  const sum = wb.worksheets[0], last = sum.getRow(sum.rowCount).values.slice(1);
+  assert.strictEqual(last[0], 'รวม');
+  assert.strictEqual(last[3], 3);
+  const doorRow = []; wb.worksheets[1].eachRow(r => { if (r.getCell(3).value === '1-DMC-3') doorRow.push(r.values.slice(1)); });
+  assert.strictEqual(doorRow[0][4], 'พบผิดปกติ');
+  assert.match(doorRow[0][6], /ไม่ทำงาน/);
+});

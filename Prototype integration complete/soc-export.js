@@ -174,6 +174,58 @@
     void ws;
     return rows.length;
   }
+  /* ACC door map as a presentation workbook, one month per pair of sheets: a floor summary (checked /
+     register per floor, building colour bands) and a door list (status, date, fault or note). views:
+     [{ label, view }] with view = SOCAcc.monthView(records of that month); returns doors written. */
+  function accWorkbook(opts) {
+    const sheet = opts.sheet, views = opts.views || [];
+    const BAND = { 'อาคารโรงพยาบาล': 'FF2B6CB0', 'อาคารบริการ': 'FF2F855A' };
+    const TINT = { 'อาคารโรงพยาบาล': 'FFE3F0FB', 'อาคารบริการ': 'FFE6F4EA' };
+    const ST = { ok: ['ตรวจแล้ว', 'FFD9F2E6'], bad: ['พบผิดปกติ', 'FFFBE3E1'], none: ['ยังไม่ตรวจ', 'FFF1F3F5'], partial: ['ตรวจบางส่วน', 'FFFFF4D6'] };
+    const FST = { ok: 'ตรวจครบ', bad: 'พบผิดปกติ', partial: 'ตรวจบางส่วน', none: 'ยังไม่ตรวจ' };
+    const GRID = { style: 'thin', color: { argb: 'FFBFC5CC' } };
+    const finish = (ws, cols, title, textCols) => {
+      ws.spliceRows(1, 0, [title]);
+      ws.mergeCells(1, 1, 1, cols);
+      ws.getRow(1).font = { name: 'Tahoma', bold: true, size: 14 }; ws.getRow(1).height = 26;
+      const h = ws.getRow(2);
+      h.font = { name: 'Tahoma', bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+      h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6F5E' } };
+      h.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; h.height = 30;
+      ws.eachRow((row, r) => { if (r < 3) return; row.height = 18;
+        for (let c = 1; c <= cols; c++) { const cell = row.getCell(c);
+          cell.border = { top: GRID, left: GRID, bottom: GRID, right: GRID };
+          cell.font = Object.assign({}, cell.font || {}, { name: 'Tahoma', size: 10 });
+          cell.alignment = { vertical: 'middle', horizontal: textCols.includes(c) ? 'left' : 'center', indent: textCols.includes(c) ? 1 : 0 }; } });
+      ws.views = [{ state: 'frozen', ySplit: 2 }];
+      ws.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: cols } };
+      ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '2:2' };
+    };
+    const band = (ws, r, b, cols) => { const row = ws.getRow(r);
+      for (let c = 1; c <= cols; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c === 1 ? BAND[b] : TINT[b] } };
+      row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }; };
+    let doors = 0;
+    views.forEach(({ label, view }) => {
+      const fRows = [], fMeta = [];
+      view.buildings.forEach(b => b.floors.forEach(f => {
+        fRows.push([b.name, f.label, f.total, f.checked, f.bad, FST[f.state]]); fMeta.push([b.name, f.state]); }));
+      fRows.push(['รวม', '', view.total, view.checked, view.bad, '']);
+      const ws = sheet('สรุปรายชั้น ' + label, ['อาคาร', 'ชั้น', 'ประตูตามทะเบียน', 'ตรวจแล้ว', 'ผิดปกติ', 'สถานะ'], fRows, [18, 10, 16, 12, 10, 16]);
+      finish(ws, 6, 'สรุปตรวจประตู ACC รายชั้น · ' + label, [1, 2, 6]);
+      fMeta.forEach(([b, st], i) => { band(ws, 3 + i, b, 6); ws.getRow(3 + i).getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ST[st][1] } }; });
+      ws.getRow(3 + fMeta.length).font = { name: 'Tahoma', bold: true, size: 10 };
+      const dRows = [], dMeta = [];
+      view.buildings.forEach(b => b.floors.forEach(f => f.doors.forEach(d => {
+        dRows.push([b.name, f.label, d.code, d.room || '', ST[d.state][0], d.date || '', (d.faults || []).concat(d.notes || []).join(', ')]);
+        dMeta.push([b.name, d.state]); })));
+      const wd = sheet('รายประตู ' + label, ['อาคาร', 'ชั้น', 'รหัสประตู', 'ห้อง/จุด', 'สถานะ', 'วันที่ตรวจ', 'ผลผิดปกติ / หมายเหตุ'], dRows, [18, 10, 14, 30, 14, 13, 40]);
+      finish(wd, 7, 'รายการประตู ACC · ' + label, [1, 2, 3, 4, 7]);
+      dMeta.forEach(([b, st], i) => { band(wd, 3 + i, b, 7); wd.getRow(3 + i).getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ST[st][1] } };
+        if (st === 'bad') wd.getRow(3 + i).getCell(7).font = { name: 'Tahoma', size: 10, bold: true, color: { argb: 'FFC53030' } }; });
+      doors += dRows.length;
+    });
+    return doors;
+  }
   /* Per-topic export filters. Row filters drop whole records; column filters blank the fields that
      weren't picked (a traffic record holds day AND night, car AND motorcycle, so dropping the row would
      lose the other half). Nothing picked in a group = everything.
@@ -204,7 +256,7 @@
     /* every other filter is a field on the record itself: a plain row filter */
     return recs.filter(r => ctx.groups.every(k => { const p = P(k); return !p || p.includes((r.data || {})[k]); }));
   }
-  const api = { cctvWorkbook: cctvWorkbook, repairsSheet: repairsSheet, filterRecords: filterRecords };
+  const api = { cctvWorkbook: cctvWorkbook, repairsSheet: repairsSheet, filterRecords: filterRecords, accWorkbook: accWorkbook };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SOCExport = api;
 })(typeof window !== 'undefined' ? window : globalThis);
