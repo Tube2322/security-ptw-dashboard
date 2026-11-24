@@ -1661,60 +1661,97 @@
 
         <!-- ===== REPAIRS (ตามงานซ่อม) — jobs from repair_jobs ===== -->
         <sc-if value="{{ isAcc }}" hint-placeholder-val="{{ false }}">
-          <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
-            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
-              <span style="font-size: 12px; color: var(--muted); margin-right: 2px;">เดือน</span>
-              <sc-for list="{{ acc.months }}" as="am" hint-placeholder-count="3"><button onClick="{{ am.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px solid {{ am.border }}; background: {{ am.bg }}; color: {{ am.fg }};">{{ am.label }}</button></sc-for>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between;">
-              <div style="font-size: 14px; font-weight: 600;">{{ acc.summary }}</div>
-              <button onClick="{{ acc.goExport }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;">⬇ ส่งออก Excel</button>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 12px; color: var(--muted);">
-              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(63,191,143,0.5); margin-right: 5px;"></span>ตรวจครบ</span>
-              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(217,162,27,0.5); margin-right: 5px;"></span>ตรวจบางส่วน</span>
-              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(209,72,58,0.5); margin-right: 5px;"></span>พบผิดปกติ</span>
-              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--line-2); margin-right: 5px;"></span>ยังไม่ตรวจ</span>
-            </div>
-            <sc-if value="{{ acc.sel }}" hint-placeholder-val="{{ false }}">
-              <section style="border: 1px solid var(--accent-line); border-radius: 14px; background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
-                <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;"><b style="font-family: 'IBM Plex Mono', monospace; font-size: 15px;">{{ acc.sel.code }}</b><span style="font-size: 13px;">{{ acc.sel.room }}</span><span style="font-size: 12px; color: var(--muted);">{{ acc.sel.where }}</span></div>
-                <div style="font-size: 13px; color: {{ acc.sel.fg }};">{{ acc.sel.status }}</div>
-                <textarea value="{{ acc.sel.note }}" onChange="{{ acc.sel.setNote }}" rows="2" placeholder="หมายเหตุ / สิ่งที่ผิดปกติ (ถ้ามี)" style="width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px; resize: vertical;"></textarea>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                  <button onClick="{{ acc.sel.markOk }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(63,191,143,0.6); background: rgba(63,191,143,0.14); color: #23966c; cursor: pointer; font-size: 13px; font-weight: 600;">✓ ตรวจแล้ว ปกติ</button>
-                  <button onClick="{{ acc.sel.markBad }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.5); background: rgba(209,72,58,0.1); color: var(--danger); cursor: pointer; font-size: 13px; font-weight: 600;">⚠ ตรวจแล้ว พบผิดปกติ</button>
-                  <sc-if value="{{ acc.sel.canUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ acc.sel.undo }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิกที่ยืนยันในผัง</button></sc-if>
-                  <button onClick="{{ acc.sel.close }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;">ปิด</button>
+          <div class="acc-page" style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+            <!-- month + summary -->
+            <section style="border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+              <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--panel-2); overflow-x: auto; max-width: 100%;">
+                  <sc-for list="{{ acc.months }}" as="am" hint-placeholder-count="3"><button onClick="{{ am.pick }}" style="flex: none; min-height: 34px; padding: 0 14px; border-radius: 9px; border: none; cursor: pointer; font-size: 13px; white-space: nowrap; background: {{ am.segBg }}; color: {{ am.segFg }}; box-shadow: {{ am.segShadow }};">{{ am.label }}</button></sc-for>
                 </div>
-                <div style="font-size: 11px; color: var(--muted);">กดยืนยันในผังจะบันทึกเป็นผลตรวจของเดือนที่เลือก (ไม่ส่งเข้า MS Forms) · ผลจากฟอร์มของผู้ตรวจยังอยู่ครบ</div>
+                <button onClick="{{ acc.goExport }}" style="min-height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 600;">⬇ ส่งออก Excel</button>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 10px;">
+                <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel-2); min-width: 0;">
+                  <div style="font-size: 12px; color: var(--muted);">ตรวจแล้ว</div>
+                  <div style="display: flex; align-items: baseline; gap: 4px;"><b style="font-size: 24px; font-family: 'IBM Plex Sans Thai', sans-serif;">{{ acc.stats.checked }}</b><span style="font-size: 13px; color: var(--muted);">/ {{ acc.stats.total }} ประตู</span></div>
+                  <div style="height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 6px;"><div style="height: 100%; width: {{ acc.stats.pct }}; background: #3fbf8f; border-radius: 99px;"></div></div>
+                </div>
+                <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel-2); min-width: 0;">
+                  <div style="font-size: 12px; color: var(--muted);">ยังไม่ตรวจ</div>
+                  <b style="font-size: 24px; color: {{ acc.stats.leftFg }};">{{ acc.stats.left }}</b>
+                </div>
+                <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel-2); min-width: 0;">
+                  <div style="font-size: 12px; color: var(--muted);">พบผิดปกติ</div>
+                  <b style="font-size: 24px; color: {{ acc.stats.badFg }};">{{ acc.stats.bad }}</b>
+                </div>
+                <div style="padding: 12px 14px; border-radius: 12px; background: var(--panel-2); min-width: 0;">
+                  <div style="font-size: 12px; color: var(--muted);">ยังไม่นับ</div>
+                  <b style="font-size: 24px; color: var(--muted);">{{ acc.stats.pending }}</b>
+                  <div style="font-size: 11px; color: var(--dim);">กำลังติดตั้ง / รอเปิดใช้</div>
+                </div>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--muted);">
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><i style="width: 9px; height: 9px; border-radius: 99px; background: #3fbf8f;"></i>ตรวจแล้ว</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><i style="width: 9px; height: 9px; border-radius: 99px; background: #d1483a;"></i>พบผิดปกติ</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><i style="width: 9px; height: 9px; border-radius: 99px; background: var(--line-2);"></i>ยังไม่ตรวจ</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;"><i style="width: 9px; height: 9px; border-radius: 99px; border: 1px dashed var(--dim);"></i>ยังไม่นับ</span>
+                <span>· กดที่ประตูเพื่อยืนยันผลตรวจ</span>
+              </div>
+            </section>
+
+            <!-- selected door -->
+            <sc-if value="{{ acc.sel }}" hint-placeholder-val="{{ false }}">
+              <section style="position: sticky; top: 8px; z-index: 5; border: 1px solid var(--accent-line); border-radius: 16px; background: var(--panel); box-shadow: 0 10px 30px -12px rgba(0,0,0,0.35); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
+                  <div style="min-width: 0;">
+                    <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;"><b style="font-family: 'IBM Plex Mono', monospace; font-size: 16px;">{{ acc.sel.code }}</b><span style="font-size: 14px;">{{ acc.sel.room }}</span></div>
+                    <div style="font-size: 12px; color: var(--muted);">{{ acc.sel.where }}</div>
+                  </div>
+                  <button onClick="{{ acc.sel.close }}" aria-label="ปิด" style="flex: none; width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 16px;">✕</button>
+                </div>
+                <div style="font-size: 13px; color: {{ acc.sel.fg }};">{{ acc.sel.status }}</div>
+                <textarea value="{{ acc.sel.note }}" onChange="{{ acc.sel.setNote }}" rows="2" placeholder="หมายเหตุ / สิ่งที่ผิดปกติ (ถ้ามี)" style="width: 100%; box-sizing: border-box; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 14px; resize: vertical;"></textarea>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 8px;">
+                  <button onClick="{{ acc.sel.markOk }}" style="min-height: 44px; border-radius: 11px; border: none; background: #2fa87a; color: #fff; cursor: pointer; font-size: 14px; font-weight: 600;">✓ ตรวจแล้ว ปกติ</button>
+                  <button onClick="{{ acc.sel.markBad }}" style="min-height: 44px; border-radius: 11px; border: 1px solid rgba(209,72,58,0.55); background: rgba(209,72,58,0.08); color: var(--danger); cursor: pointer; font-size: 14px; font-weight: 600;">⚠ พบผิดปกติ</button>
+                  <sc-if value="{{ acc.sel.canUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ acc.sel.undo }}" style="min-height: 44px; border-radius: 11px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิกที่ยืนยันในผัง</button></sc-if>
+                </div>
+                <div style="font-size: 11px; color: var(--muted);">บันทึกเป็นผลตรวจของเดือนที่เลือก · ไม่ส่งเข้า MS Forms · ผลจากฟอร์มผู้ตรวจยังอยู่ครบ</div>
               </section>
             </sc-if>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; align-items: end; min-width: 0;">
+
+            <!-- buildings -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 16px; align-items: start; min-width: 0;">
               <sc-for list="{{ acc.buildings }}" as="bd" hint-placeholder-count="2">
-                <section style="min-width: 0; border: 2px solid var(--line-2); border-radius: 14px 14px 4px 4px; background: var(--panel); overflow: hidden;">
-                  <div style="padding: 10px 14px; font-weight: 600; font-size: 14px; border-bottom: 2px solid var(--line-2); background: var(--panel-2);">{{ bd.name }}</div>
+                <section style="min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); overflow: hidden;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line);">
+                    <b style="font-size: 15px;">{{ bd.name }}</b>
+                    <span style="font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace;">{{ bd.count }}</span>
+                  </div>
                   <sc-for list="{{ bd.floors }}" as="fl" hint-placeholder-count="4">
-                    <div style="display: grid; grid-template-columns: 78px minmax(0, 1fr); border-bottom: 1px solid var(--line); min-height: 52px;">
-                      <div style="display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 8px; background: {{ fl.bg }}; border-right: 3px solid {{ fl.border }};">
-                        <b style="font-size: 13px;">{{ fl.label }}</b>
-                        <span style="font-size: 11px; color: {{ fl.fg }}; font-family: 'IBM Plex Mono', monospace;">{{ fl.count }}</span>
+                    <div style="padding: 10px 12px 12px; border-bottom: 1px solid var(--line); opacity: {{ fl.opacity }};">
+                      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span style="flex: none; min-width: 58px; padding: 3px 9px; border-radius: 8px; background: {{ fl.bg }}; color: {{ fl.fg }}; font-size: 13px; font-weight: 600; text-align: center;">{{ fl.label }}</span>
+                        <div style="flex: 1; min-width: 0; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden;"><div style="height: 100%; width: {{ fl.pct }}; background: {{ fl.bar }}; border-radius: 99px;"></div></div>
+                        <span style="flex: none; font-size: 12px; color: {{ fl.fg }}; font-family: 'IBM Plex Mono', monospace;">{{ fl.count }}</span>
                       </div>
-                      <div style="display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 8px; align-content: center;">
+                      <sc-if value="{{ fl.note }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: var(--muted); margin: -2px 0 8px;">{{ fl.note }}</div></sc-if>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px;">
                         <sc-for list="{{ fl.doors }}" as="dr" hint-placeholder-count="3">
-                          <button onClick="{{ dr.pick }}" title="{{ dr.title }}" style="display: inline-flex; flex-direction: column; align-items: flex-start; text-align: left; cursor: pointer; min-width: 74px; max-width: 150px; padding: 3px 7px; border-radius: 7px; border: {{ dr.ring }}; background: {{ dr.bg }}; color: inherit; font: inherit;">
-                            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: {{ dr.fg }};">{{ dr.code }}</span>
-                            <span style="font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ dr.room }}</span>
+                          <button onClick="{{ dr.pick }}" title="{{ dr.title }}" style="display: flex; align-items: flex-start; gap: 7px; min-width: 0; min-height: 46px; padding: 6px 8px; border-radius: 10px; border: {{ dr.ring }}; background: {{ dr.bg }}; color: var(--text); text-align: left; cursor: pointer; font: inherit;">
+                            <i style="flex: none; width: 9px; height: 9px; margin-top: 4px; border-radius: 99px; background: {{ dr.dot }}; border: {{ dr.dotBorder }};"></i>
+                            <span style="display: flex; flex-direction: column; min-width: 0;">
+                              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; color: {{ dr.fg }};">{{ dr.code }}</span>
+                              <span style="font-size: 11px; color: var(--muted); line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">{{ dr.room }}</span>
+                            </span>
                           </button>
                         </sc-for>
                       </div>
                     </div>
                   </sc-for>
-                  <div style="height: 8px; background: var(--line-2);"></div>
                 </section>
               </sc-for>
             </div>
-            <div style="font-size: 12px; color: var(--muted);">ตัวเลขข้างชั้น = ประตูที่ตรวจในเดือนนั้น / ประตูตามทะเบียน · สีรายประตูจะขึ้นเมื่อแบบฟอร์มบันทึกชื่อประตู (ข้อมูลก่อนหน้านี้มีแค่ชั้น)</div>
           </div>
         </sc-if>
         <sc-if value="{{ isLinks }}" hint-placeholder-val="{{ false }}">
@@ -6490,8 +6527,13 @@ class Component extends DCLogic {
       partial: ['rgba(217,162,27,0.12)', 'rgba(217,162,27,0.5)', '#b7851a'], none: ['var(--panel-2)', 'var(--line)', 'var(--muted)'], pending: ['transparent', 'var(--line-2)', 'var(--dim)'] };
     const FL = { ok: 'ตรวจครบ', bad: 'พบผิดปกติ', partial: 'ตรวจบางส่วน', none: 'ยังไม่ตรวจ' };
     return {
-      months: months.map(x => ({ label: mName(x), bg: x === m ? 'var(--accent-soft)' : 'var(--panel)', border: x === m ? 'var(--accent-line)' : 'var(--line)',
-        fg: x === m ? 'var(--accent)' : 'var(--text)', pick: () => this.setState({ accMonth: x, accSel: null }) })),
+      months: months.map(x => ({ label: mName(x), segBg: x === m ? 'var(--panel)' : 'transparent', segFg: x === m ? 'var(--text)' : 'var(--muted)',
+        segShadow: x === m ? '0 1px 3px rgba(0,0,0,0.16), 0 0 0 1px var(--line)' : 'none', pick: () => this.setState({ accMonth: x, accSel: null }) })),
+      stats: (() => { let pending = 0, notChecked = 0;
+        v.buildings.forEach(b => b.floors.forEach(f => f.doors.forEach(d => { if (d.state === 'pending') pending++; })));
+        notChecked = Math.max(0, v.total - v.checked);
+        return { checked: String(v.checked), total: String(v.total), pct: (v.total ? Math.round(v.checked / v.total * 100) : 0) + '%',
+          left: String(notChecked), leftFg: notChecked ? '#b7851a' : '#23966c', bad: String(v.bad), badFg: v.bad ? 'var(--danger)' : 'var(--text)', pending: String(pending) }; })(),
       sel: (() => {
         const sc = s.accSel; if (!sc || !m) return null;
         let door = null, floor = null, bname = '';
@@ -6521,10 +6563,28 @@ class Component extends DCLogic {
       })(),
       goExport: () => { this.go('pdf'); this.setState({ pdfModule: 'x_acc', pdfPeriod: 'month', pdfPeriodYear: m ? +m.slice(0, 4) : s.pdfPeriodYear, pdfPeriodMonth: m ? +m.slice(5, 7) - 1 : s.pdfPeriodMonth }); },
       summary: m ? mName(m) + ' · ตรวจแล้ว ' + v.checked + ' จาก ' + v.total + ' ประตูตามทะเบียน' + (v.bad ? ' · ผิดปกติ ' + v.bad : '') : 'ยังไม่มีการตรวจ',
-      buildings: v.buildings.map(b => ({ name: b.name, floors: b.floors.map(f => ({ label: f.label,
-        count: f.checked + '/' + f.total, bg: C[f.state][0], border: C[f.state][1], fg: C[f.state][2],
-        doors: f.doors.map(d => ({ pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '' }); setTimeout(() => { const el = document.querySelector('main'); if (el) window.scrollTo({ top: 0, behavior: 'smooth' }); }, 60); }, ring: (s.accSel && s.accSel.code === d.code ? '2px solid var(--accent)' : '1px solid ' + C[d.state][1]), code: d.code, room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? '✓ ' + (d.room || 'ตรวจแล้ว') + (d.notes.length ? ' · ' + d.notes.join(', ') : '') : (d.room || '—'), bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
-          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : d.state === 'pending' ? ' · ยังไม่ติดตั้ง ไม่นับ' : ' · ยังไม่ตรวจ') })) })) }))
+      buildings: v.buildings.map(b => {
+        const bt = b.floors.reduce((n, f) => n + f.total, 0), bc = b.floors.reduce((n, f) => n + Math.min(f.checked, f.total), 0);
+        return { name: b.name, count: bc + '/' + bt + ' ประตู', floors: b.floors.map(f => {
+          const allPending = f.total === 0 && f.doors.length > 0;
+          const FS = { ok: ['rgba(63,191,143,0.16)', '#23966c', '#3fbf8f'], bad: ['rgba(209,72,58,0.14)', 'var(--danger)', '#d1483a'],
+            partial: ['rgba(217,162,27,0.16)', '#b7851a', '#d9a21b'], none: ['var(--panel-2)', 'var(--muted)', 'var(--line-2)'] };
+          const st = allPending ? 'none' : f.state;
+          return { label: f.label, count: allPending ? 'ยังไม่นับ' : Math.min(f.checked, f.total) + '/' + f.total,
+            pct: f.total ? Math.round(Math.min(f.checked, f.total) / f.total * 100) + '%' : '0%', bg: FS[st][0], fg: FS[st][1], bar: FS[st][2],
+            opacity: allPending ? '0.62' : '1', note: allPending ? (f.doors[0].room || 'ยังไม่เปิดใช้') : '',
+            doors: f.doors.map(d => {
+              const on = s.accSel && s.accSel.code === d.code;
+              const DOT = { ok: ['#3fbf8f', 'none'], bad: ['#d1483a', 'none'], none: ['var(--line-2)', 'none'], pending: ['transparent', '1px dashed var(--dim)'] }[d.state];
+              const BG = { ok: 'rgba(63,191,143,0.07)', bad: 'rgba(209,72,58,0.07)', none: 'var(--panel)', pending: 'transparent' }[d.state];
+              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '' }); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60); },
+                code: d.code, dot: DOT[0], dotBorder: DOT[1], bg: BG, fg: d.state === 'bad' ? 'var(--danger)' : 'var(--text)',
+                ring: on ? '2px solid var(--accent)' : (d.state === 'pending' ? '1px dashed var(--line-2)' : '1px solid var(--line)'),
+                room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : (d.room || '—') + (d.state === 'ok' && d.notes.length ? ' · ' + d.notes.join(', ') : ''),
+                title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : d.state === 'pending' ? ' · ยังไม่นับ' : ' · ยังไม่ตรวจ') };
+            }) };
+        }) };
+      })
     };
   }
   buildCctvAdmin() {
