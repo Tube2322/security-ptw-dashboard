@@ -63,3 +63,21 @@ test('a door confirmed on the map is listed as an admin mark (so it can be undon
   assert.strictEqual(d.state, 'ok');
   assert.deepStrictEqual(d.marks, ['x1']);
 });
+
+test('register edits (add / remove / rename) reach the map, the form list and the Excel', () => {
+  A.setOverrides({ added: [{ floor: '8', code: '8-DMC-9', room: 'ห้องใหม่' }], removed: ['1-DMC-2'], rooms: { '1-DMC-3': 'การเงิน (ใหม่)' } });
+  const v = A.monthView([]);
+  const f1 = v.buildings[0].floors.find(f => f.id === '1'), f8 = v.buildings[0].floors.find(f => f.id === '8');
+  assert.ok(!f1.doors.some(d => d.code === '1-DMC-2'));
+  assert.strictEqual(f1.doors.find(d => d.code === '1-DMC-3').room, 'การเงิน (ใหม่)');
+  assert.ok(f8.doors.some(d => d.code === '8-DMC-9'));
+  assert.strictEqual(f8.total, 1, 'an added door counts even on a floor not yet in use');
+  assert.ok(A.doorsFor('8').includes('8-DMC-9 · ห้องใหม่'));
+  assert.ok(!A.doorsFor('1').some(o => o.startsWith('1-DMC-2')));
+  const wb = new ExcelJS.Workbook();
+  const sheet = (name, head, rows) => { const ws = wb.addWorksheet(name); ws.addRow(head); rows.forEach(r => ws.addRow(r)); return ws; };
+  accWorkbook({ sheet, views: [{ label: 'x', view: v }] });
+  const codes = []; wb.worksheets[1].eachRow(r => codes.push(r.getCell(3).value));
+  assert.ok(codes.includes('8-DMC-9') && !codes.includes('1-DMC-2'));
+  A.setOverrides({});
+});

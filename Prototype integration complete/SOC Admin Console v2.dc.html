@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121f"></script>
+<script src="./soc-core.js?v=20261125a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
@@ -31,7 +31,7 @@
 <script src="./soc-export.js?v=20261124b"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
-<script src="./soc-acc.js?v=20261124f"></script>
+<script src="./soc-acc.js?v=20261125a"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -1717,6 +1717,28 @@
                   <sc-if value="{{ acc.sel.canUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ acc.sel.undo }}" style="min-height: 44px; border-radius: 11px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิกที่ยืนยันในผัง</button></sc-if>
                 </div>
                 <div style="font-size: 11px; color: var(--muted);">บันทึกเป็นผลตรวจของเดือนที่เลือก · ไม่ส่งเข้า MS Forms · ผลจากฟอร์มผู้ตรวจยังอยู่ครบ</div>
+                <details style="border-top: 1px solid var(--line); padding-top: 8px;">
+                  <summary style="cursor: pointer; font-size: 12px; color: var(--muted);">แก้ทะเบียนประตูนี้ (ชื่อห้อง / ลบออกจากผัง)</summary>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                    <input value="{{ acc.sel.roomDraft }}" onChange="{{ acc.sel.setRoom }}" placeholder="ชื่อห้อง / จุด" style="flex: 1 1 200px; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px;">
+                    <button onClick="{{ acc.sel.saveRoom }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px;">บันทึกชื่อห้อง</button>
+                    <button onClick="{{ acc.sel.remove }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.45); background: transparent; color: var(--danger); cursor: pointer; font-size: 13px;">ลบประตูนี้ออกจากผัง</button>
+                  </div>
+                </details>
+              </section>
+            </sc-if>
+
+            <sc-if value="{{ acc.addDoor }}" hint-placeholder-val="{{ false }}">
+              <section style="position: sticky; top: 8px; z-index: 5; border: 1px solid var(--accent-line); border-radius: 16px; background: var(--panel); box-shadow: 0 10px 30px -12px rgba(0,0,0,0.35); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+                <b style="font-size: 14px;">เพิ่มประตู · {{ acc.addDoor.floorLabel }}</b>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 8px;">
+                  <input value="{{ acc.addDoor.code }}" onChange="{{ acc.addDoor.setCode }}" placeholder="รหัสประตู เช่น 8-DMC-4" style="min-height: 42px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 14px;">
+                  <input value="{{ acc.addDoor.room }}" onChange="{{ acc.addDoor.setRoom }}" placeholder="ชื่อห้อง / จุด" style="min-height: 42px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 14px;">
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button onClick="{{ acc.addDoor.save }}" style="min-height: 42px; padding: 0 16px; border-radius: 11px; border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 14px; font-weight: 600;">เพิ่มในผัง</button>
+                  <button onClick="{{ acc.addDoor.cancel }}" style="min-height: 42px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;">ยกเลิก</button>
+                </div>
               </section>
             </sc-if>
 
@@ -1734,6 +1756,7 @@
                         <span style="flex: none; min-width: 58px; padding: 3px 9px; border-radius: 8px; background: {{ fl.bg }}; color: {{ fl.fg }}; font-size: 13px; font-weight: 600; text-align: center;">{{ fl.label }}</span>
                         <div style="flex: 1; min-width: 0; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden;"><div style="height: 100%; width: {{ fl.pct }}; background: {{ fl.bar }}; border-radius: 99px;"></div></div>
                         <span style="flex: none; font-size: 12px; color: {{ fl.fg }}; font-family: 'IBM Plex Mono', monospace;">{{ fl.count }}</span>
+                        <button onClick="{{ fl.add }}" title="เพิ่มประตูในชั้นนี้" aria-label="เพิ่มประตูในชั้นนี้" style="flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px dashed var(--line-2); background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1;">+</button>
                       </div>
                       <sc-if value="{{ fl.note }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: var(--muted); margin: -2px 0 8px;">{{ fl.note }}</div></sc-if>
                       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px;">
@@ -5493,6 +5516,7 @@ class Component extends DCLogic {
       if (kind === 'x_acc') {
         /* one floor-summary + door-list pair per month in the period, newest first */
         await core.ensureAll();
+        window.SOCAcc.setOverrides(core.getPortal().accDoors);
         const recs = core.allRecords().filter(r => r.module === 'monthly_inspection_acc_door' && inRange(r.reportDate));
         const TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
         const months = [...new Set(recs.map(r => r.reportDate.slice(0, 7)))].sort().reverse();
@@ -6514,6 +6538,7 @@ class Component extends DCLogic {
   buildAccMap() {
     const s = this.state, core = this.core(), A = window.SOCAcc;
     if (!A) return { months: [], buildings: [], summary: '', sel: null };
+    A.setOverrides(core.getPortal().accDoors);
     const all = core.allRecords().filter(r => r.module === 'monthly_inspection_acc_door');
     /* the current month is always offered (and opened by default), even before any check is in, so a
        new month can be marked on the map straight away */
@@ -6554,13 +6579,33 @@ class Component extends DCLogic {
           this.setState({ accSel: null, accNote: '' });
           this.flash('✓ บันทึก ' + door.code + (bad ? ' · พบผิดปกติ' : ' · ตรวจแล้ว'));
         };
+        const ovr = () => JSON.parse(JSON.stringify(core.getPortal().accDoors || {}));
+        const saveOvr = (o, msg) => { core.setPortal({ accDoors: o }); this.flash(msg); };
         return { code: door.code, room: door.room || '', where: bname + ' · ' + floor.label,
+          roomDraft: s.accRoom != null ? s.accRoom : (door.room || ''), setRoom: (e) => this.setState({ accRoom: e.target.value }),
+          saveRoom: () => { const o = ovr(); o.rooms = o.rooms || {}; o.rooms[door.code] = String(s.accRoom != null ? s.accRoom : door.room || '').trim();
+            saveOvr(o, '✓ แก้ชื่อห้อง ' + door.code); this.setState({ accRoom: null }); },
+          remove: () => { if (!window.confirm('ลบ ' + door.code + ' ออกจากผัง?\n\nผลตรวจเก่าของประตูนี้ยังเก็บไว้ ไม่หาย และเพิ่มกลับได้ภายหลัง')) return;
+            const o = ovr(); o.removed = [...new Set((o.removed || []).concat([door.code]))]; saveOvr(o, 'ลบ ' + door.code + ' ออกจากผังแล้ว'); this.setState({ accSel: null }); },
           status: door.state === 'ok' ? 'ตรวจแล้ว ' + door.date + (door.notes.length ? ' · ' + door.notes.join(', ') : '') : door.state === 'bad' ? 'พบผิดปกติ: ' + door.faults.concat(door.notes).join(', ') : door.state === 'pending' ? 'ยังไม่ติดตั้ง / ไม่นับ — กดยืนยันได้ถ้าเจอประตูจริง' : 'ยังไม่มีผลตรวจเดือนนี้',
           fg: C[door.state][2], note: s.accNote || '', setNote: (e) => this.setState({ accNote: e.target.value }),
           markOk: () => save(false), markBad: () => save(true), canUndo: (door.marks || []).length > 0,
           undo: () => { door.marks.forEach(id => core.deleteRecord(id)); this.setState({ accSel: null }); this.flash('ยกเลิกที่ยืนยันในผังแล้ว'); },
           close: () => this.setState({ accSel: null }) };
       })(),
+      addDoor: (() => { const ad = s.accAdd; if (!ad) return null;
+        const save = () => { const code = String(ad.code || '').trim().toUpperCase(), room = String(ad.room || '').trim();
+          if (!code) { this.flash('ใส่รหัสประตู', 'var(--warn)'); return; }
+          const exists = A.register().some(b => b.floors.some(f => f.doors.some(d => d.code === code)));
+          const o = JSON.parse(JSON.stringify(core.getPortal().accDoors || {}));
+          o.removed = (o.removed || []).filter(c => c !== code);
+          if (!exists) o.added = (o.added || []).filter(a => a.code !== code).concat([{ floor: ad.floor, code, room }]);
+          if (room) { o.rooms = o.rooms || {}; o.rooms[code] = room; }
+          core.setPortal({ accDoors: o }); this.setState({ accAdd: null }); this.flash('✓ เพิ่ม ' + code + ' ในผังแล้ว'); };
+        return { floorLabel: ad.label, code: ad.code || '', room: ad.room || '',
+          setCode: (e) => this.setState({ accAdd: Object.assign({}, ad, { code: e.target.value }) }),
+          setRoom: (e) => this.setState({ accAdd: Object.assign({}, ad, { room: e.target.value }) }),
+          save, cancel: () => this.setState({ accAdd: null }) }; })(),
       goExport: () => { this.go('pdf'); this.setState({ pdfModule: 'x_acc', pdfPeriod: 'month', pdfPeriodYear: m ? +m.slice(0, 4) : s.pdfPeriodYear, pdfPeriodMonth: m ? +m.slice(5, 7) - 1 : s.pdfPeriodMonth }); },
       summary: m ? mName(m) + ' · ตรวจแล้ว ' + v.checked + ' จาก ' + v.total + ' ประตูตามทะเบียน' + (v.bad ? ' · ผิดปกติ ' + v.bad : '') : 'ยังไม่มีการตรวจ',
       buildings: v.buildings.map(b => {
@@ -6570,14 +6615,15 @@ class Component extends DCLogic {
           const FS = { ok: ['rgba(63,191,143,0.16)', '#23966c', '#3fbf8f'], bad: ['rgba(209,72,58,0.14)', 'var(--danger)', '#d1483a'],
             partial: ['rgba(217,162,27,0.16)', '#b7851a', '#d9a21b'], none: ['var(--panel-2)', 'var(--muted)', 'var(--line-2)'] };
           const st = allPending ? 'none' : f.state;
-          return { label: f.label, count: allPending ? 'ยังไม่นับ' : Math.min(f.checked, f.total) + '/' + f.total,
+          return { add: () => { this.setState({ accAdd: { floor: f.id, label: b.name + ' · ' + f.label, code: '', room: '' }, accSel: null }); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60); },
+            label: f.label, count: allPending ? 'ยังไม่นับ' : Math.min(f.checked, f.total) + '/' + f.total,
             pct: f.total ? Math.round(Math.min(f.checked, f.total) / f.total * 100) + '%' : '0%', bg: FS[st][0], fg: FS[st][1], bar: FS[st][2],
             opacity: allPending ? '0.62' : '1', note: allPending ? (f.doors[0].room || 'ยังไม่เปิดใช้') : '',
             doors: f.doors.map(d => {
               const on = s.accSel && s.accSel.code === d.code;
               const DOT = { ok: ['#3fbf8f', 'none'], bad: ['#d1483a', 'none'], none: ['var(--line-2)', 'none'], pending: ['transparent', '1px dashed var(--dim)'] }[d.state];
               const BG = { ok: 'rgba(63,191,143,0.07)', bad: 'rgba(209,72,58,0.07)', none: 'var(--panel)', pending: 'transparent' }[d.state];
-              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '' }); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60); },
+              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '', accRoom: null, accAdd: null }); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60); },
                 code: d.code, dot: DOT[0], dotBorder: DOT[1], bg: BG, fg: d.state === 'bad' ? 'var(--danger)' : 'var(--text)',
                 ring: on ? '2px solid var(--accent)' : (d.state === 'pending' ? '1px dashed var(--line-2)' : '1px solid var(--line)'),
                 room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : (d.room || '—') + (d.state === 'ok' && d.notes.length ? ' · ' + d.notes.join(', ') : ''),
@@ -8050,7 +8096,7 @@ class Component extends DCLogic {
       roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
       isLinks: page === 'links',
       isAcc: page === 'acc',
-      acc: page === 'acc' ? this.buildAccMap() : { months: [], buildings: [], summary: '', sel: null },
+      acc: page === 'acc' ? this.buildAccMap() : { months: [], buildings: [], summary: '', sel: null, addDoor: null },
       linkLoading: !s.linkLoaded,
       linkError: s.linkError || '',
       linkEmpty: !!s.linkLoaded && !s.linkError && !(s.linkRows || []).length,
