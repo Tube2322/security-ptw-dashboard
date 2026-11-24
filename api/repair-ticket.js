@@ -172,7 +172,8 @@ async function sendInspectorRequests(sb) {
   const { data: jobs } = await sb.from('repair_jobs').select('*').eq('status', 'pending').is('ext_code', null).is('ext_sending_at', null)
     .order('created_at', { ascending: true }).limit(10);
   let filed = 0;
-  for (const job of (jobs || []).filter(j => Array.isArray(j.faults) && j.faults[0] && j.faults[0].field_id === 'inspector_request' && !(j.times || {}).auto_tried)) {
+  /* every pending job, not only inspector requests: no admin approval step (user decision, Nov 2026) */
+  for (const job of (jobs || []).filter(j => !(j.times || {}).auto_tried)) {
     const times = Object.assign({}, job.times || {}, { auto_tried: stamp() });
     const mark = await sb.from('repair_jobs').update({ times }).eq('id', job.id).eq('status', 'pending').select('id');
     if (!(mark.data && mark.data.length)) continue;
@@ -226,13 +227,15 @@ async function sync(sb) {
     const label = (LABEL[hit.status] || hit.status) + (hold ? ' · พักงาน' : '');
     const patch = { ext_status: label, ext_hold: hold, ext_synced_at: new Date().toISOString() };
     /* only ever move forward; their timestamps become ours so the timeline shows when it really happened */
-    if (step && ORDER[step] > ORDER[job.status]) {
+    if (step && (ORDER[step] > ORDER[job.status] || (step === 'done' && job.status === 'done'))) {
       const times = Object.assign({}, job.times || {});
       if ((hit.assign_time || hit.start_time) && !times.accepted) times.accepted = stamp(hit.assign_time || hit.start_time);
       if (hit.start_time && !times.repairing) times.repairing = stamp(hit.start_time);
       if (hit.clear_time && !times.done) times.done = stamp(hit.clear_time);
       if (!times[step]) times[step] = stamp();
-      Object.assign(patch, { status: step, times, updated_at: new Date().toISOString() });
+      /* fixed on their side closes ours too: no admin acknowledgement step (user decision, Nov 2026) */
+      if (step === 'done') { if (!times.done) times.done = stamp(); times.closed = times.closed || stamp(); }
+      Object.assign(patch, { status: step === 'done' ? 'closed' : step, times, updated_at: new Date().toISOString() });
     }
     if (hit.status === 'Cancel') patch.last_error = 'ช่างยกเลิกงานนี้ในเว็บช่าง';
     if (!patch.status && patch.ext_status === job.ext_status && (patch.last_error || null) === (job.last_error || null)

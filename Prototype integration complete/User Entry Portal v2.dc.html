@@ -14,6 +14,7 @@
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
 <script src="./soc-core.js?v=20261121f"></script>
+<script src="./soc-acc.js?v=20261124b"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -1035,6 +1036,11 @@ class Component extends DCLogic {
   }
 
   buildField(f) {
+    /* ACC: the door list follows the floor picked above it (register in soc-acc.js) */
+    if (f.fieldId === 'mi_acc_door' && window.SOCAcc) {
+      const fl = this.state.values.mi_acc_floor;
+      f = Object.assign({}, f, { options: fl ? window.SOCAcc.doorsFor(fl) : [], placeholder: fl ? 'เลือกประตู' : 'เลือกชั้นก่อน' });
+    }
     const core = this.core();
     const val = this.state.values[f.fieldId];
     const err = this.state.errors[f.fieldId];
