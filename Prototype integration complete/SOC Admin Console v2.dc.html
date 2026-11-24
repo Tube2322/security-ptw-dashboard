@@ -1701,7 +1701,8 @@
 
             <!-- selected door -->
             <sc-if value="{{ acc.sel }}" hint-placeholder-val="{{ false }}">
-              <section style="position: sticky; top: 8px; z-index: 5; border: 1px solid var(--accent-line); border-radius: 16px; background: var(--panel); box-shadow: 0 10px 30px -12px rgba(0,0,0,0.35); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+              <div class="acc-modal" onClick="{{ acc.sel.close }}" style="position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,0.45); display: flex; align-items: center; justify-content: center; padding: 16px;">
+              <section role="dialog" aria-modal="true" onClick="{{ acc.stop }}" style="width: min(520px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; border: 1px solid var(--accent-line); border-radius: 18px; background: var(--panel); box-shadow: 0 24px 60px -20px rgba(0,0,0,0.5); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
                   <div style="min-width: 0;">
                     <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;"><b style="font-family: 'IBM Plex Mono', monospace; font-size: 16px;">{{ acc.sel.code }}</b><span style="font-size: 14px;">{{ acc.sel.room }}</span></div>
@@ -1726,10 +1727,12 @@
                   </div>
                 </details>
               </section>
+              </div>
             </sc-if>
 
             <sc-if value="{{ acc.addDoor }}" hint-placeholder-val="{{ false }}">
-              <section style="position: sticky; top: 8px; z-index: 5; border: 1px solid var(--accent-line); border-radius: 16px; background: var(--panel); box-shadow: 0 10px 30px -12px rgba(0,0,0,0.35); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+              <div class="acc-modal" onClick="{{ acc.addDoor.cancel }}" style="position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,0.45); display: flex; align-items: center; justify-content: center; padding: 16px;">
+              <section role="dialog" aria-modal="true" onClick="{{ acc.stop }}" style="width: min(520px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; border: 1px solid var(--accent-line); border-radius: 18px; background: var(--panel); box-shadow: 0 24px 60px -20px rgba(0,0,0,0.5); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
                 <b style="font-size: 14px;">เพิ่มประตู · {{ acc.addDoor.floorLabel }}</b>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 8px;">
                   <input value="{{ acc.addDoor.code }}" onChange="{{ acc.addDoor.setCode }}" placeholder="รหัสประตู เช่น 8-DMC-4" style="min-height: 42px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 14px;">
@@ -1740,6 +1743,7 @@
                   <button onClick="{{ acc.addDoor.cancel }}" style="min-height: 42px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;">ยกเลิก</button>
                 </div>
               </section>
+              </div>
             </sc-if>
 
             <!-- buildings -->
@@ -6593,6 +6597,7 @@ class Component extends DCLogic {
           undo: () => { door.marks.forEach(id => core.deleteRecord(id)); this.setState({ accSel: null }); this.flash('ยกเลิกที่ยืนยันในผังแล้ว'); },
           close: () => this.setState({ accSel: null }) };
       })(),
+      stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
       addDoor: (() => { const ad = s.accAdd; if (!ad) return null;
         const save = () => { const code = String(ad.code || '').trim().toUpperCase(), room = String(ad.room || '').trim();
           if (!code) { this.flash('ใส่รหัสประตู', 'var(--warn)'); return; }
@@ -6615,7 +6620,7 @@ class Component extends DCLogic {
           const FS = { ok: ['rgba(63,191,143,0.16)', '#23966c', '#3fbf8f'], bad: ['rgba(209,72,58,0.14)', 'var(--danger)', '#d1483a'],
             partial: ['rgba(217,162,27,0.16)', '#b7851a', '#d9a21b'], none: ['var(--panel-2)', 'var(--muted)', 'var(--line-2)'] };
           const st = allPending ? 'none' : f.state;
-          return { add: () => { this.setState({ accAdd: { floor: f.id, label: b.name + ' · ' + f.label, code: '', room: '' }, accSel: null }); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60); },
+          return { add: () => { this.setState({ accAdd: { floor: f.id, label: b.name + ' · ' + f.label, code: '', room: '' }, accSel: null }); },
             label: f.label, count: allPending ? 'ยังไม่นับ' : Math.min(f.checked, f.total) + '/' + f.total,
             pct: f.total ? Math.round(Math.min(f.checked, f.total) / f.total * 100) + '%' : '0%', bg: FS[st][0], fg: FS[st][1], bar: FS[st][2],
             opacity: allPending ? '0.62' : '1', note: allPending ? (f.doors[0].room || 'ยังไม่เปิดใช้') : '',
@@ -6623,7 +6628,7 @@ class Component extends DCLogic {
               const on = s.accSel && s.accSel.code === d.code;
               const DOT = { ok: ['#3fbf8f', 'none'], bad: ['#d1483a', 'none'], none: ['var(--line-2)', 'none'], pending: ['transparent', '1px dashed var(--dim)'] }[d.state];
               const BG = { ok: 'rgba(63,191,143,0.07)', bad: 'rgba(209,72,58,0.07)', none: 'var(--panel)', pending: 'transparent' }[d.state];
-              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '', accRoom: null, accAdd: null }); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60); },
+              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '', accRoom: null, accAdd: null }); },
                 code: d.code, dot: DOT[0], dotBorder: DOT[1], bg: BG, fg: d.state === 'bad' ? 'var(--danger)' : 'var(--text)',
                 ring: on ? '2px solid var(--accent)' : (d.state === 'pending' ? '1px dashed var(--line-2)' : '1px solid var(--line)'),
                 room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : (d.room || '—') + (d.state === 'ok' && d.notes.length ? ' · ' + d.notes.join(', ') : ''),
