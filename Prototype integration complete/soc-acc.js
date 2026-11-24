@@ -12,6 +12,12 @@
     { id: 'main', name: 'อาคารโรงพยาบาล', floors: [
       /* roof: R1-DMC-1..3 are on the installer's test sheet only (no room names yet); confirmed on site Nov 2026 */
       { id: '12 ดาดฟ้า', label: 'ดาดฟ้า', doors: [D('R1-DMC-1', ''), D('R1-DMC-2', ''), D('R1-DMC-3', '')] },
+      /* 8–11: on the test sheet only. 8 and 9 are open but their doors are not confirmed yet; 10 and 11 are
+         still being built. All shown, none counted until a check names the door. */
+      { id: '11', label: 'ชั้น 11', doors: ['11-DMC-1', '11-DMC-2', '11-DMC-3', '11-DM-1'].map(c => D(c, 'กำลังก่อสร้าง ยังไม่เปิดใช้', true)) },
+      { id: '10', label: 'ชั้น 10', doors: ['10-DMC-1', '10-DMC-2', '10-DMC-3', '10-DM-1'].map(c => D(c, 'กำลังก่อสร้าง ยังไม่เปิดใช้', true)) },
+      { id: '9', label: 'ชั้น 9', doors: ['9-DMC-1', '9-DMC-2', '9-DMC-3', '9-DM-1'].map(c => D(c, 'รอตรวจสอบประตู', true)) },
+      { id: '8', label: 'ชั้น 8', doors: ['8-DMC-1', '8-DMC-2', '8-DMC-3', '8-DM-1'].map(c => D(c, 'รอตรวจสอบประตู', true)) },
       { id: '7', label: 'ชั้น 7', doors: [D('7-DMC-1', ''), D('7-DMC-2', ''), D('7-DMC-3', ''), D('7-DM-1', 'บันได')] },
       { id: '6', label: 'ชั้น 6', doors: [D('6-DMC-1', ''), D('6-DM-1', 'บันได')] },
       { id: '5', label: 'ชั้น 5', doors: [D('5-DMC-1', 'สำนักงานธุรการ'), D('5-DMC-2', 'แผนกบัญชี'), D('5-DMC-3', 'แผนก HR'),
