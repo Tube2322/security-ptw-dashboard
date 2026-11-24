@@ -10,6 +10,8 @@
   const D = (code, room, pending) => ({ code, room, pending: !!pending });
   const BUILDINGS = [
     { id: 'main', name: 'อาคารโรงพยาบาล', floors: [
+      /* roof: R1-DMC-1..3 are on the installer's test sheet only (no room names yet); confirmed on site Nov 2026 */
+      { id: '12 ดาดฟ้า', label: 'ดาดฟ้า', doors: [D('R1-DMC-1', ''), D('R1-DMC-2', ''), D('R1-DMC-3', '')] },
       { id: '7', label: 'ชั้น 7', doors: [D('7-DMC-1', ''), D('7-DMC-2', ''), D('7-DMC-3', ''), D('7-DM-1', 'บันได')] },
       { id: '6', label: 'ชั้น 6', doors: [D('6-DMC-1', ''), D('6-DM-1', 'บันได')] },
       { id: '5', label: 'ชั้น 5', doors: [D('5-DMC-1', 'สำนักงานธุรการ'), D('5-DMC-2', 'แผนกบัญชี'), D('5-DMC-3', 'แผนก HR'),
