@@ -31,6 +31,7 @@
 <script src="./soc-export.js?v=20261121d"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
+<script src="./soc-acc.js?v=20261124a"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -1659,6 +1660,46 @@
         </sc-if>
 
         <!-- ===== REPAIRS (ตามงานซ่อม) — jobs from repair_jobs ===== -->
+        <sc-if value="{{ isAcc }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+              <span style="font-size: 12px; color: var(--muted); margin-right: 2px;">เดือน</span>
+              <sc-for list="{{ acc.months }}" as="am" hint-placeholder-count="3"><button onClick="{{ am.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px solid {{ am.border }}; background: {{ am.bg }}; color: {{ am.fg }};">{{ am.label }}</button></sc-for>
+            </div>
+            <div style="font-size: 14px; font-weight: 600;">{{ acc.summary }}</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 12px; color: var(--muted);">
+              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(63,191,143,0.5); margin-right: 5px;"></span>ตรวจครบ</span>
+              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(217,162,27,0.5); margin-right: 5px;"></span>ตรวจบางส่วน</span>
+              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(209,72,58,0.5); margin-right: 5px;"></span>พบผิดปกติ</span>
+              <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--line-2); margin-right: 5px;"></span>ยังไม่ตรวจ</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; align-items: end; min-width: 0;">
+              <sc-for list="{{ acc.buildings }}" as="bd" hint-placeholder-count="2">
+                <section style="min-width: 0; border: 2px solid var(--line-2); border-radius: 14px 14px 4px 4px; background: var(--panel); overflow: hidden;">
+                  <div style="padding: 10px 14px; font-weight: 600; font-size: 14px; border-bottom: 2px solid var(--line-2); background: var(--panel-2);">{{ bd.name }}</div>
+                  <sc-for list="{{ bd.floors }}" as="fl" hint-placeholder-count="4">
+                    <div style="display: grid; grid-template-columns: 78px minmax(0, 1fr); border-bottom: 1px solid var(--line); min-height: 52px;">
+                      <div style="display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 8px; background: {{ fl.bg }}; border-right: 3px solid {{ fl.border }};">
+                        <b style="font-size: 13px;">{{ fl.label }}</b>
+                        <span style="font-size: 11px; color: {{ fl.fg }}; font-family: 'IBM Plex Mono', monospace;">{{ fl.count }}</span>
+                      </div>
+                      <div style="display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 8px; align-content: center;">
+                        <sc-for list="{{ fl.doors }}" as="dr" hint-placeholder-count="3">
+                          <span title="{{ dr.title }}" style="display: inline-flex; flex-direction: column; min-width: 74px; max-width: 150px; padding: 3px 7px; border-radius: 7px; border: 1px solid {{ dr.border }}; background: {{ dr.bg }};">
+                            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: {{ dr.fg }};">{{ dr.code }}</span>
+                            <span style="font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ dr.room }}</span>
+                          </span>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <div style="height: 8px; background: var(--line-2);"></div>
+                </section>
+              </sc-for>
+            </div>
+            <div style="font-size: 12px; color: var(--muted);">ตัวเลขข้างชั้น = ประตูที่ตรวจในเดือนนั้น / ประตูตามทะเบียน · สีรายประตูจะขึ้นเมื่อแบบฟอร์มบันทึกชื่อประตู (ข้อมูลก่อนหน้านี้มีแค่ชั้น)</div>
+          </div>
+        </sc-if>
         <sc-if value="{{ isLinks }}" hint-placeholder-val="{{ false }}">
           <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0;">
             <div style="font-size: 13px; color: var(--dim); overflow-wrap: anywhere;">ลิงก์แบบฟอร์มภายนอกสำหรับคัดลอกส่งต่อ — กด "คัดลอก" ได้ลิงก์เต็ม, "คัดลอกพร้อมชื่อ" ได้ข้อความพร้อมส่งในแชท</div>
@@ -6406,6 +6447,29 @@ class Component extends DCLogic {
     Promise.all([c.cctvCameras(), c.cctvChecks()]).then(([cams, chk]) =>
       this.setState({ cctvCams: cams.rows, cctvChecks: chk.rows, cctvError: cams.error || chk.error, cctvLoaded: true }));
   }
+  /* ACC door map: the register in soc-acc.js drawn as a building section, coloured by one month's checks */
+  buildAccMap() {
+    const s = this.state, core = this.core(), A = window.SOCAcc;
+    if (!A) return { months: [], buildings: [], summary: '' };
+    const all = core.allRecords().filter(r => r.module === 'monthly_inspection_acc_door');
+    const months = [...new Set(all.map(r => r.reportDate.slice(0, 7)))].sort().reverse();
+    const m = months.includes(s.accMonth) ? s.accMonth : months[0];
+    const TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const mName = (ym) => { const [y, mo] = ym.split('-').map(Number); return TH[mo - 1] + ' ' + (y + 543); };
+    const v = A.monthView(all.filter(r => r.reportDate.slice(0, 7) === m));
+    const C = { ok: ['rgba(63,191,143,0.14)', 'rgba(63,191,143,0.5)', '#23966c'], bad: ['rgba(209,72,58,0.12)', 'rgba(209,72,58,0.5)', 'var(--danger)'],
+      partial: ['rgba(217,162,27,0.12)', 'rgba(217,162,27,0.5)', '#b7851a'], none: ['var(--panel-2)', 'var(--line)', 'var(--muted)'] };
+    const FL = { ok: 'ตรวจครบ', bad: 'พบผิดปกติ', partial: 'ตรวจบางส่วน', none: 'ยังไม่ตรวจ' };
+    return {
+      months: months.map(x => ({ label: mName(x), bg: x === m ? 'var(--accent-soft)' : 'var(--panel)', border: x === m ? 'var(--accent-line)' : 'var(--line)',
+        fg: x === m ? 'var(--accent)' : 'var(--text)', pick: () => this.setState({ accMonth: x }) })),
+      summary: m ? mName(m) + ' · ตรวจแล้ว ' + v.checked + ' จาก ' + v.total + ' ประตูตามทะเบียน' + (v.bad ? ' · ผิดปกติ ' + v.bad : '') : 'ยังไม่มีการตรวจ',
+      buildings: v.buildings.map(b => ({ name: b.name, floors: b.floors.map(f => ({ label: f.label,
+        count: f.checked + '/' + f.total, bg: C[f.state][0], border: C[f.state][1], fg: C[f.state][2],
+        doors: f.doors.map(d => ({ code: d.code, room: d.room || '—', bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
+          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว' : '') })) })) }))
+    };
+  }
   buildCctvAdmin() {
     const s = this.state, core = this.core();
     const empty = { loading: !s.cctvLoaded, ready: false, error: s.cctvError || '', stats: [], issues: [], tabs: [], panels: [], legend: [], week: { nvrs: [] } };
@@ -7666,6 +7730,7 @@ class Component extends DCLogic {
       records: { kicker: 'Central Operational Records', title: 'ข้อมูลที่บันทึกทั้งหมด' },
       repairs: { kicker: 'Repair Tracking', title: 'ตามงานซ่อม' },
       links: { kicker: 'Form Links', title: 'รวมลิงก์' },
+      acc: { kicker: 'Access Control Map', title: 'ผังประตู ACC' },
       roster: { kicker: 'Duty Roster', title: 'ตารางเวร' },
       cctv: { kicker: 'Weekly CCTV Check', title: 'ตรวจกล้องประจำสัปดาห์' },
       pdf: { kicker: 'Report Export', title: 'ส่งออกรายงาน' },
@@ -7845,6 +7910,7 @@ class Component extends DCLogic {
           navItem('records', 'Records', 'RC', 'var(--muted)', String(core.MODULES.reduce((n, m) => n + core.recordCount(m.id), 0))),
           navItem('roster', 'ตารางเวร', 'SH', '#5b7cfa', ''),
           navItem('cctv', 'ตรวจกล้องประจำสัปดาห์', 'CW', '#2fa89a', ''),
+          navItem('acc', 'ผังประตู ACC', 'AC', '#7c8cff', ''),
           navItem('repairs', 'ตามงานซ่อม', 'RP', '#e0763f', String(this.repairJobs().filter(j => j.status !== 'closed' && j.status !== 'rejected').length)),
           navItem('links', 'รวมลิงก์', 'LK', 'var(--muted)', s.linkLoaded ? String((s.linkRows || []).length) : ''),
           navItem('pdf', 'Export PDF', 'PD', 'var(--muted)')
@@ -7866,6 +7932,8 @@ class Component extends DCLogic {
       cctv: page === 'cctv' ? this.buildCctvAdmin() : { loading: false, ready: false, stats: [], issues: [], tabs: [], panels: [], legend: [], week: { nvrs: [] } },
       roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
       isLinks: page === 'links',
+      isAcc: page === 'acc',
+      acc: page === 'acc' ? this.buildAccMap() : { months: [], buildings: [], summary: '' },
       linkLoading: !s.linkLoaded,
       linkError: s.linkError || '',
       linkEmpty: !!s.linkLoaded && !s.linkError && !(s.linkRows || []).length,
