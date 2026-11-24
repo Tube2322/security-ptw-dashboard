@@ -6478,8 +6478,11 @@ class Component extends DCLogic {
     const s = this.state, core = this.core(), A = window.SOCAcc;
     if (!A) return { months: [], buildings: [], summary: '', sel: null };
     const all = core.allRecords().filter(r => r.module === 'monthly_inspection_acc_door');
-    const months = [...new Set(all.map(r => r.reportDate.slice(0, 7)))].sort().reverse();
-    const m = months.includes(s.accMonth) ? s.accMonth : months[0];
+    /* the current month is always offered (and opened by default), even before any check is in, so a
+       new month can be marked on the map straight away */
+    const thisMonth = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7);
+    const months = [...new Set(all.map(r => r.reportDate.slice(0, 7)).concat([thisMonth]))].sort().reverse();
+    const m = months.includes(s.accMonth) ? s.accMonth : thisMonth;
     const TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
     const mName = (ym) => { const [y, mo] = ym.split('-').map(Number); return TH[mo - 1] + ' ' + (y + 543); };
     const v = A.monthView(all.filter(r => r.reportDate.slice(0, 7) === m));
