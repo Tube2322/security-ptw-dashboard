@@ -13,7 +13,7 @@
 - ครอบคลุม: หน้า Admin/หน้ากรอกโหลดไม่พัง, คิวส่งซ้ำเมื่อเน็ตหลุด, แบ่งหน้าเกิน 1,000 แถว, ผู้ไม่ล็อกอินอ่านข้อมูลไม่ได้ · แก้ส่วนไหนสำคัญ ให้เพิ่มทดสอบส่วนนั้น
 
 ## Branch และการ deploy
-- ทำงานบน `v2` เสมอ push v2 ได้ แต่ **merge เข้า `main` (= ขึ้นเว็บจริง) เฉพาะเมื่อผู้ใช้สั่ง "ขึ้น main"** ทุกครั้ง
+- ทำงานบน `v2` เสมอ push v2 ได้ แต่ **merge เข้า `main` (= ขึ้นเว็บจริง) เฉพาะเมื่อผู้ใช้สั่ง** — ผู้ใช้กำหนดไว้ (25 พ.ย. 2026) ว่า **"พุช" = push v2 แล้ว merge ขึ้น main ทันที** เหมือน "ขึ้น main" ไม่ต้องถามซ้ำ (ชุดทดสอบต้องผ่านก่อน)
 - merge: `git checkout main && git pull && git merge --no-edit v2 && git push origin main && git checkout v2`
 - Commit trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
 
