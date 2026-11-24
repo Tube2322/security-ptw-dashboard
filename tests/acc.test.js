@@ -39,11 +39,27 @@ test('Excel: a floor summary and a door list per month, faults shown', () => {
   const view = A.monthView([rec('1', { mi_acc_door: '1-DMC-3', mi_acc_magnet: 'ไม่ทำงาน' }), rec('3'), rec('3')]);
   const n = accWorkbook({ sheet, views: [{ label: 'พ.ย. 69', view }] });
   assert.deepStrictEqual(wb.worksheets.map(w => w.name), ['สรุปรายชั้น พ.ย. 69', 'รายประตู พ.ย. 69']);
-  assert.strictEqual(n, view.total);
+  assert.strictEqual(n, view.buildings.reduce((a, b) => a + b.floors.reduce((x, f) => x + f.doors.length, 0), 0));
   const sum = wb.worksheets[0], last = sum.getRow(sum.rowCount).values.slice(1);
   assert.strictEqual(last[0], 'รวม');
   assert.strictEqual(last[3], 3);
   const doorRow = []; wb.worksheets[1].eachRow(r => { if (r.getCell(3).value === '1-DMC-3') doorRow.push(r.values.slice(1)); });
   assert.strictEqual(doorRow[0][4], 'พบผิดปกติ');
   assert.match(doorRow[0][6], /ไม่ทำงาน/);
+});
+
+test('doors still being installed are shown and offered but not counted until checked', () => {
+  const g = A.monthView([]).buildings[0].floors.find(f => f.id === 'G');
+  assert.strictEqual(g.total, 5);
+  assert.strictEqual(g.doors.find(d => d.code === 'G-DMC-5').state, 'pending');
+  assert.ok(A.doorsFor('G').some(o => o.startsWith('G-DMC-5')));
+  const found = A.monthView([{ reportDate: '2026-12-01', data: { mi_acc_floor: 'G', mi_acc_door: 'G-DMC-5' } }]).buildings[0].floors.find(f => f.id === 'G');
+  assert.strictEqual(found.doors.find(d => d.code === 'G-DMC-5').state, 'ok');
+});
+
+test('a door confirmed on the map is listed as an admin mark (so it can be undone)', () => {
+  const v = A.monthView([{ id: 'x1', reportDate: '2026-11-24', data: { mi_acc_floor: '1', mi_acc_door: '1-DMC-2 · ห้องจัดยา', mi_acc_source: 'admin_map' } }]);
+  const d = v.buildings[0].floors.find(f => f.id === '1').doors.find(x => x.code === '1-DMC-2');
+  assert.strictEqual(d.state, 'ok');
+  assert.deepStrictEqual(d.marks, ['x1']);
 });

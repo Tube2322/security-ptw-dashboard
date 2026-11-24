@@ -28,10 +28,10 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261124a"></script>
+<script src="./soc-export.js?v=20261124b"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
-<script src="./soc-acc.js?v=20261124b"></script>
+<script src="./soc-acc.js?v=20261124f"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -1676,6 +1676,20 @@
               <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(209,72,58,0.5); margin-right: 5px;"></span>พบผิดปกติ</span>
               <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--line-2); margin-right: 5px;"></span>ยังไม่ตรวจ</span>
             </div>
+            <sc-if value="{{ acc.sel }}" hint-placeholder-val="{{ false }}">
+              <section style="border: 1px solid var(--accent-line); border-radius: 14px; background: var(--panel); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+                <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;"><b style="font-family: 'IBM Plex Mono', monospace; font-size: 15px;">{{ acc.sel.code }}</b><span style="font-size: 13px;">{{ acc.sel.room }}</span><span style="font-size: 12px; color: var(--muted);">{{ acc.sel.where }}</span></div>
+                <div style="font-size: 13px; color: {{ acc.sel.fg }};">{{ acc.sel.status }}</div>
+                <textarea value="{{ acc.sel.note }}" onChange="{{ acc.sel.setNote }}" rows="2" placeholder="หมายเหตุ / สิ่งที่ผิดปกติ (ถ้ามี)" style="width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px; resize: vertical;"></textarea>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <button onClick="{{ acc.sel.markOk }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(63,191,143,0.6); background: rgba(63,191,143,0.14); color: #23966c; cursor: pointer; font-size: 13px; font-weight: 600;">✓ ตรวจแล้ว ปกติ</button>
+                  <button onClick="{{ acc.sel.markBad }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.5); background: rgba(209,72,58,0.1); color: var(--danger); cursor: pointer; font-size: 13px; font-weight: 600;">⚠ ตรวจแล้ว พบผิดปกติ</button>
+                  <sc-if value="{{ acc.sel.canUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ acc.sel.undo }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิกที่ยืนยันในผัง</button></sc-if>
+                  <button onClick="{{ acc.sel.close }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-size: 13px;">ปิด</button>
+                </div>
+                <div style="font-size: 11px; color: var(--muted);">กดยืนยันในผังจะบันทึกเป็นผลตรวจของเดือนที่เลือก (ไม่ส่งเข้า MS Forms) · ผลจากฟอร์มของผู้ตรวจยังอยู่ครบ</div>
+              </section>
+            </sc-if>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; align-items: end; min-width: 0;">
               <sc-for list="{{ acc.buildings }}" as="bd" hint-placeholder-count="2">
                 <section style="min-width: 0; border: 2px solid var(--line-2); border-radius: 14px 14px 4px 4px; background: var(--panel); overflow: hidden;">
@@ -1688,10 +1702,10 @@
                       </div>
                       <div style="display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 8px; align-content: center;">
                         <sc-for list="{{ fl.doors }}" as="dr" hint-placeholder-count="3">
-                          <span title="{{ dr.title }}" style="display: inline-flex; flex-direction: column; min-width: 74px; max-width: 150px; padding: 3px 7px; border-radius: 7px; border: 1px solid {{ dr.border }}; background: {{ dr.bg }};">
+                          <button onClick="{{ dr.pick }}" title="{{ dr.title }}" style="display: inline-flex; flex-direction: column; align-items: flex-start; text-align: left; cursor: pointer; min-width: 74px; max-width: 150px; padding: 3px 7px; border-radius: 7px; border: {{ dr.ring }}; background: {{ dr.bg }}; color: inherit; font: inherit;">
                             <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: {{ dr.fg }};">{{ dr.code }}</span>
                             <span style="font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ dr.room }}</span>
-                          </span>
+                          </button>
                         </sc-for>
                       </div>
                     </div>
@@ -6462,7 +6476,7 @@ class Component extends DCLogic {
   /* ACC door map: the register in soc-acc.js drawn as a building section, coloured by one month's checks */
   buildAccMap() {
     const s = this.state, core = this.core(), A = window.SOCAcc;
-    if (!A) return { months: [], buildings: [], summary: '' };
+    if (!A) return { months: [], buildings: [], summary: '', sel: null };
     const all = core.allRecords().filter(r => r.module === 'monthly_inspection_acc_door');
     const months = [...new Set(all.map(r => r.reportDate.slice(0, 7)))].sort().reverse();
     const m = months.includes(s.accMonth) ? s.accMonth : months[0];
@@ -6470,17 +6484,44 @@ class Component extends DCLogic {
     const mName = (ym) => { const [y, mo] = ym.split('-').map(Number); return TH[mo - 1] + ' ' + (y + 543); };
     const v = A.monthView(all.filter(r => r.reportDate.slice(0, 7) === m));
     const C = { ok: ['rgba(63,191,143,0.14)', 'rgba(63,191,143,0.5)', '#23966c'], bad: ['rgba(209,72,58,0.12)', 'rgba(209,72,58,0.5)', 'var(--danger)'],
-      partial: ['rgba(217,162,27,0.12)', 'rgba(217,162,27,0.5)', '#b7851a'], none: ['var(--panel-2)', 'var(--line)', 'var(--muted)'] };
+      partial: ['rgba(217,162,27,0.12)', 'rgba(217,162,27,0.5)', '#b7851a'], none: ['var(--panel-2)', 'var(--line)', 'var(--muted)'], pending: ['transparent', 'var(--line-2)', 'var(--dim)'] };
     const FL = { ok: 'ตรวจครบ', bad: 'พบผิดปกติ', partial: 'ตรวจบางส่วน', none: 'ยังไม่ตรวจ' };
     return {
       months: months.map(x => ({ label: mName(x), bg: x === m ? 'var(--accent-soft)' : 'var(--panel)', border: x === m ? 'var(--accent-line)' : 'var(--line)',
-        fg: x === m ? 'var(--accent)' : 'var(--text)', pick: () => this.setState({ accMonth: x }) })),
+        fg: x === m ? 'var(--accent)' : 'var(--text)', pick: () => this.setState({ accMonth: x, accSel: null }) })),
+      sel: (() => {
+        const sc = s.accSel; if (!sc || !m) return null;
+        let door = null, floor = null, bname = '';
+        v.buildings.forEach(b => b.floors.forEach(f => f.doors.forEach(d => { if (d.code === sc.code) { door = d; floor = f; bname = b.name; } })));
+        if (!door) return null;
+        const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
+        const day = today.slice(0, 7) === m ? today : m + '-28';
+        const OKV = { mi_acc_reader_status: 'ปกติ', mi_acc_electric_lock: 'ปกติ', mi_acc_magnet: 'ปกติ', mi_acc_alarm_light: 'มีไฟแจ้งเตือน', mi_acc_lock_status: 'ล็อคปกติ', mi_acc_sensor_box: 'ใช้ได้ปกติ', mi_acc_emergency_release: 'ปกติ' };
+        const who = (core.auth.user() && core.auth.user().email || 'แอดมิน').split('@')[0];
+        const save = (bad) => {
+          const note = String(s.accNote || '').trim();
+          if (bad && !note) { this.flash('ใส่หมายเหตุว่าผิดปกติอะไร', 'var(--warn)'); return; }
+          (door.marks || []).forEach(id => core.deleteRecord(id));
+          const data = Object.assign({}, OKV, { mi_acc_date: day, mi_acc_floor: floor.id, mi_acc_door: door.code + (door.room ? ' · ' + door.room : ''),
+            mi_acc_checker_name: who, mi_acc_source: 'admin_map' });
+          if (bad) data.mi_acc_lock_status = 'ผิดปกติ: ' + note; else if (note) data.mi_acc_note = note;
+          core.addRecord('monthly_inspection_acc_door', data, {});
+          this.setState({ accSel: null, accNote: '' });
+          this.flash('✓ บันทึก ' + door.code + (bad ? ' · พบผิดปกติ' : ' · ตรวจแล้ว'));
+        };
+        return { code: door.code, room: door.room || '', where: bname + ' · ' + floor.label,
+          status: door.state === 'ok' ? 'ตรวจแล้ว ' + door.date + (door.notes.length ? ' · ' + door.notes.join(', ') : '') : door.state === 'bad' ? 'พบผิดปกติ: ' + door.faults.concat(door.notes).join(', ') : door.state === 'pending' ? 'ยังไม่ติดตั้ง / ไม่นับ — กดยืนยันได้ถ้าเจอประตูจริง' : 'ยังไม่มีผลตรวจเดือนนี้',
+          fg: C[door.state][2], note: s.accNote || '', setNote: (e) => this.setState({ accNote: e.target.value }),
+          markOk: () => save(false), markBad: () => save(true), canUndo: (door.marks || []).length > 0,
+          undo: () => { door.marks.forEach(id => core.deleteRecord(id)); this.setState({ accSel: null }); this.flash('ยกเลิกที่ยืนยันในผังแล้ว'); },
+          close: () => this.setState({ accSel: null }) };
+      })(),
       goExport: () => { this.go('pdf'); this.setState({ pdfModule: 'x_acc', pdfPeriod: 'month', pdfPeriodYear: m ? +m.slice(0, 4) : s.pdfPeriodYear, pdfPeriodMonth: m ? +m.slice(5, 7) - 1 : s.pdfPeriodMonth }); },
       summary: m ? mName(m) + ' · ตรวจแล้ว ' + v.checked + ' จาก ' + v.total + ' ประตูตามทะเบียน' + (v.bad ? ' · ผิดปกติ ' + v.bad : '') : 'ยังไม่มีการตรวจ',
       buildings: v.buildings.map(b => ({ name: b.name, floors: b.floors.map(f => ({ label: f.label,
         count: f.checked + '/' + f.total, bg: C[f.state][0], border: C[f.state][1], fg: C[f.state][2],
-        doors: f.doors.map(d => ({ code: d.code, room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? '✓ ' + (d.room || 'ตรวจแล้ว') + (d.notes.length ? ' · ' + d.notes.join(', ') : '') : (d.room || '—'), bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
-          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : ' · ยังไม่ตรวจ') })) })) }))
+        doors: f.doors.map(d => ({ pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '' }); setTimeout(() => { const el = document.querySelector('main'); if (el) window.scrollTo({ top: 0, behavior: 'smooth' }); }, 60); }, ring: (s.accSel && s.accSel.code === d.code ? '2px solid var(--accent)' : '1px solid ' + C[d.state][1]), code: d.code, room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? '✓ ' + (d.room || 'ตรวจแล้ว') + (d.notes.length ? ' · ' + d.notes.join(', ') : '') : (d.room || '—'), bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
+          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : d.state === 'pending' ? ' · ยังไม่ติดตั้ง ไม่นับ' : ' · ยังไม่ตรวจ') })) })) }))
     };
   }
   buildCctvAdmin() {
@@ -7946,7 +7987,7 @@ class Component extends DCLogic {
       roster: page === 'roster' ? this.buildRoster() : { loading: false, staffChips: [], cells: [], legend: [], metrics: [], form: null, editor: null, settings: {}, papers: [], progress: { show: false }, teamToday: null, importBox: null, conflicts: [], detail: false },
       isLinks: page === 'links',
       isAcc: page === 'acc',
-      acc: page === 'acc' ? this.buildAccMap() : { months: [], buildings: [], summary: '' },
+      acc: page === 'acc' ? this.buildAccMap() : { months: [], buildings: [], summary: '', sel: null },
       linkLoading: !s.linkLoaded,
       linkError: s.linkError || '',
       linkEmpty: !!s.linkLoaded && !s.linkError && !(s.linkRows || []).length,

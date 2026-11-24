@@ -181,7 +181,7 @@
     const sheet = opts.sheet, views = opts.views || [];
     const BAND = { 'อาคารโรงพยาบาล': 'FF2B6CB0', 'อาคารบริการ': 'FF2F855A' };
     const TINT = { 'อาคารโรงพยาบาล': 'FFE3F0FB', 'อาคารบริการ': 'FFE6F4EA' };
-    const ST = { ok: ['ตรวจแล้ว', 'FFD9F2E6'], bad: ['พบผิดปกติ', 'FFFBE3E1'], none: ['ยังไม่ตรวจ', 'FFF1F3F5'], partial: ['ตรวจบางส่วน', 'FFFFF4D6'] };
+    const ST = { ok: ['ตรวจแล้ว', 'FFD9F2E6'], bad: ['พบผิดปกติ', 'FFFBE3E1'], none: ['ยังไม่ตรวจ', 'FFF1F3F5'], pending: ['ยังไม่ติดตั้ง (ไม่นับ)', 'FFFFFFFF'], partial: ['ตรวจบางส่วน', 'FFFFF4D6'] };
     const FST = { ok: 'ตรวจครบ', bad: 'พบผิดปกติ', partial: 'ตรวจบางส่วน', none: 'ยังไม่ตรวจ' };
     const GRID = { style: 'thin', color: { argb: 'FFBFC5CC' } };
     const finish = (ws, cols, title, textCols) => {

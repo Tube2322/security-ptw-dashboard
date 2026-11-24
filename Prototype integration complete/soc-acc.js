@@ -5,9 +5,19 @@
    A record matches a door by its door field (mi_acc_door, "G-DMC-1 · …") when it has one; older
    records only carry the floor, so those count toward the floor but cannot light a single door. */
 (function (root) {
-  const D = (code, room) => ({ code, room });
+  /* pending = the register says it is still being installed: shown on the map and offered in the form,
+     but not counted until a check names it */
+  const D = (code, room, pending) => ({ code, room, pending: !!pending });
   const BUILDINGS = [
     { id: 'main', name: 'อาคารโรงพยาบาล', floors: [
+      /* roof: R1-DMC-1..3 are on the installer's test sheet only (no room names yet); confirmed on site Nov 2026 */
+      { id: '12 ดาดฟ้า', label: 'ดาดฟ้า', doors: [D('R1-DMC-1', ''), D('R1-DMC-2', ''), D('R1-DMC-3', '')] },
+      /* 8–11: on the test sheet only. 8 and 9 are open but their doors are not confirmed yet; 10 and 11 are
+         still being built. All shown, none counted until a check names the door. */
+      { id: '11', label: 'ชั้น 11', doors: ['11-DMC-1', '11-DMC-2', '11-DMC-3', '11-DM-1'].map(c => D(c, 'กำลังก่อสร้าง ยังไม่เปิดใช้', true)) },
+      { id: '10', label: 'ชั้น 10', doors: ['10-DMC-1', '10-DMC-2', '10-DMC-3', '10-DM-1'].map(c => D(c, 'กำลังก่อสร้าง ยังไม่เปิดใช้', true)) },
+      { id: '9', label: 'ชั้น 9', doors: ['9-DMC-1', '9-DMC-2', '9-DMC-3', '9-DM-1'].map(c => D(c, 'รอตรวจสอบประตู', true)) },
+      { id: '8', label: 'ชั้น 8', doors: ['8-DMC-1', '8-DMC-2', '8-DMC-3', '8-DM-1'].map(c => D(c, 'รอตรวจสอบประตู', true)) },
       { id: '7', label: 'ชั้น 7', doors: [D('7-DMC-1', ''), D('7-DMC-2', ''), D('7-DMC-3', ''), D('7-DM-1', 'บันได')] },
       { id: '6', label: 'ชั้น 6', doors: [D('6-DMC-1', ''), D('6-DM-1', 'บันได')] },
       { id: '5', label: 'ชั้น 5', doors: [D('5-DMC-1', 'สำนักงานธุรการ'), D('5-DMC-2', 'แผนกบัญชี'), D('5-DMC-3', 'แผนก HR'),
@@ -23,11 +33,11 @@
         D('1-DMC-5', 'โถงลิฟต์บริการ+ดับเพลิง'), D('1-DMC-6', 'ห้อง IT'), D('1-DMC-7', 'ห้องวิทยุ'), D('1-DMC-8', 'โถงทางเข้าแผนกฉุกเฉิน'),
         D('1-DMC-10', 'ห้องตรวจแยกโรค'), D('1-DMC-11', 'แผนกฉุกเฉิน'), D('1-DMC-12', 'ห้องนอนเวร'), D('1-DMC-13', 'ห้องนอนเวรแพทย์'), D('1-DM-1', 'บันได')] },
       { id: 'G', label: 'ชั้น G', doors: [D('G-DMC-1', 'การเงิน แผนกทางเดินหายใจ'), D('G-DMC-2', 'จ่ายยา แผนกทางเดินหายใจ'), D('G-DMC-3', 'จ่ายยา ประกันสังคม'),
-        D('G-DMC-4', 'IT Room'), D('G-DMC-5', 'หน้าลิฟต์ Fire Man'), D('G-DM-1', 'บันไดหนีไฟ ST1, ST2')] }
+        D('G-DMC-4', 'IT Room'), D('G-DMC-5', 'หน้าลิฟต์ Fire Man (กำลังติดตั้ง)', true), D('G-DM-1', 'บันไดหนีไฟ ST1, ST2')] }
     ] },
     { id: 'svc', name: 'อาคารบริการ', floors: [
       { id: 'ตึกบริการ 4', label: 'ชั้น 4', doors: [D('4S-DMC-1', 'ENGINEER'), D('4S-DMC-2', 'เครื่องมือแพทย์'), D('4S-DM-1', 'บันได ST5,6')] },
-      { id: 'ตึกบริการ 3', label: 'ชั้น 3', doors: [D('3S-DMC-1', 'สำนักงาน IT'), D('3S-DMC-2', 'SERVER'), D('3S-DMC-3', 'ห้องเก็บของ'), D('3S-DMC-4', 'CAR WASH (รอประตู)'), D('3S-DM-1', 'บันได ST5,6')] },
+      { id: 'ตึกบริการ 3', label: 'ชั้น 3', doors: [D('3S-DMC-1', 'สำนักงาน IT'), D('3S-DMC-2', 'SERVER'), D('3S-DMC-3', 'ห้องเก็บของ'), D('3S-DMC-4', 'CAR WASH (รอประตู)', true), D('3S-DM-1', 'บันได ST5,6')] },
       { id: 'ตึกบริการ 2', label: 'ชั้น 2', doors: [D('2S-DMC-1', 'OFFICE HOSPITAL'), D('2S-DMC-2', 'พื้นที่ส่งของ'), D('2S-DMC-3', 'ห้องเก็บของเวชภัณฑ์'),
         D('2S-DMC-4', 'สำนักงาน'), D('2S-DMC-5', 'คลังยา'), D('2S-DMC-6', 'เก็บน้ำเกลือ'), D('2S-DM-1', 'บันได ST5,6')] },
       { id: 'ตึกบริการ 1', label: 'ชั้น 1', doors: [D('1S-DMC-1', 'CCTV ROOM'), D('1S-DMC-2', 'สำนักงานจ่ายผ้า'), D('1S-DMC-3', 'เก็บศพ'), D('1S-DM-1', 'บันได ST5,6')] }
@@ -52,16 +62,18 @@
       const bad = faults(d);
       (byFloor[f] = byFloor[f] || { n: 0, bad: 0 }).n++;
       if (bad.length) byFloor[f].bad++;
-      if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '' }); e.n++; e.faults = e.faults.concat(bad); if (d.mi_acc_note) e.notes = (e.notes || []).concat(d.mi_acc_note); e.date = r.reportDate || e.date; }
+      if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '', marks: [] }); e.n++; if (d.mi_acc_source === 'admin_map') e.marks.push(r.id); e.faults = e.faults.concat(bad); if (d.mi_acc_note) e.notes = (e.notes || []).concat(d.mi_acc_note); e.date = r.reportDate || e.date; }
     });
     let total = 0, checked = 0, bad = 0;
     const buildings = BUILDINGS.map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => {
       const fl = byFloor[f.id] || { n: 0, bad: 0 };
       const doors = f.doors.map(d => { const e = byDoor[d.code];
-        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '' }; });
-      total += doors.length; checked += Math.min(fl.n, doors.length); bad += fl.bad;
-      return { id: f.id, label: f.label, doors, total: doors.length, checked: fl.n, bad: fl.bad,
-        state: fl.bad ? 'bad' : fl.n >= doors.length ? 'ok' : fl.n ? 'partial' : 'none' };
+        if (d.pending && !e) return { code: d.code, room: d.room, state: 'pending', faults: [], notes: [], date: '', marks: [] };
+        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '', marks: e ? e.marks : [] }; });
+      const live = doors.filter(d => d.state !== 'pending').length;
+      total += live; checked += Math.min(fl.n, live); bad += fl.bad;
+      return { id: f.id, label: f.label, doors, total: live, checked: fl.n, bad: fl.bad,
+        state: fl.bad ? 'bad' : fl.n >= live ? 'ok' : fl.n ? 'partial' : 'none' };
     }) }));
     return { buildings, total, checked, bad };
   }
