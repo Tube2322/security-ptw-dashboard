@@ -31,7 +31,7 @@
 <script src="./soc-export.js?v=20261121d"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
-<script src="./soc-acc.js?v=20261124a"></script>
+<script src="./soc-acc.js?v=20261124b"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -6466,8 +6466,8 @@ class Component extends DCLogic {
       summary: m ? mName(m) + ' · ตรวจแล้ว ' + v.checked + ' จาก ' + v.total + ' ประตูตามทะเบียน' + (v.bad ? ' · ผิดปกติ ' + v.bad : '') : 'ยังไม่มีการตรวจ',
       buildings: v.buildings.map(b => ({ name: b.name, floors: b.floors.map(f => ({ label: f.label,
         count: f.checked + '/' + f.total, bg: C[f.state][0], border: C[f.state][1], fg: C[f.state][2],
-        doors: f.doors.map(d => ({ code: d.code, room: d.room || '—', bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
-          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว' : '') })) })) }))
+        doors: f.doors.map(d => ({ code: d.code, room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? '✓ ' + (d.room || 'ตรวจแล้ว') + (d.notes.length ? ' · ' + d.notes.join(', ') : '') : (d.room || '—'), bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
+          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : ' · ยังไม่ตรวจ') })) })) }))
     };
   }
   buildCctvAdmin() {

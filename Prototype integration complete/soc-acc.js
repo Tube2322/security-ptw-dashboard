@@ -52,20 +52,26 @@
       const bad = faults(d);
       (byFloor[f] = byFloor[f] || { n: 0, bad: 0 }).n++;
       if (bad.length) byFloor[f].bad++;
-      if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '' }); e.n++; e.faults = e.faults.concat(bad); e.date = r.reportDate || e.date; }
+      if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '' }); e.n++; e.faults = e.faults.concat(bad); if (d.mi_acc_note) e.notes = (e.notes || []).concat(d.mi_acc_note); e.date = r.reportDate || e.date; }
     });
     let total = 0, checked = 0, bad = 0;
     const buildings = BUILDINGS.map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => {
       const fl = byFloor[f.id] || { n: 0, bad: 0 };
       const doors = f.doors.map(d => { const e = byDoor[d.code];
-        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], date: e ? e.date : '' }; });
+        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '' }; });
       total += doors.length; checked += Math.min(fl.n, doors.length); bad += fl.bad;
       return { id: f.id, label: f.label, doors, total: doors.length, checked: fl.n, bad: fl.bad,
         state: fl.bad ? 'bad' : fl.n >= doors.length ? 'ok' : fl.n ? 'partial' : 'none' };
     }) }));
     return { buildings, total, checked, bad };
   }
-  const api = { BUILDINGS, doorOptions, monthView };
+  /* the doors of one floor (the form's floor value: 'G', '1'…'7', 'ตึกบริการ 1'…) as form options */
+  function doorsFor(floorId) {
+    const id = String(floorId || '').trim();
+    for (const b of BUILDINGS) for (const f of b.floors) if (f.id === id) return f.doors.map(d => d.code + (d.room ? ' · ' + d.room : ''));
+    return [];
+  }
+  const api = { BUILDINGS, doorOptions, doorsFor, monthView };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SOCAcc = api;
 })(typeof window !== 'undefined' ? window : globalThis);
