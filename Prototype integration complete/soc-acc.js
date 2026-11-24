@@ -81,8 +81,8 @@
     const buildings = register().map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => {
       const fl = byFloor[f.id] || { n: 0, bad: 0 };
       const doors = f.doors.map(d => { const e = byDoor[d.code];
-        if (d.pending && !e) return { code: d.code, room: d.room, state: 'pending', faults: [], notes: [], date: '', marks: [] };
-        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '', marks: e ? e.marks : [] }; });
+        if (d.pending && !e) return { code: d.code, room: d.room, added: !!d.added, state: 'pending', faults: [], notes: [], date: '', marks: [] };
+        return { code: d.code, room: d.room, added: !!d.added, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '', marks: e ? e.marks : [] }; });
       const live = doors.filter(d => d.state !== 'pending').length;
       total += live; checked += Math.min(fl.n, live); bad += fl.bad;
       return { id: f.id, label: f.label, doors, total: live, checked: fl.n, bad: fl.bad,
