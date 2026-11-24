@@ -13,8 +13,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261121f"></script>
-<script src="./soc-acc.js?v=20261124f"></script>
+<script src="./soc-core.js?v=20261125a"></script>
+<script src="./soc-acc.js?v=20261125a"></script>
 <style>
   :root {
     --bg: #f4faf6; --panel: rgba(15,70,40,0.045); --panel-2: rgba(15,70,40,0.08);
@@ -1039,6 +1039,7 @@ class Component extends DCLogic {
     /* ACC: the door list follows the floor picked above it (register in soc-acc.js) */
     if (f.fieldId === 'mi_acc_door' && window.SOCAcc) {
       const fl = this.state.values.mi_acc_floor;
+      window.SOCAcc.setOverrides((this.core().getPortal() || {}).accDoors);
       f = Object.assign({}, f, { options: fl ? window.SOCAcc.doorsFor(fl) : [], placeholder: fl ? 'เลือกประตู' : 'เลือกชั้นก่อน' });
     }
     const core = this.core();

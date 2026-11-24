@@ -43,6 +43,19 @@
       { id: 'ตึกบริการ 1', label: 'ชั้น 1', doors: [D('1S-DMC-1', 'CCTV ROOM'), D('1S-DMC-2', 'สำนักงานจ่ายผ้า'), D('1S-DMC-3', 'เก็บศพ'), D('1S-DM-1', 'บันได ST5,6')] }
     ] }
   ];
+  /* Admin edits on top of the built-in register (portal_settings.acc_doors):
+     { added: [{ floor, code, room }], removed: [code], rooms: { code: room } }. The map, the form's door list
+     and the Excel all read register(), so they always agree. */
+  let OVR = {};
+  function setOverrides(o) { OVR = o && typeof o === 'object' ? o : {}; }
+  function register() {
+    const removed = new Set((OVR.removed || []).map(c => String(c).toUpperCase()));
+    const rooms = OVR.rooms || {};
+    return BUILDINGS.map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => ({ id: f.id, label: f.label,
+      doors: f.doors.filter(d => !removed.has(d.code)).map(d => Object.assign({}, d, rooms[d.code] != null ? { room: rooms[d.code] } : {}))
+        .concat((OVR.added || []).filter(a => a.floor === f.id && !removed.has(String(a.code).toUpperCase()))
+          .map(a => ({ code: String(a.code).toUpperCase(), room: rooms[String(a.code).toUpperCase()] != null ? rooms[String(a.code).toUpperCase()] : (a.room || ''), pending: false, added: true }))) })) }));
+  }
   /* answers that mean the door is fine; anything else on a record is a fault */
   const OK = { mi_acc_reader_status: 'ปกติ', mi_acc_electric_lock: 'ปกติ', mi_acc_magnet: 'ปกติ', mi_acc_alarm_light: 'มีไฟแจ้งเตือน',
     mi_acc_lock_status: 'ล็อคปกติ', mi_acc_sensor_box: 'ใช้ได้ปกติ', mi_acc_emergency_release: 'ปกติ' };
@@ -50,7 +63,7 @@
   const codeOf = (v) => String(v || '').split('·')[0].trim().toUpperCase();
   function doorOptions() {
     const out = [];
-    BUILDINGS.forEach(b => b.floors.forEach(f => f.doors.forEach(d => out.push(d.code + (d.room ? ' · ' + d.room : '')))));
+    register().forEach(b => b.floors.forEach(f => f.doors.forEach(d => out.push(d.code + (d.room ? ' · ' + d.room : '')))));
     return out;
   }
   /* recs: the month's ACC records ({ data }). Returns buildings → floors → doors with a state each
@@ -65,7 +78,7 @@
       if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '', marks: [] }); e.n++; if (d.mi_acc_source === 'admin_map') e.marks.push(r.id); e.faults = e.faults.concat(bad); if (d.mi_acc_note) e.notes = (e.notes || []).concat(d.mi_acc_note); e.date = r.reportDate || e.date; }
     });
     let total = 0, checked = 0, bad = 0;
-    const buildings = BUILDINGS.map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => {
+    const buildings = register().map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => {
       const fl = byFloor[f.id] || { n: 0, bad: 0 };
       const doors = f.doors.map(d => { const e = byDoor[d.code];
         if (d.pending && !e) return { code: d.code, room: d.room, state: 'pending', faults: [], notes: [], date: '', marks: [] };
@@ -80,10 +93,10 @@
   /* the doors of one floor (the form's floor value: 'G', '1'…'7', 'ตึกบริการ 1'…) as form options */
   function doorsFor(floorId) {
     const id = String(floorId || '').trim();
-    for (const b of BUILDINGS) for (const f of b.floors) if (f.id === id) return f.doors.map(d => d.code + (d.room ? ' · ' + d.room : ''));
+    for (const b of register()) for (const f of b.floors) if (f.id === id) return f.doors.map(d => d.code + (d.room ? ' · ' + d.room : ''));
     return [];
   }
-  const api = { BUILDINGS, doorOptions, doorsFor, monthView };
+  const api = { BUILDINGS, doorOptions, doorsFor, monthView, setOverrides, register };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SOCAcc = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -379,10 +379,10 @@
     };
   }
   function portalFromRow(r) {
-    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version, hiddenModules: r.hidden_modules || [], openingBalances: r.opening_balances || {}, msFormsForwarding: r.ms_forms_forwarding || {} };
+    return { portalName: r.portal_name, welcomeText: r.welcome_text, slug: r.slug, enabled: !!r.enabled, qrVersion: r.qr_version, hiddenModules: r.hidden_modules || [], openingBalances: r.opening_balances || {}, msFormsForwarding: r.ms_forms_forwarding || {}, accDoors: r.acc_doors || {} };
   }
   function portalToRow(p) {
-    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion, hidden_modules: p.hiddenModules || [], opening_balances: p.openingBalances || {}, ms_forms_forwarding: p.msFormsForwarding || {} };
+    return { id: true, portal_name: p.portalName, welcome_text: p.welcomeText, slug: p.slug, enabled: !!p.enabled, qr_version: p.qrVersion, hidden_modules: p.hiddenModules || [], opening_balances: p.openingBalances || {}, ms_forms_forwarding: p.msFormsForwarding || {}, acc_doors: p.accDoors || {} };
   }
 
   /* ---------- in-memory state — every read method below is synchronous over this ---------- */
