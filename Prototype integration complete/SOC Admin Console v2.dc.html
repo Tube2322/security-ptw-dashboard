@@ -28,10 +28,10 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261124a"></script>
+<script src="./soc-export.js?v=20261124b"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
-<script src="./soc-acc.js?v=20261124b"></script>
+<script src="./soc-acc.js?v=20261124c"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -6470,7 +6470,7 @@ class Component extends DCLogic {
     const mName = (ym) => { const [y, mo] = ym.split('-').map(Number); return TH[mo - 1] + ' ' + (y + 543); };
     const v = A.monthView(all.filter(r => r.reportDate.slice(0, 7) === m));
     const C = { ok: ['rgba(63,191,143,0.14)', 'rgba(63,191,143,0.5)', '#23966c'], bad: ['rgba(209,72,58,0.12)', 'rgba(209,72,58,0.5)', 'var(--danger)'],
-      partial: ['rgba(217,162,27,0.12)', 'rgba(217,162,27,0.5)', '#b7851a'], none: ['var(--panel-2)', 'var(--line)', 'var(--muted)'] };
+      partial: ['rgba(217,162,27,0.12)', 'rgba(217,162,27,0.5)', '#b7851a'], none: ['var(--panel-2)', 'var(--line)', 'var(--muted)'], pending: ['transparent', 'var(--line-2)', 'var(--dim)'] };
     const FL = { ok: 'ตรวจครบ', bad: 'พบผิดปกติ', partial: 'ตรวจบางส่วน', none: 'ยังไม่ตรวจ' };
     return {
       months: months.map(x => ({ label: mName(x), bg: x === m ? 'var(--accent-soft)' : 'var(--panel)', border: x === m ? 'var(--accent-line)' : 'var(--line)',
@@ -6480,7 +6480,7 @@ class Component extends DCLogic {
       buildings: v.buildings.map(b => ({ name: b.name, floors: b.floors.map(f => ({ label: f.label,
         count: f.checked + '/' + f.total, bg: C[f.state][0], border: C[f.state][1], fg: C[f.state][2],
         doors: f.doors.map(d => ({ code: d.code, room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? '✓ ' + (d.room || 'ตรวจแล้ว') + (d.notes.length ? ' · ' + d.notes.join(', ') : '') : (d.room || '—'), bg: C[d.state][0], border: C[d.state][1], fg: C[d.state][2],
-          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : ' · ยังไม่ตรวจ') })) })) }))
+          title: d.code + (d.room ? ' · ' + d.room : '') + (d.state === 'bad' ? ' · ' + d.faults.concat(d.notes).join(', ') : d.state === 'ok' ? ' · ตรวจแล้ว ' + d.date : d.state === 'pending' ? ' · ยังไม่ติดตั้ง ไม่นับ' : ' · ยังไม่ตรวจ') })) })) }))
     };
   }
   buildCctvAdmin() {
