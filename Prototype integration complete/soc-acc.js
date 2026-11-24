@@ -62,14 +62,14 @@
       const bad = faults(d);
       (byFloor[f] = byFloor[f] || { n: 0, bad: 0 }).n++;
       if (bad.length) byFloor[f].bad++;
-      if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '' }); e.n++; e.faults = e.faults.concat(bad); if (d.mi_acc_note) e.notes = (e.notes || []).concat(d.mi_acc_note); e.date = r.reportDate || e.date; }
+      if (code) { const e = byDoor[code] || (byDoor[code] = { n: 0, faults: [], date: '', marks: [] }); e.n++; if (d.mi_acc_source === 'admin_map') e.marks.push(r.id); e.faults = e.faults.concat(bad); if (d.mi_acc_note) e.notes = (e.notes || []).concat(d.mi_acc_note); e.date = r.reportDate || e.date; }
     });
     let total = 0, checked = 0, bad = 0;
     const buildings = BUILDINGS.map(b => ({ id: b.id, name: b.name, floors: b.floors.map(f => {
       const fl = byFloor[f.id] || { n: 0, bad: 0 };
       const doors = f.doors.map(d => { const e = byDoor[d.code];
-        if (d.pending && !e) return { code: d.code, room: d.room, state: 'pending', faults: [], notes: [], date: '' };
-        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '' }; });
+        if (d.pending && !e) return { code: d.code, room: d.room, state: 'pending', faults: [], notes: [], date: '', marks: [] };
+        return { code: d.code, room: d.room, state: !e ? 'none' : e.faults.length ? 'bad' : 'ok', faults: e ? e.faults : [], notes: e && e.notes || [], date: e ? e.date : '', marks: e ? e.marks : [] }; });
       const live = doors.filter(d => d.state !== 'pending').length;
       total += live; checked += Math.min(fl.n, live); bad += fl.bad;
       return { id: f.id, label: f.label, doors, total: live, checked: fl.n, bad: fl.bad,

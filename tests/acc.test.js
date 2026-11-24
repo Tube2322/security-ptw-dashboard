@@ -56,3 +56,10 @@ test('doors still being installed are shown and offered but not counted until ch
   const found = A.monthView([{ reportDate: '2026-12-01', data: { mi_acc_floor: 'G', mi_acc_door: 'G-DMC-5' } }]).buildings[0].floors.find(f => f.id === 'G');
   assert.strictEqual(found.doors.find(d => d.code === 'G-DMC-5').state, 'ok');
 });
+
+test('a door confirmed on the map is listed as an admin mark (so it can be undone)', () => {
+  const v = A.monthView([{ id: 'x1', reportDate: '2026-11-24', data: { mi_acc_floor: '1', mi_acc_door: '1-DMC-2 · ห้องจัดยา', mi_acc_source: 'admin_map' } }]);
+  const d = v.buildings[0].floors.find(f => f.id === '1').doors.find(x => x.code === '1-DMC-2');
+  assert.strictEqual(d.state, 'ok');
+  assert.deepStrictEqual(d.marks, ['x1']);
+});
