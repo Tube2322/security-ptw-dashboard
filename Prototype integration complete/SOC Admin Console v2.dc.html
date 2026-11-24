@@ -31,7 +31,7 @@
 <script src="./soc-export.js?v=20261124b"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
-<script src="./soc-acc.js?v=20261125a"></script>
+<script src="./soc-acc.js?v=20261125b"></script>
 <style>
   :root {
     --bg: #0b0e13; --bg-2: #0f131a; --panel: #12161d; --panel-2: #191e27;
@@ -1718,14 +1718,15 @@
                   <sc-if value="{{ acc.sel.canUndo }}" hint-placeholder-val="{{ false }}"><button onClick="{{ acc.sel.undo }}" style="min-height: 44px; border-radius: 11px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิกที่ยืนยันในผัง</button></sc-if>
                 </div>
                 <div style="font-size: 11px; color: var(--muted);">บันทึกเป็นผลตรวจของเดือนที่เลือก · ไม่ส่งเข้า MS Forms · ผลจากฟอร์มผู้ตรวจยังอยู่ครบ</div>
-                <details style="border-top: 1px solid var(--line); padding-top: 8px;">
-                  <summary style="cursor: pointer; font-size: 12px; color: var(--muted);">แก้ทะเบียนประตูนี้ (ชื่อห้อง / ลบออกจากผัง)</summary>
+                <div style="border-top: 1px solid var(--line); padding-top: 10px;">
+                  <div style="font-size: 12px; color: var(--muted);">แก้ไขประตูนี้ (รหัส / ชื่อห้อง / ลบออกจากผัง)</div>
                   <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                    <input value="{{ acc.sel.codeDraft }}" onChange="{{ acc.sel.setCode }}" placeholder="รหัสประตู" style="flex: 1 1 140px; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px;">
                     <input value="{{ acc.sel.roomDraft }}" onChange="{{ acc.sel.setRoom }}" placeholder="ชื่อห้อง / จุด" style="flex: 1 1 200px; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px;">
-                    <button onClick="{{ acc.sel.saveRoom }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px;">บันทึกชื่อห้อง</button>
-                    <button onClick="{{ acc.sel.remove }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.45); background: transparent; color: var(--danger); cursor: pointer; font-size: 13px;">ลบประตูนี้ออกจากผัง</button>
+                    <button onClick="{{ acc.sel.saveRoom }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px;">บันทึก</button>
+                    <button onClick="{{ acc.sel.remove }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(209,72,58,0.45); background: transparent; color: var(--danger); cursor: pointer; font-size: 13px;">{{ acc.sel.removeLabel }}</button>
                   </div>
-                </details>
+                </div>
               </section>
               </div>
             </sc-if>
@@ -6586,11 +6587,30 @@ class Component extends DCLogic {
         const ovr = () => JSON.parse(JSON.stringify(core.getPortal().accDoors || {}));
         const saveOvr = (o, msg) => { core.setPortal({ accDoors: o }); this.flash(msg); };
         return { code: door.code, room: door.room || '', where: bname + ' · ' + floor.label,
+          codeDraft: s.accCode != null ? s.accCode : door.code, setCode: (e) => this.setState({ accCode: e.target.value }),
           roomDraft: s.accRoom != null ? s.accRoom : (door.room || ''), setRoom: (e) => this.setState({ accRoom: e.target.value }),
-          saveRoom: () => { const o = ovr(); o.rooms = o.rooms || {}; o.rooms[door.code] = String(s.accRoom != null ? s.accRoom : door.room || '').trim();
-            saveOvr(o, '✓ แก้ชื่อห้อง ' + door.code); this.setState({ accRoom: null }); },
-          remove: () => { if (!window.confirm('ลบ ' + door.code + ' ออกจากผัง?\n\nผลตรวจเก่าของประตูนี้ยังเก็บไว้ ไม่หาย และเพิ่มกลับได้ภายหลัง')) return;
-            const o = ovr(); o.removed = [...new Set((o.removed || []).concat([door.code]))]; saveOvr(o, 'ลบ ' + door.code + ' ออกจากผังแล้ว'); this.setState({ accSel: null }); },
+          /* save the door's code and room. A new code = the old code leaves the map and the new one takes its
+             place on the same floor (results filed under the old code stay with the old code). */
+          saveRoom: () => {
+            const o = ovr(), room = String(s.accRoom != null ? s.accRoom : door.room || '').trim();
+            const code = String(s.accCode != null ? s.accCode : door.code).trim().toUpperCase();
+            if (!code) { this.flash('ใส่รหัสประตู', 'var(--warn)'); return; }
+            o.rooms = o.rooms || {};
+            if (code !== door.code) {
+              const taken = A.register().some(b => b.floors.some(f => f.doors.some(d => d.code === code)));
+              if (taken) { this.flash('รหัส ' + code + ' มีในผังแล้ว', 'var(--warn)'); return; }
+              o.added = (o.added || []).filter(a => a.code !== door.code).concat([{ floor: floor.id, code, room }]);
+              if (!(door.added)) o.removed = [...new Set((o.removed || []).concat([door.code]))];
+              o.removed = (o.removed || []).filter(c => c !== code);
+              delete o.rooms[door.code];
+            }
+            o.rooms[code] = room;
+            saveOvr(o, '✓ บันทึก ' + code); this.setState({ accRoom: null, accCode: null, accSel: { code, floor: floor.id } }); },
+          /* two taps instead of window.confirm(), which some in-app browsers suppress (it then returns false) */
+          removeLabel: s.accDelArm === door.code ? 'แตะอีกครั้งเพื่อยืนยันลบ' : 'ลบประตูนี้ออกจากผัง',
+          remove: () => { if (s.accDelArm !== door.code) { this.setState({ accDelArm: door.code }); return; }
+            const o = ovr(); o.added = (o.added || []).filter(x => x.code !== door.code); if (!door.added) o.removed = [...new Set((o.removed || []).concat([door.code]))];
+            saveOvr(o, 'ลบ ' + door.code + ' ออกจากผังแล้ว · ผลตรวจเก่ายังเก็บไว้'); this.setState({ accSel: null, accDelArm: null }); },
           status: door.state === 'ok' ? 'ตรวจแล้ว ' + door.date + (door.notes.length ? ' · ' + door.notes.join(', ') : '') : door.state === 'bad' ? 'พบผิดปกติ: ' + door.faults.concat(door.notes).join(', ') : door.state === 'pending' ? 'ยังไม่ติดตั้ง / ไม่นับ — กดยืนยันได้ถ้าเจอประตูจริง' : 'ยังไม่มีผลตรวจเดือนนี้',
           fg: C[door.state][2], note: s.accNote || '', setNote: (e) => this.setState({ accNote: e.target.value }),
           markOk: () => save(false), markBad: () => save(true), canUndo: (door.marks || []).length > 0,
@@ -6628,7 +6648,7 @@ class Component extends DCLogic {
               const on = s.accSel && s.accSel.code === d.code;
               const DOT = { ok: ['#3fbf8f', 'none'], bad: ['#d1483a', 'none'], none: ['var(--line-2)', 'none'], pending: ['transparent', '1px dashed var(--dim)'] }[d.state];
               const BG = { ok: 'rgba(63,191,143,0.07)', bad: 'rgba(209,72,58,0.07)', none: 'var(--panel)', pending: 'transparent' }[d.state];
-              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '', accRoom: null, accAdd: null }); },
+              return { pick: () => { this.setState({ accSel: { code: d.code, floor: f.id }, accNote: '', accRoom: null, accCode: null, accDelArm: null, accAdd: null }); },
                 code: d.code, dot: DOT[0], dotBorder: DOT[1], bg: BG, fg: d.state === 'bad' ? 'var(--danger)' : 'var(--text)',
                 ring: on ? '2px solid var(--accent)' : (d.state === 'pending' ? '1px dashed var(--line-2)' : '1px solid var(--line)'),
                 room: d.state === 'bad' ? '⚠ ' + d.faults.concat(d.notes).join(', ') : (d.room || '—') + (d.state === 'ok' && d.notes.length ? ' · ' + d.notes.join(', ') : ''),
