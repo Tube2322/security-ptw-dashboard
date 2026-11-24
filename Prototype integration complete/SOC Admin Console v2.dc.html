@@ -28,7 +28,7 @@
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261121d"></script>
+<script src="./soc-export.js?v=20261124a"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
 <script src="./soc-cctv.js?v=20261121a"></script>
 <script src="./soc-acc.js?v=20261124b"></script>
@@ -1666,7 +1666,10 @@
               <span style="font-size: 12px; color: var(--muted); margin-right: 2px;">เดือน</span>
               <sc-for list="{{ acc.months }}" as="am" hint-placeholder-count="3"><button onClick="{{ am.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 99px; cursor: pointer; font-size: 13px; border: 1px solid {{ am.border }}; background: {{ am.bg }}; color: {{ am.fg }};">{{ am.label }}</button></sc-for>
             </div>
-            <div style="font-size: 14px; font-weight: 600;">{{ acc.summary }}</div>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between;">
+              <div style="font-size: 14px; font-weight: 600;">{{ acc.summary }}</div>
+              <button onClick="{{ acc.goExport }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;">⬇ ส่งออก Excel</button>
+            </div>
             <div style="display: flex; flex-wrap: wrap; gap: 10px 16px; font-size: 12px; color: var(--muted);">
               <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(63,191,143,0.5); margin-right: 5px;"></span>ตรวจครบ</span>
               <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: rgba(217,162,27,0.5); margin-right: 5px;"></span>ตรวจบางส่วน</span>
@@ -5436,7 +5439,16 @@ class Component extends DCLogic {
         return ws;
       };
       let count = 0, file = '';
-      if (kind === 'x_cctv') {
+      if (kind === 'x_acc') {
+        /* one floor-summary + door-list pair per month in the period, newest first */
+        await core.ensureAll();
+        const recs = core.allRecords().filter(r => r.module === 'monthly_inspection_acc_door' && inRange(r.reportDate));
+        const TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const months = [...new Set(recs.map(r => r.reportDate.slice(0, 7)))].sort().reverse();
+        count = window.SOCExport.accWorkbook({ sheet, views: months.map(m => { const [y, mo] = m.split('-').map(Number);
+          return { label: TH[mo - 1] + ' ' + String(y + 543).slice(2), view: window.SOCAcc.monthView(recs.filter(r => r.reportDate.slice(0, 7) === m)) }; }) });
+        file = 'ผังประตู ACC';
+      } else if (kind === 'x_cctv') {
         /* read the whole period (plus two months before it for the carried-forward column), so any
            past month exports in full however much history has piled up */
         const pre = b.from ? this.pdfShiftDay(b.from, -62) : '';
@@ -6463,6 +6475,7 @@ class Component extends DCLogic {
     return {
       months: months.map(x => ({ label: mName(x), bg: x === m ? 'var(--accent-soft)' : 'var(--panel)', border: x === m ? 'var(--accent-line)' : 'var(--line)',
         fg: x === m ? 'var(--accent)' : 'var(--text)', pick: () => this.setState({ accMonth: x }) })),
+      goExport: () => { this.go('pdf'); this.setState({ pdfModule: 'x_acc', pdfPeriod: 'month', pdfPeriodYear: m ? +m.slice(0, 4) : s.pdfPeriodYear, pdfPeriodMonth: m ? +m.slice(5, 7) - 1 : s.pdfPeriodMonth }); },
       summary: m ? mName(m) + ' · ตรวจแล้ว ' + v.checked + ' จาก ' + v.total + ' ประตูตามทะเบียน' + (v.bad ? ' · ผิดปกติ ' + v.bad : '') : 'ยังไม่มีการตรวจ',
       buildings: v.buildings.map(b => ({ name: b.name, floors: b.floors.map(f => ({ label: f.label,
         count: f.checked + '/' + f.total, bg: C[f.state][0], border: C[f.state][1], fg: C[f.state][2],
@@ -7773,7 +7786,7 @@ class Component extends DCLogic {
     const builderGroupId = (core.module(s.builderModule) || {}).group || null;
     const pdfInfo = this.pdfRecords();
     const pdfKpis = this.pdfSummary(pdfInfo.recs);
-    const pdfMod = s.pdfModule === 'overview' ? { name: 'ภาพรวม (All Operations)', en: 'All-Operations' } : (core.module(s.pdfModule) || { x_cctv: { name: 'ตรวจกล้องประจำสัปดาห์', en: 'Weekly CCTV' }, x_repairs: { name: 'งานซ่อม', en: 'Repairs' } }[s.pdfModule] || {});
+    const pdfMod = s.pdfModule === 'overview' ? { name: 'ภาพรวม (All Operations)', en: 'All-Operations' } : (core.module(s.pdfModule) || { x_cctv: { name: 'ตรวจกล้องประจำสัปดาห์', en: 'Weekly CCTV' }, x_repairs: { name: 'งานซ่อม', en: 'Repairs' }, x_acc: { name: 'ผังประตู ACC', en: 'ACC-Doors' } }[s.pdfModule] || {});
     const pdfBlocks = this.pdfBuildBlocks(pdfInfo.recs);
     const pdfTheme = this.pdfThemeObj();
     const pdfOrientation = this.pdfOrientation();
@@ -8316,7 +8329,7 @@ class Component extends DCLogic {
         return [
           { label: 'ภาพรวม & ฟอร์มรายวัน', items: [chip('overview', 'ภาพรวมทั้งหมด')].concat(core.topLevelModules().map(m => chip(m.id, m.name))) },
           { label: 'ตรวจประจำเดือน', items: core.MODULES.filter(m => m.group).map(m => chip(m.id, m.name)) },
-          { label: 'ระบบอื่น (Excel)', items: [chip('x_cctv', 'ตรวจกล้องประจำสัปดาห์'), chip('x_repairs', 'งานซ่อม')] }
+          { label: 'ระบบอื่น (Excel)', items: [chip('x_cctv', 'ตรวจกล้องประจำสัปดาห์'), chip('x_repairs', 'งานซ่อม'), chip('x_acc', 'ผังประตู ACC')] }
         ];
       })(),
       exportFilterGroups: this.exportFilterDefs(s.pdfModule).map(g => {
@@ -8334,11 +8347,11 @@ class Component extends DCLogic {
       exportIsPdf: !/^x_/.test(s.pdfModule) && (s.exportFormat || 'pdf') === 'pdf',
       exportSummary: (() => {
         const n = this.exportFilterDefs(s.pdfModule).filter(g => this.exportPick(g.key)).length;
-        const name = s.pdfModule === 'overview' ? 'ภาพรวมทั้งหมด' : s.pdfModule === 'x_cctv' ? 'ตรวจกล้องประจำสัปดาห์' : s.pdfModule === 'x_repairs' ? 'งานซ่อม' : (core.module(s.pdfModule) || {}).name || '';
+        const name = s.pdfModule === 'overview' ? 'ภาพรวมทั้งหมด' : s.pdfModule === 'x_cctv' ? 'ตรวจกล้องประจำสัปดาห์' : s.pdfModule === 'x_repairs' ? 'งานซ่อม' : s.pdfModule === 'x_acc' ? 'ผังประตู ACC' : (core.module(s.pdfModule) || {}).name || '';
         return { topic: name, period: this.pdfRecords().label, filters: n ? 'กรอง ' + n + ' เงื่อนไข' : '' };
       })(),
       pdfModules: [{ id: 'overview', name: 'ภาพรวม (All Operations)' }].concat(core.MODULES)
-        .concat([{ id: 'x_cctv', name: 'ตรวจกล้องประจำสัปดาห์' }, { id: 'x_repairs', name: 'งานซ่อม' }]).map(m => ({
+        .concat([{ id: 'x_cctv', name: 'ตรวจกล้องประจำสัปดาห์' }, { id: 'x_repairs', name: 'งานซ่อม' }, { id: 'x_acc', name: 'ผังประตู ACC' }]).map(m => ({
         label: m.id === 'overview' ? '' + m.name : m.name,
         border: s.pdfModule === m.id ? 'var(--accent-line)' : 'var(--line)',
         bg: s.pdfModule === m.id ? 'var(--accent-soft)' : 'transparent',
