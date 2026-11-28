@@ -21,16 +21,16 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <script src="./vendor/supabase.min.js"></script>
 <script src="./soc-config.js"></script>
-<script src="./soc-core.js?v=20261125a"></script>
+<script src="./soc-core.js?v=20261128a"></script>
 <script src="./kpi-core.js?v=20260920a"></script>
 <script src="./vendor/html2canvas.min.js"></script>
 <script src="./vendor/jspdf.umd.min.js"></script>
 <script src="./vendor/qrcode.min.js"></script>
 <script src="./vendor/exceljs.min.js"></script>
 <script src="./vendor/echarts.min.js"></script>
-<script src="./soc-export.js?v=20261124b"></script>
+<script src="./soc-export.js?v=20261128a"></script>
 <script src="./soc-charts.js?v=20261121a"></script>
-<script src="./soc-cctv.js?v=20261121a"></script>
+<script src="./soc-cctv.js?v=20261128a"></script>
 <script src="./soc-acc.js?v=20261125b"></script>
 <style>
   :root {
@@ -1357,7 +1357,40 @@
                   </sc-for>
                   <span style="margin-left: auto; font-size: 13px; color: var(--muted);">{{ cctv.lastText }}</span>
                   <button onClick="{{ cctv.goExport }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500;" style-hover="background: rgba(70,200,216,0.24);">⬇ ส่งออก Excel</button>
+                  <label style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent-line); background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; font-weight: 500;">⬆ นำเข้าไฟล์จาก NVR
+                    <input type="file" accept=".xlsx" onChange="{{ cctv.imp.pick }}" style="display: none;">
+                  </label>
                 </div>
+                <sc-if value="{{ cctv.imp.show }}" hint-placeholder-val="{{ false }}">
+                  <div onClick="{{ cctv.imp.cancel }}" style="position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,0.45); display: flex; align-items: center; justify-content: center; padding: 16px;">
+                    <section role="dialog" aria-modal="true" onClick="{{ cctv.imp.stop }}" style="width: min(520px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; border: 1px solid var(--accent-line); border-radius: 18px; background: var(--panel); box-shadow: 0 24px 60px -20px rgba(0,0,0,0.5); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+                      <b style="font-size: 15px; word-break: break-all;">{{ cctv.imp.title }}</b>
+                      <span style="font-size: 13px; color: var(--muted);">ผลจากระบบ วันที่ {{ cctv.imp.date }}</span>
+                      <sc-for list="{{ cctv.imp.rows }}" as="r" hint-placeholder-count="6">
+                        <div style="display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--panel-2); font-size: 13px;"><b>{{ r.label }}</b><span style="text-align: right;">{{ r.text }}</span></div>
+                      </sc-for>
+                      <sc-if value="{{ cctv.imp.hasBroken }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size: 13px; color: var(--danger);">กล้องเสีย:
+                          <sc-for list="{{ cctv.imp.broken }}" as="b" hint-placeholder-count="2"><div>• {{ b }}</div></sc-for>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ cctv.imp.warn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: #b7851a;">{{ cctv.imp.warn }}</div></sc-if>
+                      <b style="font-size: 13px; margin-top: 4px;">ตรวจเอง (จดจากหน้าจอ NVR) · จำนวนวัน</b>
+                      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                        <sc-for list="{{ cctv.imp.hand }}" as="h" hint-placeholder-count="6">
+                          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">{{ h.label }}
+                            <input inputmode="numeric" value="{{ h.value }}" onChange="{{ h.set }}" placeholder="วัน" style="min-height: 40px; min-width: 0; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 14px;">
+                          </label>
+                        </sc-for>
+                      </div>
+                      <span style="font-size: 11px; color: var(--dim);">เว้นว่าง NVR ที่ไม่ได้จด · ถ้าวันนี้นำเข้าไฟล์ไปแล้ว ยังบันทึกเฉพาะตรวจเองได้</span>
+                      <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button onClick="{{ cctv.imp.cancel }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิก</button>
+                        <button onClick="{{ cctv.imp.save }}" disabled="{{ cctv.imp.noSave }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; font-weight: 600;">{{ cctv.imp.saveLabel }}</button>
+                      </div>
+                    </section>
+                  </div>
+                </sc-if>
 
                 <!-- what needs attention, in words -->
                 <sc-if value="{{ cctv.hasIssues }}" hint-placeholder-val="{{ false }}">
@@ -6663,9 +6696,12 @@ class Component extends DCLogic {
     const empty = { loading: !s.cctvLoaded, ready: false, error: s.cctvError || '', stats: [], issues: [], tabs: [], panels: [], legend: [], week: { nvrs: [] } };
     if (!s.cctvLoaded || s.cctvError) return empty;
     const cams = s.cctvCams || [], allChecks = s.cctvChecks || [];
-    /* weeks close on Saturday; one button per week with a check (latest by default) */
-    const satOf = (day) => { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + (6 - d.getDay()));
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    /* one button per check round (latest by default): a round starts on its first check day and takes
+       checks within 4 days, so a Sunday check is not merged into the next Saturday's */
+    const rounds = {}; let rStart = '';
+    [...new Set(allChecks.filter(c => c.source !== 'excel').map(c => c.check_date))].sort().forEach(d => {
+      if (!rStart || (new Date(d) - new Date(rStart)) / 86400000 >= 4) rStart = d; rounds[d] = rStart; });
+    const satOf = (day) => rounds[day];
     const weekKeys = [...new Set(allChecks.filter(c => c.source !== 'excel').map(c => satOf(c.check_date)))].sort();
     const wkSel = weekKeys.includes(s.cctvWeek) ? s.cctvWeek : weekKeys[weekKeys.length - 1];
     /* only that week's checks, so each week stands on its own */
@@ -6780,8 +6816,46 @@ class Component extends DCLogic {
     /* exporting lives on the Report Export page (one place, one column set): this button only
        opens it with the weekly-CCTV topic already picked */
     const goExport = () => { this.go('pdf'); this.setState({ pdfModule: 'x_cctv' }); };
+    /* upload the NVR's Recording Status Log (.xlsx): parsed in the page, shown for a check, then filed */
+    const ip = s.cctvImp;
+    const imp = {
+      pick: (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+        f.arrayBuffer().then(buf => { const wb = new ExcelJS.Workbook(); return wb.xlsx.load(buf).then(() => wb); }).then(wb => {
+          const rows = []; wb.worksheets[0].eachRow(r => rows.push(r.values.slice(1).map(v => v && typeof v === 'object' ? (v.text || v.result || String(v)) : v)));
+          const p = R.parseLog(rows, cams);
+          if (!p.date || !p.checks.length) { this.flash('ไฟล์นี้ไม่ใช่ Recording Status Log จาก NVR', 'var(--warn)'); return; }
+          const dup = allChecks.some(c => c.source === 'nvr_export' && c.check_date === p.date);
+          this.setState({ cctvImp: Object.assign(p, { file: f.name, dup }) });
+        }).catch(err => this.flash('อ่านไฟล์ไม่ได้: ' + err.message, 'var(--danger)')); },
+      show: !!ip,
+      title: ip ? 'นำเข้า ' + ip.file : '', date: ip ? core.fmtDate(ip.date) : '',
+      rows: ip ? ip.checks.map(c => { const d = [...new Set(c.items.filter(i => i.ok).map(i => i.days))].sort((a, b) => a - b);
+        return { label: 'NVR ' + c.nvr, text: c.items.length + ' กล้อง · ' + d.join(' / ') + ' วัน' + (c.items.some(i => !i.ok) ? ' · เสีย ' + c.items.filter(i => !i.ok).length : '') }; }) : [],
+      broken: ip ? ip.broken : [], hasBroken: !!(ip && ip.broken.length),
+      warn: ip ? [ip.dup ? 'วันที่นี้นำเข้าไฟล์ไปแล้ว — ไม่บันทึกไฟล์ซ้ำ' : '', ip.missing.length ? 'ไม่พบในไฟล์ ' + ip.missing.length + ' กล้อง: ' + ip.missing.join(', ') : '',
+        ip.extra.length ? 'ในไฟล์แต่ไม่มีในทะเบียน ' + ip.extra.length + ': ' + ip.extra.join(', ') : ''].filter(Boolean).join(' · ') : '',
+      /* hand-noted days per NVR (read off each NVR's screen), filed with the file as the "ตรวจเอง" check */
+      hand: [1, 2, 3, 4, 5, 6].map(n => ({ label: 'NVR ' + n, value: (s.cctvImpHand || {})[n] || '',
+        set: (e) => this.setState({ cctvImpHand: Object.assign({}, s.cctvImpHand, { [n]: e.target.value.replace(/\D/g, '') }) }) })),
+      noSave: !(ip && !s.cctvImpBusy && (!ip.dup || Object.values(s.cctvImpHand || {}).some(Boolean))),
+      saveLabel: s.cctvImpBusy ? 'กำลังบันทึก…' : 'บันทึกเข้าระบบ',
+      save: () => { if (!ip || s.cctvImpBusy) return;
+        const H = s.cctvImpHand || {}, hand = ip.checks.filter(c => +H[c.nvr] > 0);
+        if (ip.dup && !hand.length) return;
+        this.setState({ cctvImpBusy: true });
+        (ip.dup ? Promise.resolve('') : core.cctvImport(ip.checks)).then(err => {
+          if (err) return err;
+          return hand.reduce((p, c) => p.then(e => e || core.cctvSubmit(ip.date, c.nvr, 'กรอกมือ (จดจากหน้าจอ NVR)',
+            c.items.map(i => ({ name: i.name, days: +H[c.nvr], ok: true })))), Promise.resolve(''));
+        }).then(err => { this.setState({ cctvImpBusy: false });
+          if (err) { this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); this.loadCctv(); return; }
+          this.flash('✓ บันทึก ' + core.fmtDate(ip.date) + (ip.dup ? '' : ' · ผลจากระบบ') + (hand.length ? ' · ตรวจเอง ' + hand.length + ' NVR' : ''), 'var(--ok)');
+          this.setState({ cctvImp: null, cctvImpHand: null, cctvWeek: null }); this.loadCctv(); }); },
+      cancel: () => this.setState({ cctvImp: null, cctvImpHand: null }),
+      stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); }
+    };
     return {
-      goExport,
+      goExport, imp,
       loading: false, ready: true, error: '', stats, tabs, panels, detail, noMatch: panels.length === 0, week,
       issues, hasIssues: issues.length > 0, weeks, totalCams: cams.filter(c => state(c) !== 'bad').length + '/' + cams.length, issueCount: (() => { const nb = cams.filter(c => state(c) === 'bad').length, ns = cams.filter(c => state(c) === 'short').length; return (nb ? 'มีกล้องเสียใช้งานไม่ได้ จำนวน ' + nb + ' กล้อง' : '') + (nb && ns ? ' · ' : '') + (ns ? 'กล้องบันทึกขาดวัน จำนวน ' + ns + ' กล้อง' : ''); })(),
       lastText: (() => { const real = checks.find(c => c.source !== 'excel');

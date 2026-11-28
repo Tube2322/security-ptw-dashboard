@@ -46,3 +46,20 @@ test('per-NVR latest check is tracked by source', () => {
   assert.strictEqual(r.nvrFile[1].source, 'nvr_export');
   assert.strictEqual(r.nvrHand[1].source, 'portal');
 });
+
+test('parseLog: Recording Status Log rows become one nvr_export check per NVR, broken cameras noted', () => {
+  const cams = [{ name: 'FD-1-1', nvr: 1 }, { name: 'FD-7-2', nvr: 4 }, { name: 'RF-1-1', nvr: 5 }, { name: 'FD-9-9', nvr: 4 }];
+  const rows = [['Export Time:2026/11/28 16:20:26'], ['Name', 'IP', 'Device'],
+    ['FD-1-1', 'ip', 'NVR1', 's', '2026-10-17', '2026-11-27', '42'],
+    ['FD- 7-2', 'ip', 'NVR4', 's', '2026-03-01', '2026-04-29', '12'],
+    ['RF-1-1', 'ip', 'NVR5', 's', null, null, '0'],
+    ['FD-X-1', 'ip', 'NVR2', 's', '2026-10-17', '2026-11-27', '40']];
+  const p = C.parseLog(rows, cams);
+  assert.strictEqual(p.date, '2026-11-28');
+  assert.deepStrictEqual(p.checks.map(c => c.nvr), [1, 4, 5]);
+  assert.match(p.checks[0].checker, /28\/11 16:20/);
+  const n4 = p.checks[1].items[0];
+  assert.strictEqual(n4.ok, false); assert.match(n4.note, /2026-04-29/);
+  assert.strictEqual(p.checks[2].items[0].note, 'ไม่มีภาพบันทึก (0 วัน)');
+  assert.deepStrictEqual(p.missing, ['FD-9-9']); assert.deepStrictEqual(p.extra, ['X-1']);
+});

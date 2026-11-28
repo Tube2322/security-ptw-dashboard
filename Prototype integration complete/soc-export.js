@@ -22,8 +22,12 @@
     const fN = filters.nvr, fS = filters.src, fSt = filters.st;
     const wantF = !fS || fS.includes('file'), wantH = !fS || fS.includes('hand');
     const MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-    const satOf = (day) => { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + (6 - d.getDay()));
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    /* one sheet per check round: checks within 4 days of the round's first day, keyed by its last day */
+    const roundOf = {}; let grp = [];
+    const close = () => { const last = grp[grp.length - 1]; grp.forEach(d => { roundOf[d] = last; }); grp = []; };
+    [...new Set(checks.map(c => c.check_date))].sort().forEach(d => { if (grp.length && (new Date(d) - new Date(grp[0])) / 86400000 >= 4) close(); grp.push(d); });
+    close();
+    const satOf = (day) => roundOf[day];
     const thDate = (day, short) => { const [y, m, d] = day.split('-').map(Number); return d + ' ' + MON[m - 1] + ' ' + (short ? String(y + 543).slice(2) : y + 543); };
     const weeks = {};
     checks.forEach(ch => { const k = satOf(ch.check_date); (weeks[k] = weeks[k] || []).push(ch); });
@@ -85,7 +89,7 @@
       const sumCams = cams.rows.filter(c => (!fN || fN.includes(String(c.nvr)))).sort((a, c) => a.nvr - c.nvr || a.sort - c.sort).filter(c => {
         if (!fSt || !lastK) return true; const e = maps[lastK].F[c.name] || maps[lastK].H[c.name]; if (!e) return fSt.includes('ยังไม่ตรวจ');
         return fSt.includes(e.it.ok === false ? 'เสีย' : c.capacity && e.it.days < c.capacity ? 'ขาดวัน' : 'ครบ'); });
-      const sHead = ['NVR', 'กล้อง'].concat(baseDay ? ['สัปดาห์ 1' + NL + thDate(baseDay) + ' (' + leadLabel + ')']: [], keys.map((k, i) => 'สัปดาห์ ' + (i + 1 + (baseDay ? 1 : 0)) + NL + 'เสาร์ที่ ' + thDate(k)), ['หมายเหตุ']);
+      const sHead = ['NVR', 'กล้อง'].concat(baseDay ? ['สัปดาห์ 1' + NL + thDate(baseDay) + ' (' + leadLabel + ')']: [], keys.map((k, i) => 'สัปดาห์ ' + (i + 1 + (baseDay ? 1 : 0)) + NL + 'ตรวจ ' + thDate(k)), ['หมายเหตุ']);
       const sRows = sumCams.map(c => {
         const cells = keys.map(k => { const e = maps[k].F[c.name] || maps[k].H[c.name]; return !e ? '' : e.it.ok === false ? 'เสีย' : e.it.days; });
         const lastBad = lastK && (maps[lastK].F[c.name] || {}).it && maps[lastK].F[c.name].it.ok === false;
@@ -120,8 +124,8 @@
           return ['NVR ' + c.nvr, thDate(when)].concat([c.name], wantF ? [!f ? '' : f.it.ok === false ? 'เสีย' : f.it.days] : [],
             wantH ? [!h ? '' : h.it.days] : [], [gap, [f && f.it.note, h && h.it.note].filter(Boolean).join(' / ')]);
         }).filter(Boolean);
-      const ws = sheet('เสาร์ที่ ' + thDate(k, true), head, rows, widths);
-      ws.spliceRows(1, 0, ['รายงานประจำสัปดาห์ เสาร์ที่ ' + thDate(k)]);
+      const ws = sheet('ตรวจ ' + thDate(k, true), head, rows, widths);
+      ws.spliceRows(1, 0, ['รายงานประจำสัปดาห์ ตรวจ ' + thDate(k)]);
       ws.mergeCells(1, 1, 1, head.length);
       ws.getRow(1).font = { bold: true, size: 14 }; ws.getRow(1).fill = { type: 'pattern', pattern: 'none' };
       ws.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };

@@ -33,10 +33,10 @@ test('baseline leads the summary as week 1, each later week a column', () => {
     check('2026-11-14', 'nvr_export', 1, [{ name: 'FD-1-1', days: 32, ok: true }, { name: 'FD-1-2', ok: false, note: 'stopped' }]),
     check('2026-11-14', 'portal', 1, [{ name: 'FD-1-1', days: 33, ok: true }, { name: 'FD-1-2', days: 30, ok: true }])
   ]);
-  assert.deepStrictEqual(wb.worksheets.map(w => w.name), ['สรุปรายเดือน', 'เสาร์ที่ 14 พ.ย. 69']);
+  assert.deepStrictEqual(wb.worksheets.map(w => w.name), ['สรุปรายเดือน', 'ตรวจ 14 พ.ย. 69']);
   const sum = wb.worksheets[0];
   assert.match(values(sum, 2)[2], /สัปดาห์ 1[\s\S]*10 พ.ย. 2569 \(ข้อมูลเดิม\)/);
-  assert.match(values(sum, 2)[3], /สัปดาห์ 2[\s\S]*เสาร์ที่ 14 พ.ย. 2569/);
+  assert.match(values(sum, 2)[3], /สัปดาห์ 2[\s\S]*ตรวจ 14 พ.ย. 2569/);
   assert.deepStrictEqual(values(sum, 3).slice(0, 4), ['NVR 1', 'FD-1-1', 28, 32]);
   /* broken by the recorder: shown broken, its hand reading dropped */
   assert.deepStrictEqual(values(sum, 4).slice(0, 4), ['NVR 1', 'FD-1-2', 28, 'เสีย']);
@@ -49,7 +49,7 @@ test('weekly sheet compares own check with the system reading', () => {
     check('2026-11-14', 'nvr_export', 1, [{ name: 'FD-1-1', days: 32, ok: true }, { name: 'FD-1-2', days: 30, ok: true }]),
     check('2026-11-14', 'portal', 1, [{ name: 'FD-1-1', days: 33, ok: true }, { name: 'FD-1-2', days: 29, ok: true }])
   ]);
-  const wk = wb.getWorksheet('เสาร์ที่ 14 พ.ย. 69');
+  const wk = wb.getWorksheet('ตรวจ 14 พ.ย. 69');
   assert.deepStrictEqual(values(wk, 2), ['NVR', 'วันที่ตรวจ', 'กล้อง', 'ดูย้อนหลังได้ อิงจากระบบ', 'ดูย้อนหลังได้ ที่ตรวจสอบเอง', 'สรุปวันที่หายไป', 'หมายเหตุ']);
   assert.strictEqual(values(wk, 3)[5], 'เกิน 1 วัน (รวมวันนี้)');
   assert.strictEqual(values(wk, 4)[5], 'ขาด 1 วัน');
@@ -70,7 +70,7 @@ test('NVR filter keeps only the chosen recorder', () => {
     check('2026-11-14', 'nvr_export', 1, [{ name: 'FD-1-1', days: 32, ok: true }]),
     check('2026-11-14', 'nvr_export', 2, [{ name: 'FD-2-1', days: 40, ok: true }])
   ], { filters: { nvr: ['2'] } });
-  const wk = wb.getWorksheet('เสาร์ที่ 14 พ.ย. 69');
+  const wk = wb.getWorksheet('ตรวจ 14 พ.ย. 69');
   assert.strictEqual(wk.rowCount, 3);
   assert.strictEqual(values(wk, 3)[2], 'FD-2-1');
 });
@@ -140,4 +140,13 @@ test('filters: visitors by type and parking by column', () => {
   assert.deepStrictEqual([v.data.visitor_general_count, v.data.visitor_contractor_count], [0, 2]);
   const [p] = filterRecords([{ data: { tt_staff_cars: 5, tt_other_cars: 1 } }], ctxOf('traffic_tt', 'parking', { cols: ['tt_staff_cars'] }, { parkingFields: ['tt_staff_cars', 'tt_other_cars'] }));
   assert.deepStrictEqual([p.data.tt_staff_cars, p.data.tt_other_cars], [5, '']);
+});
+
+test('a Sunday check and the next Saturday check are separate rounds', () => {
+  const { wb } = build([
+    check('2026-11-22', 'nvr_export', 1, [{ name: 'FD-1-1', days: 40, ok: true }]),
+    check('2026-11-28', 'nvr_export', 1, [{ name: 'FD-1-1', days: 42, ok: true }])
+  ]);
+  const names = wb.worksheets.map(w => w.name);
+  assert.ok(names.includes('ตรวจ 22 พ.ย. 69') && names.includes('ตรวจ 28 พ.ย. 69'), names.join(','));
 });
