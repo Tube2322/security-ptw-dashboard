@@ -1069,6 +1069,10 @@
       return q.order('check_date', { ascending: false }).order('submitted_at', { ascending: false }).limit(from ? 5000 : 400)
         .then(function (res) { return { error: res.error ? res.error.message : '', rows: res.data || [] }; });
     },
+    /* admin: file the NVR's own recording log (rows built by SOCCctv.parseLog) */
+    cctvImport: function (rows) {
+      return sb.from('cctv_checks').insert(rows).then(function (res) { return res.error ? res.error.message : ''; });
+    },
     cctvSetCapacity: function (name, n) {
       return sb.from('cctv_cameras').update({ capacity: n }).eq('name', name).then(function (res) { return res.error ? res.error.message : ''; });
     },
