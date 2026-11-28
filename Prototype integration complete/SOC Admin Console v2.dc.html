@@ -1375,6 +1375,15 @@
                         </div>
                       </sc-if>
                       <sc-if value="{{ cctv.imp.warn }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: #b7851a;">{{ cctv.imp.warn }}</div></sc-if>
+                      <b style="font-size: 13px; margin-top: 4px;">ตรวจเอง (จดจากหน้าจอ NVR) · จำนวนวัน</b>
+                      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                        <sc-for list="{{ cctv.imp.hand }}" as="h" hint-placeholder-count="6">
+                          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted);">{{ h.label }}
+                            <input inputmode="numeric" value="{{ h.value }}" onChange="{{ h.set }}" placeholder="วัน" style="min-height: 40px; min-width: 0; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 14px;">
+                          </label>
+                        </sc-for>
+                      </div>
+                      <span style="font-size: 11px; color: var(--dim);">เว้นว่าง NVR ที่ไม่ได้จด · ถ้าวันนี้นำเข้าไฟล์ไปแล้ว ยังบันทึกเฉพาะตรวจเองได้</span>
                       <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
                         <button onClick="{{ cctv.imp.cancel }}" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px;">ยกเลิก</button>
                         <button onClick="{{ cctv.imp.save }}" disabled="{{ cctv.imp.noSave }}" style="min-height: 40px; padding: 0 16px; border-radius: 10px; border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; font-weight: 600;">{{ cctv.imp.saveLabel }}</button>
@@ -6823,14 +6832,26 @@ class Component extends DCLogic {
       rows: ip ? ip.checks.map(c => { const d = [...new Set(c.items.filter(i => i.ok).map(i => i.days))].sort((a, b) => a - b);
         return { label: 'NVR ' + c.nvr, text: c.items.length + ' กล้อง · ' + d.join(' / ') + ' วัน' + (c.items.some(i => !i.ok) ? ' · เสีย ' + c.items.filter(i => !i.ok).length : '') }; }) : [],
       broken: ip ? ip.broken : [], hasBroken: !!(ip && ip.broken.length),
-      warn: ip ? [ip.dup ? 'วันที่นี้นำเข้าไฟล์ไปแล้ว — นำเข้าซ้ำไม่ได้' : '', ip.missing.length ? 'ไม่พบในไฟล์ ' + ip.missing.length + ' กล้อง: ' + ip.missing.join(', ') : '',
+      warn: ip ? [ip.dup ? 'วันที่นี้นำเข้าไฟล์ไปแล้ว — ไม่บันทึกไฟล์ซ้ำ' : '', ip.missing.length ? 'ไม่พบในไฟล์ ' + ip.missing.length + ' กล้อง: ' + ip.missing.join(', ') : '',
         ip.extra.length ? 'ในไฟล์แต่ไม่มีในทะเบียน ' + ip.extra.length + ': ' + ip.extra.join(', ') : ''].filter(Boolean).join(' · ') : '',
-      noSave: !(ip && !ip.dup && !s.cctvImpBusy), saveLabel: s.cctvImpBusy ? 'กำลังบันทึก…' : 'บันทึกเข้าระบบ',
-      save: () => { if (!ip || ip.dup || s.cctvImpBusy) return; this.setState({ cctvImpBusy: true });
-        core.cctvImport(ip.checks).then(err => { this.setState({ cctvImpBusy: false });
-          if (err) { this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); return; }
-          this.flash('✓ นำเข้าผลจากระบบ ' + core.fmtDate(ip.date) + ' แล้ว', 'var(--ok)'); this.setState({ cctvImp: null, cctvWeek: null }); this.loadCctv(); }); },
-      cancel: () => this.setState({ cctvImp: null }),
+      /* hand-noted days per NVR (read off each NVR's screen), filed with the file as the "ตรวจเอง" check */
+      hand: [1, 2, 3, 4, 5, 6].map(n => ({ label: 'NVR ' + n, value: (s.cctvImpHand || {})[n] || '',
+        set: (e) => this.setState({ cctvImpHand: Object.assign({}, s.cctvImpHand, { [n]: e.target.value.replace(/\D/g, '') }) }) })),
+      noSave: !(ip && !s.cctvImpBusy && (!ip.dup || Object.values(s.cctvImpHand || {}).some(Boolean))),
+      saveLabel: s.cctvImpBusy ? 'กำลังบันทึก…' : 'บันทึกเข้าระบบ',
+      save: () => { if (!ip || s.cctvImpBusy) return;
+        const H = s.cctvImpHand || {}, hand = ip.checks.filter(c => +H[c.nvr] > 0);
+        if (ip.dup && !hand.length) return;
+        this.setState({ cctvImpBusy: true });
+        (ip.dup ? Promise.resolve('') : core.cctvImport(ip.checks)).then(err => {
+          if (err) return err;
+          return hand.reduce((p, c) => p.then(e => e || core.cctvSubmit(ip.date, c.nvr, 'กรอกมือ (จดจากหน้าจอ NVR)',
+            c.items.map(i => ({ name: i.name, days: +H[c.nvr], ok: true })))), Promise.resolve(''));
+        }).then(err => { this.setState({ cctvImpBusy: false });
+          if (err) { this.flash('บันทึกไม่สำเร็จ: ' + err, 'var(--danger)'); this.loadCctv(); return; }
+          this.flash('✓ บันทึก ' + core.fmtDate(ip.date) + (ip.dup ? '' : ' · ผลจากระบบ') + (hand.length ? ' · ตรวจเอง ' + hand.length + ' NVR' : ''), 'var(--ok)');
+          this.setState({ cctvImp: null, cctvImpHand: null, cctvWeek: null }); this.loadCctv(); }); },
+      cancel: () => this.setState({ cctvImp: null, cctvImpHand: null }),
       stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); }
     };
     return {
